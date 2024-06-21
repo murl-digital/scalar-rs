@@ -1,7 +1,9 @@
 pub use scalar_derive::Document;
+use serde::{Deserialize, Serialize};
 
 pub mod editor_field;
 
+#[derive(Serialize)]
 pub enum EditorType {
     Bool { default: Option<bool> },
     Integer { default: Option<i32> },
@@ -13,18 +15,21 @@ pub enum EditorType {
     DateTime,
 }
 
+#[derive(Serialize)]
 pub struct EditorField {
     name: &'static str,
     placeholder: Option<&'static str>,
     field_type: EditorType,
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct MultiLine(String);
+#[derive(Serialize, Deserialize)]
 pub struct Markdown(String);
 
 pub trait Document {
     fn identifier() -> &'static str;
     fn title() -> &'static str;
 
-    fn editor() -> Vec<EditorField>;
+    fn schema() -> Vec<EditorField>;
 }

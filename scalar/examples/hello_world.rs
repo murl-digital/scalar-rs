@@ -10,5 +10,7 @@ struct Hello {
 }
 
 fn main() {
-    println!("ident: {}", Hello::identifier())
+    println!("ident: {}", Hello::identifier());
+
+    println!("schema: {}", serde_json::to_string_pretty(&Hello::schema()).unwrap())
 }

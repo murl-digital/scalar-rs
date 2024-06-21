@@ -90,7 +90,7 @@ pub fn derive_document(input: TokenStream) -> TokenStream {
 
                 #doc_title
     
-                fn editor() -> Vec<EditorField> {
+                fn schema() -> Vec<EditorField> {
                     vec![
                         #(#fields),*
                     ]
