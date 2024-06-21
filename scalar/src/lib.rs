@@ -18,6 +18,7 @@ pub enum EditorType {
 #[derive(Serialize)]
 pub struct EditorField {
     name: &'static str,
+    title: &'static str,
     placeholder: Option<&'static str>,
     field_type: EditorType,
 }

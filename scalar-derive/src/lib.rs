@@ -16,8 +16,9 @@ struct Document {
 struct FieldInfo {
     ident: Option<syn::Ident>,
     ty: syn::Type,
-    name: Option<String>,
-    placeholder: Option<String>
+    title: Option<String>,
+    placeholder: Option<String>,
+    default: Option<syn::Lit>
 }
 
 #[proc_macro_derive(Document, attributes(document, field))]
@@ -70,13 +71,18 @@ pub fn derive_document(input: TokenStream) -> TokenStream {
     let fields = match struct_fields.iter().map(|field| {
         let field = FieldInfo::from_field(field)?;
         let ty = field.ty;
-        let name = field.name.unwrap_or(field.ident.map(|i| i.to_string().to_case(convert_case::Case::Title)).expect("this shouldn't be a tuple struct!!!!"));
+        let ident = field.ident.map(|i| i.to_string()).expect("this shouldn't be a tuple struct!!!!");
+        let title = field.title.unwrap_or(ident.to_case(convert_case::Case::Title));
         let placeholder = match field.placeholder {
             Some(str) => quote! { Some(#str) },
             None => quote! { None }
         };
+        let default = match field.default {
+            Some(lit) => quote! { Some(#lit) },
+            None => quote! { None::<#ty> }
+        };
         Ok(quote! {
-            #ty::to_editor_field(None, #name, #placeholder)
+            #ty::to_editor_field(#default, #ident, #title, #placeholder)
         })
     }).collect::<core::result::Result<Vec<_>, darling::Error>>() {
         Ok(v) => v,

@@ -3,7 +3,7 @@ use scalar::Document;
 #[derive(Document)]
 #[document(identifier = "mcdonalds sprite")]
 struct Hello {
-    #[field(name = "dragon enjoyer")]
+    #[field(title = "dragon enjoyer", default = "oh my")]
     pub oh_my_goodness: String,
 
     pub wowie: i32
