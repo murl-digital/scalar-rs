@@ -1,7 +1,7 @@
 use convert_case::Casing;
-use darling::{util::Flag, Error, FromDeriveInput, FromField, Result};
+use darling::{Error, FromDeriveInput, FromField};
 use proc_macro::TokenStream;
-use quote::{quote, ToTokens};
+use quote::quote;
 use syn::{parse_macro_input, Data, DeriveInput};
 
 #[derive(FromDeriveInput)]
@@ -26,7 +26,7 @@ pub fn derive_document(input: TokenStream) -> TokenStream {
     let input: DeriveInput = parse_macro_input!(input);
     let document = match Document::from_derive_input(&input) {
         Ok(v) => v,
-        Err(e) => { return TokenStream::from(Error::from(e).write_errors()); }
+        Err(e) => { return TokenStream::from(e.write_errors()); }
     };
     let struct_fields = match input.data {
         Data::Struct(st) => {
@@ -90,18 +90,18 @@ pub fn derive_document(input: TokenStream) -> TokenStream {
     };
 
     let output = quote! {
-        use ::scalar::{EditorField, editor_field::ToEditorField};
-            impl Document for #ident {
-                #doc_identifier
+        impl Document for #ident {
+            #doc_identifier
 
-                #doc_title
-    
-                fn schema() -> Vec<EditorField> {
-                    vec![
-                        #(#fields),*
-                    ]
-                }
+            #doc_title
+
+            fn fields() -> Vec<::scalar::EditorField> {
+                use ::scalar::editor_field::ToEditorField;
+                vec![
+                    #(#fields),*
+                ]
             }
+        }
     };
     output.into()
 }
