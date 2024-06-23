@@ -2,12 +2,14 @@ use scalar::{doc_enum, Document};
 
 #[derive(Document)]
 #[document(identifier = "mcdonalds sprite")]
+#[allow(dead_code)]
 struct Hello {
     #[field(title = "dragon enjoyer", default = "oh my")]
     pub oh_my_goodness: String,
 
     pub wowie: i32,
 
+    #[field(title = "this should still work")]
     pub dang: Test
 }
 

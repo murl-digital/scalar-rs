@@ -1,5 +1,5 @@
 use convert_case::Casing;
-use darling::{Error, FromDeriveInput, FromField, FromVariant};
+use darling::{FromDeriveInput, FromField, FromVariant};
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{parse_macro_input, Data, DeriveInput, Ident};

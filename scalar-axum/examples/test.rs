@@ -1,10 +1,7 @@
-use std::{any::Any, collections::HashMap, sync::Arc};
-
-use axum::{async_trait, routing::post, Json, Router};
+use axum::async_trait;
 use scalar::{nanoid, Document, Item, Utc, DB};
-use scalar_axum::{create, generate_routes, ScalarState};
+use scalar_axum::{generate_routes, ScalarState};
 use serde::{Deserialize, Serialize};
-use tokio::sync::Mutex;
 use tower_http::cors::CorsLayer;
 
 #[derive(Document, Serialize, Deserialize, Clone)]
@@ -19,10 +16,10 @@ struct Test2 {
 }
 
 #[derive(Clone)]
-struct FSDB;
+struct Fsdb;
 
 #[async_trait]
-impl DB for FSDB {
+impl DB for Fsdb {
     async fn create<D: Document + Serialize + Send>(&self, doc: D) -> Result<Item<D>, ()> {
         let now = Utc::now();
         let item = Item {
@@ -52,28 +49,19 @@ impl DB for FSDB {
 
 #[derive(Clone)]
 struct State {
-    db: FSDB
+    db: Fsdb
 }
 
-impl ScalarState<FSDB> for State {
-    fn get_db(&self) -> &FSDB {
+impl ScalarState<Fsdb> for State {
+    fn get_db(&self) -> &Fsdb {
         &self.db
     }
 }
 
-#[axum_macros::debug_handler]
-async fn test_route(state: axum::extract::State<State>, doc: Json<Test>) -> Json<Item<Test>> {
-    let db = state.get_db();
-
-    let item = db.create(doc.0).await.unwrap();
-
-    Json(item)
-}
-
 #[tokio::main]
 async fn main() {
-    let state = State { db: FSDB };
-    let app = generate_routes!(State, FSDB, Test, Test2).with_state(state).layer(CorsLayer::very_permissive());
+    let state = State { db: Fsdb };
+    let app = generate_routes!(State, Fsdb, Test, Test2).with_state(state).layer(CorsLayer::very_permissive());
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
 

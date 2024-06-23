@@ -1,5 +1,5 @@
-use axum::{extract::State, Json, Router};
-use scalar::{nanoid, DateTime, Document, Item, Schema, Utc, DB};
+use axum::{extract::State, Json};
+use scalar::{Document, Item, Schema, DB};
 use serde::{Deserialize, Serialize};
 
 pub trait ScalarState<D> {
