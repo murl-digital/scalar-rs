@@ -1,14 +1,26 @@
 use convert_case::Casing;
-use darling::{Error, FromDeriveInput, FromField};
+use darling::{Error, FromDeriveInput, FromField, FromVariant};
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, Data, DeriveInput};
+use syn::{parse_macro_input, Data, DeriveInput, Ident};
 
 #[derive(FromDeriveInput)]
 #[darling(attributes(document), supports(struct_named))]
 struct Document {
     identifier: Option<String>,
     title: Option<String>
+}
+
+#[derive(FromDeriveInput)]
+#[darling(supports(enum_unit, enum_named))]
+struct Enum {
+    data: darling::ast::Data<EnumVariant, FieldInfo>
+}
+
+#[derive(FromVariant)]
+struct EnumVariant {
+    ident: Ident,
+    fields: darling::ast::Fields<FieldInfo>
 }
 
 #[derive(FromField)]
@@ -19,6 +31,83 @@ struct FieldInfo {
     title: Option<String>,
     placeholder: Option<String>,
     default: Option<syn::Lit>
+}
+
+/// Sets up an enum for use in a Document. This macro does a couple of things:
+/// 1. It derives serde's Serialize and Deserialize traits. Make sure you have serde installed!
+/// 2. Sets up said serialization and deserialization to work the way the editor expects.
+/// 3. Derives ToEditorField for the schema
+#[proc_macro_attribute]
+pub fn doc_enum(_metadata: TokenStream, input: TokenStream) -> TokenStream {
+    let input: proc_macro2::TokenStream = input.into();
+    let output = quote! {
+        #[derive(::serde::Serialize, ::serde::Deserialize, ::scalar::Enum)]
+        #[serde(tag = "type")]
+        #input
+    };
+    output.into()
+}
+
+#[proc_macro_derive(Enum)]
+pub fn derive_enum(input: TokenStream) -> TokenStream {
+    let input: DeriveInput = parse_macro_input!(input);
+    let enum_info = match Enum::from_derive_input(&input) {
+        Ok(v) => v,
+        Err(e) => { return TokenStream::from(e.write_errors()) }
+    };
+    let ident = input.ident;
+
+    let variants: Vec<proc_macro2::TokenStream> = match enum_info.data {
+        darling::ast::Data::Enum(variants) => {
+            variants.iter().map(|v| {
+                let ident = v.ident.to_string();
+                let fields = match v.fields.iter().map(|field| {
+                    let ty = field.ty.clone();
+                    let ident = field.ident.clone().map(|i| i.to_string()).expect("this shouldn't be a tuple struct!!!!");
+                    let title = field.title.clone().unwrap_or(ident.to_case(convert_case::Case::Title));
+                    let placeholder = match field.placeholder.clone() {
+                        Some(str) => quote! { Some(#str) },
+                        None => quote! { None }
+                    };
+                    let default = match field.default.clone() {
+                        Some(lit) => quote! { Some(#lit) },
+                        None => quote! { None::<#ty> }
+                    };
+                    Ok(quote! {
+                        #ty::to_editor_field(#default, #ident, #title, #placeholder)
+                    })
+                }).collect::<core::result::Result<Vec<_>, darling::Error>>() {
+                    Ok(v) => v,
+                    Err(e) => { return TokenStream::from(e.write_errors()).into() }
+                };
+
+                let fields_tokens = match fields.len() {
+                    0 => quote! { None },
+                    _ => quote! { Some(vec![#(#fields),*]) }
+                };
+
+                quote! {
+                    ::scalar::EnumVariant {
+                        variant_name: #ident,
+                        fields: #fields_tokens
+                    }
+                }
+            }).collect()
+        },
+        darling::ast::Data::Struct(_) => unreachable!(),
+    };
+
+
+    let output = quote! {
+        impl ::scalar::editor_field::ToEditorField for #ident {
+            fn to_editor_field(default: Option<impl Into<Self>>, name: &'static str, title: &'static str, placeholder: Option<&'static str>) -> ::scalar::EditorField where Self: std::marker::Sized {
+                ::scalar::EditorField { name, title, placeholder, field_type: ::scalar::EditorType::Enum {
+                    variants: vec![#(#variants),*]
+                } }
+            }
+        }
+    };
+    output.into()
 }
 
 #[proc_macro_derive(Document, attributes(document, field))]

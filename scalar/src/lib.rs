@@ -1,4 +1,4 @@
-pub use scalar_derive::Document;
+pub use scalar_derive::{Document, Enum, doc_enum};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -18,6 +18,7 @@ pub enum EditorType {
     Bool { default: Option<bool> },
     Integer { default: Option<i32> },
     Float { default: Option<f32> },
+    Enum { variants: Vec<EnumVariant> },
     SingleLine,
     MultiLine,
     Markdown,
@@ -26,12 +27,18 @@ pub enum EditorType {
 }
 
 #[derive(Serialize, TS)]
+pub struct EnumVariant {
+    pub variant_name: &'static str,
+    pub fields: Option<Vec<EditorField>>
+}
+
+#[derive(Serialize, TS)]
 #[ts(export)]
 pub struct EditorField {
-    name: &'static str,
-    title: &'static str,
-    placeholder: Option<&'static str>,
-    field_type: EditorType,
+    pub name: &'static str,
+    pub title: &'static str,
+    pub placeholder: Option<&'static str>,
+    pub field_type: EditorType,
 }
 
 #[derive(Serialize, Deserialize)]
