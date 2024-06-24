@@ -1,8 +1,10 @@
+use std::ops::Deref;
+
 use convert_case::Casing;
 use darling::{FromDeriveInput, FromField, FromVariant};
 use proc_macro::TokenStream;
-use quote::quote;
-use syn::{parse_macro_input, Data, DeriveInput, Ident};
+use quote::{quote, ToTokens};
+use syn::{parse_macro_input, Data, DeriveInput, Ident, PathArguments, Type};
 
 #[derive(FromDeriveInput)]
 #[darling(attributes(document), supports(struct_named))]
@@ -23,7 +25,7 @@ struct EnumVariant {
     fields: darling::ast::Fields<FieldInfo>
 }
 
-#[derive(FromField)]
+#[derive(FromField, Clone)]
 #[darling(attributes(field))]
 struct FieldInfo {
     ident: Option<syn::Ident>,
@@ -61,25 +63,9 @@ pub fn derive_enum(input: TokenStream) -> TokenStream {
         darling::ast::Data::Enum(variants) => {
             variants.iter().map(|v| {
                 let ident = v.ident.to_string();
-                let fields = match v.fields.iter().map(|field| {
-                    let ty = field.ty.clone();
-                    let ident = field.ident.clone().map(|i| i.to_string()).expect("this shouldn't be a tuple struct!!!!");
-                    let title = field.title.clone().unwrap_or(ident.to_case(convert_case::Case::Title));
-                    let placeholder = match field.placeholder.clone() {
-                        Some(str) => quote! { Some(#str) },
-                        None => quote! { None }
-                    };
-                    let default = match field.default.clone() {
-                        Some(lit) => quote! { Some(#lit) },
-                        None => quote! { None::<#ty> }
-                    };
-                    Ok(quote! {
-                        #ty::to_editor_field(#default, #ident, #title, #placeholder)
-                    })
-                }).collect::<core::result::Result<Vec<_>, darling::Error>>() {
-                    Ok(v) => v,
-                    Err(e) => { return TokenStream::from(e.write_errors()).into() }
-                };
+                let fields: Vec<proc_macro2::TokenStream> = v.fields.iter().map(|field| {
+                    field_to_info_call(field.to_owned())
+                }).collect();
 
                 let fields_tokens = match fields.len() {
                     0 => quote! { None },
@@ -99,9 +85,9 @@ pub fn derive_enum(input: TokenStream) -> TokenStream {
 
 
     let output = quote! {
-        impl ::scalar::editor_field::ToEditorField for #ident {
+        impl ::scalar::editor_field::ToEditorField<#ident> for #ident {
             fn to_editor_field(default: Option<impl Into<Self>>, name: &'static str, title: &'static str, placeholder: Option<&'static str>) -> ::scalar::EditorField where Self: std::marker::Sized {
-                ::scalar::EditorField { name, title, placeholder, field_type: ::scalar::EditorType::Enum {
+                ::scalar::EditorField { name, title, placeholder, required: true, field_type: ::scalar::EditorType::Enum {
                     variants: vec![#(#variants),*]
                 } }
             }
@@ -159,20 +145,7 @@ pub fn derive_document(input: TokenStream) -> TokenStream {
 
     let fields = match struct_fields.iter().map(|field| {
         let field = FieldInfo::from_field(field)?;
-        let ty = field.ty;
-        let ident = field.ident.map(|i| i.to_string()).expect("this shouldn't be a tuple struct!!!!");
-        let title = field.title.unwrap_or(ident.to_case(convert_case::Case::Title));
-        let placeholder = match field.placeholder {
-            Some(str) => quote! { Some(#str) },
-            None => quote! { None }
-        };
-        let default = match field.default {
-            Some(lit) => quote! { Some(#lit) },
-            None => quote! { None::<#ty> }
-        };
-        Ok(quote! {
-            #ty::to_editor_field(#default, #ident, #title, #placeholder)
-        })
+        Ok(field_to_info_call(field))
     }).collect::<core::result::Result<Vec<_>, darling::Error>>() {
         Ok(v) => v,
         Err(e) => { return TokenStream::from(e.write_errors()) }
@@ -193,4 +166,35 @@ pub fn derive_document(input: TokenStream) -> TokenStream {
         }
     };
     output.into()
+}
+
+fn field_to_info_call(field: FieldInfo) -> proc_macro2::TokenStream {
+    let ty = field.ty;
+
+    let ident = field.ident.map(|i| i.to_string()).expect("this shouldn't be a tuple struct!!!!");
+    let title = field.title.unwrap_or(ident.to_case(convert_case::Case::Title));
+    let placeholder = match field.placeholder {
+        Some(str) => quote! { Some(#str) },
+        None => quote! { None }
+    };
+    let default = match field.default {
+        Some(lit) => quote! { Some(#lit) },
+        None => {
+            let actual_ty = match ty {
+                Type::Path(ref path) => {
+                    if let PathArguments::AngleBracketed(generic) = &path.path.segments.last().unwrap().arguments {
+                        generic.args.to_token_stream()
+                    } else {
+                        ty.to_token_stream()
+                    }
+                },
+                _ => ty.to_token_stream()
+            };
+
+            quote! { None::<#actual_ty> }
+        }
+    };
+    quote! {
+        <#ty>::to_editor_field(#default, #ident, #title, #placeholder)
+    }
 }
