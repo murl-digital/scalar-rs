@@ -38,6 +38,7 @@ pub struct EditorField {
     pub name: &'static str,
     pub title: &'static str,
     pub placeholder: Option<&'static str>,
+    pub required: bool,
     pub field_type: EditorType,
 }
 

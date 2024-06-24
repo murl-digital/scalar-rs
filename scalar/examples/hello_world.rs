@@ -1,16 +1,19 @@
-use scalar::{doc_enum, Document};
+use scalar::{doc_enum, editor_field::ToEditorField, Document};
 
 #[derive(Document)]
 #[document(identifier = "mcdonalds sprite")]
 #[allow(dead_code)]
 struct Hello {
-    #[field(title = "dragon enjoyer", default = "oh my")]
+    #[field(title = "dragon enjoyer")]
     pub oh_my_goodness: String,
 
     pub wowie: i32,
 
     #[field(title = "this should still work")]
-    pub dang: Test
+    pub dang: Test,
+
+    #[field(default = 3)]
+    pub hello: Option<i32>
 }
 
 #[doc_enum]

@@ -1,5 +1,5 @@
 use axum::async_trait;
-use scalar::{nanoid, Document, Item, Utc, DB};
+use scalar::{doc_enum, nanoid, Document, Item, Utc, DB};
 use scalar_axum::{generate_routes, ScalarState};
 use serde::{Deserialize, Serialize};
 use tower_http::cors::CorsLayer;
@@ -7,12 +7,20 @@ use tower_http::cors::CorsLayer;
 #[derive(Document, Serialize, Deserialize, Clone)]
 struct Test {
     pub hi: String,
-    pub number: i32
+    pub number: i32,
+    pub test: TestEnum
 }
 
 #[derive(Document, Serialize, Deserialize, Clone)]
 struct Test2 {
     pub hello: String
+}
+
+#[doc_enum]
+#[derive(Clone)]
+enum TestEnum {
+    Unit,
+    Struct { eeee: String, },
 }
 
 #[derive(Clone)]
@@ -64,6 +72,8 @@ async fn main() {
     let app = generate_routes!(State, Fsdb, Test, Test2).with_state(state).layer(CorsLayer::very_permissive());
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+
+    println!("{}", serde_json::to_string_pretty(&scalar::Utc::now()).unwrap());
 
     axum::serve(listener, app).await.unwrap();
 }
