@@ -1,11 +1,10 @@
 <script lang="ts">
+    import Field from '$lib/components/Field.svelte';
 import type { PageData } from './$types';
 
     const { data } = $props();
 
     let formData = $state({});
-
-    $inspect(formData)
 
     for (const field of data.schema.fields) {
 
@@ -19,13 +18,11 @@ import type { PageData } from './$types';
                 break;
         }
     }
+
+    $inspect(formData);
+    $inspect(data);
 </script>
 
 {#each data.schema.fields as field}
-    {field.title}
-    {#if field.field_type.type == "SingleLine"}
-        <input bind:value={formData[field.name]}>
-    {:else if field.field_type.type == "Integer"}
-        <input type="number" step="1" bind:value={formData[field.name]}>
-    {/if}
+    <Field bind:data={formData} field={field}></Field>
 {/each}
