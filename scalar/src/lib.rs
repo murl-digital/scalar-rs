@@ -1,4 +1,4 @@
-pub use scalar_derive::{Document, Enum, doc_enum};
+pub use scalar_derive::{doc_enum, Document, Enum};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -7,10 +7,8 @@ pub use nanoid::nanoid;
 
 pub use db::DB;
 
-pub mod editor_field;
 pub mod db;
-
-
+pub mod editor_field;
 
 #[derive(Serialize, TS)]
 #[serde(tag = "type")]
@@ -29,7 +27,7 @@ pub enum EditorType {
 #[derive(Serialize, TS)]
 pub struct EnumVariant {
     pub variant_name: &'static str,
-    pub fields: Option<Vec<EditorField>>
+    pub fields: Option<Vec<EditorField>>,
 }
 
 #[derive(Serialize, TS)]
@@ -52,7 +50,7 @@ pub struct Markdown(String);
 pub struct Schema {
     identifier: &'static str,
     title: &'static str,
-    fields: Vec<EditorField>
+    fields: Vec<EditorField>,
 }
 
 pub trait Document {
@@ -61,7 +59,11 @@ pub trait Document {
 
     fn fields() -> Vec<EditorField>;
     fn schema() -> Schema {
-        Schema { identifier: Self::identifier(), title: Self::title(), fields: Self::fields() }
+        Schema {
+            identifier: Self::identifier(),
+            title: Self::title(),
+            fields: Self::fields(),
+        }
     }
 }
 
@@ -71,5 +73,5 @@ pub struct Item<D: Document> {
     pub created_at: DateTime<Utc>,
     pub modified_at: DateTime<Utc>,
     pub published_at: Option<DateTime<Utc>>,
-    pub inner: D
+    pub inner: D,
 }

@@ -8,19 +8,19 @@ use tower_http::cors::CorsLayer;
 struct Test {
     pub hi: String,
     pub number: i32,
-    pub test: TestEnum
+    pub test: TestEnum,
 }
 
 #[derive(Document, Serialize, Deserialize, Clone)]
 struct Test2 {
-    pub hello: String
+    pub hello: String,
 }
 
 #[doc_enum]
 #[derive(Clone)]
 enum TestEnum {
     Unit,
-    Struct { eeee: String, },
+    Struct { eeee: String },
 }
 
 #[derive(Clone)]
@@ -35,21 +35,33 @@ impl DB for Fsdb {
             created_at: now,
             modified_at: now,
             published_at: None,
-            inner: doc
+            inner: doc,
         };
-        tokio::fs::write(format!("./db/{}.json", item.id), serde_json::to_string_pretty(&item).unwrap()).await.unwrap();
+        tokio::fs::write(
+            format!("./db/{}.json", item.id),
+            serde_json::to_string_pretty(&item).unwrap(),
+        )
+        .await
+        .unwrap();
 
         Ok(item)
     }
 
     async fn update<D: Document + Serialize + Send>(&self, item: Item<D>) -> Result<Item<D>, ()> {
-        tokio::fs::write(format!("./db/{}.json", item.id), serde_json::to_string_pretty(&item).unwrap()).await.unwrap();
+        tokio::fs::write(
+            format!("./db/{}.json", item.id),
+            serde_json::to_string_pretty(&item).unwrap(),
+        )
+        .await
+        .unwrap();
 
         Ok(item)
     }
 
     async fn delete<D: Document + Send>(&self, doc: Item<D>) -> Result<Item<D>, ()> {
-        tokio::fs::remove_file(format!("./db/{}.json", doc.id)).await.unwrap();
+        tokio::fs::remove_file(format!("./db/{}.json", doc.id))
+            .await
+            .unwrap();
 
         Ok(doc)
     }
@@ -57,7 +69,7 @@ impl DB for Fsdb {
 
 #[derive(Clone)]
 struct State {
-    db: Fsdb
+    db: Fsdb,
 }
 
 impl ScalarState<Fsdb> for State {
@@ -69,11 +81,16 @@ impl ScalarState<Fsdb> for State {
 #[tokio::main]
 async fn main() {
     let state = State { db: Fsdb };
-    let app = generate_routes!(State, Fsdb, Test, Test2).with_state(state).layer(CorsLayer::very_permissive());
+    let app = generate_routes!(State, Fsdb, Test, Test2)
+        .with_state(state)
+        .layer(CorsLayer::very_permissive());
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
 
-    println!("{}", serde_json::to_string_pretty(&scalar::Utc::now()).unwrap());
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&scalar::Utc::now()).unwrap()
+    );
 
     axum::serve(listener, app).await.unwrap();
 }

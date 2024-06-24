@@ -9,7 +9,7 @@ pub trait ScalarState<D> {
 #[derive(Serialize)]
 pub struct DocInfo {
     pub identifier: &'static str,
-    pub title: &'static str
+    pub title: &'static str,
 }
 
 #[macro_export]
@@ -59,7 +59,10 @@ pub async fn get_schema<T: Document>() -> Json<Schema> {
     Json(T::schema())
 }
 
-pub async fn create<T: Document + Serialize + Send, S: ScalarState<D>, D: DB + Clone>(state: State<S>, doc: Json<T>) -> Json<Item<T>> {
+pub async fn create<T: Document + Serialize + Send, S: ScalarState<D>, D: DB + Clone>(
+    state: State<S>,
+    doc: Json<T>,
+) -> Json<Item<T>> {
     let db = state.get_db();
 
     let item = db.create(doc.0).await.unwrap();
@@ -67,7 +70,14 @@ pub async fn create<T: Document + Serialize + Send, S: ScalarState<D>, D: DB + C
     Json(item)
 }
 
-pub async fn update<T: Document + Serialize + for<'a> Deserialize<'a> + Send, S: ScalarState<D>, D: DB + Clone>(state: State<S>, doc: Json<Item<T>>) -> Json<Item<T>> {
+pub async fn update<
+    T: Document + Serialize + for<'a> Deserialize<'a> + Send,
+    S: ScalarState<D>,
+    D: DB + Clone,
+>(
+    state: State<S>,
+    doc: Json<Item<T>>,
+) -> Json<Item<T>> {
     let db = state.get_db();
 
     let item = db.update(doc.0).await.unwrap();
@@ -75,7 +85,10 @@ pub async fn update<T: Document + Serialize + for<'a> Deserialize<'a> + Send, S:
     Json(item)
 }
 
-pub async fn delete<T: Document + Serialize + Send, S: ScalarState<D>, D: DB + Clone>(state: State<S>, doc: Json<Item<T>>) -> Json<Item<T>> {
+pub async fn delete<T: Document + Serialize + Send, S: ScalarState<D>, D: DB + Clone>(
+    state: State<S>,
+    doc: Json<Item<T>>,
+) -> Json<Item<T>> {
     let db = state.get_db();
 
     let item = db.delete(doc.0).await.unwrap();

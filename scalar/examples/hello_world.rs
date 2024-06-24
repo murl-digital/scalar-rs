@@ -1,4 +1,4 @@
-use scalar::{doc_enum, editor_field::ToEditorField, Document};
+use scalar::{doc_enum, Document};
 
 #[derive(Document)]
 #[document(identifier = "mcdonalds sprite")]
@@ -13,7 +13,7 @@ struct Hello {
     pub dang: Test,
 
     #[field(default = 3)]
-    pub hello: Option<i32>
+    pub hello: Option<i32>,
 }
 
 #[doc_enum]
@@ -25,5 +25,8 @@ enum Test {
 fn main() {
     println!("ident: {}", Hello::identifier());
 
-    println!("schema: {}", serde_json::to_string_pretty(&Hello::fields()).unwrap())
+    println!(
+        "schema: {}",
+        serde_json::to_string_pretty(&Hello::fields()).unwrap()
+    )
 }

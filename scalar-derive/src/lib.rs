@@ -1,5 +1,3 @@
-use std::ops::Deref;
-
 use convert_case::Casing;
 use darling::{FromDeriveInput, FromField, FromVariant};
 use proc_macro::TokenStream;
@@ -10,19 +8,19 @@ use syn::{parse_macro_input, Data, DeriveInput, Ident, PathArguments, Type};
 #[darling(attributes(document), supports(struct_named))]
 struct Document {
     identifier: Option<String>,
-    title: Option<String>
+    title: Option<String>,
 }
 
 #[derive(FromDeriveInput)]
 #[darling(supports(enum_unit, enum_named))]
 struct Enum {
-    data: darling::ast::Data<EnumVariant, FieldInfo>
+    data: darling::ast::Data<EnumVariant, FieldInfo>,
 }
 
 #[derive(FromVariant)]
 struct EnumVariant {
     ident: Ident,
-    fields: darling::ast::Fields<FieldInfo>
+    fields: darling::ast::Fields<FieldInfo>,
 }
 
 #[derive(FromField, Clone)]
@@ -32,7 +30,7 @@ struct FieldInfo {
     ty: syn::Type,
     title: Option<String>,
     placeholder: Option<String>,
-    default: Option<syn::Lit>
+    default: Option<syn::Lit>,
 }
 
 /// Sets up an enum for use in a Document. This macro does a couple of things:
@@ -55,21 +53,24 @@ pub fn derive_enum(input: TokenStream) -> TokenStream {
     let input: DeriveInput = parse_macro_input!(input);
     let enum_info = match Enum::from_derive_input(&input) {
         Ok(v) => v,
-        Err(e) => { return TokenStream::from(e.write_errors()) }
+        Err(e) => return TokenStream::from(e.write_errors()),
     };
     let ident = input.ident;
 
     let variants: Vec<proc_macro2::TokenStream> = match enum_info.data {
-        darling::ast::Data::Enum(variants) => {
-            variants.iter().map(|v| {
+        darling::ast::Data::Enum(variants) => variants
+            .iter()
+            .map(|v| {
                 let ident = v.ident.to_string();
-                let fields: Vec<proc_macro2::TokenStream> = v.fields.iter().map(|field| {
-                    field_to_info_call(field.to_owned())
-                }).collect();
+                let fields: Vec<proc_macro2::TokenStream> = v
+                    .fields
+                    .iter()
+                    .map(|field| field_to_info_call(field.to_owned()))
+                    .collect();
 
                 let fields_tokens = match fields.len() {
                     0 => quote! { None },
-                    _ => quote! { Some(vec![#(#fields),*]) }
+                    _ => quote! { Some(vec![#(#fields),*]) },
                 };
 
                 quote! {
@@ -78,11 +79,10 @@ pub fn derive_enum(input: TokenStream) -> TokenStream {
                         fields: #fields_tokens
                     }
                 }
-            }).collect()
-        },
+            })
+            .collect(),
         darling::ast::Data::Struct(_) => unreachable!(),
     };
-
 
     let output = quote! {
         impl ::scalar::editor_field::ToEditorField<#ident> for #ident {
@@ -101,13 +101,13 @@ pub fn derive_document(input: TokenStream) -> TokenStream {
     let input: DeriveInput = parse_macro_input!(input);
     let document = match Document::from_derive_input(&input) {
         Ok(v) => v,
-        Err(e) => { return TokenStream::from(e.write_errors()); }
+        Err(e) => {
+            return TokenStream::from(e.write_errors());
+        }
     };
     let struct_fields = match input.data {
-        Data::Struct(st) => {
-            st.fields
-        },
-        _ => unreachable!()
+        Data::Struct(st) => st.fields,
+        _ => unreachable!(),
     };
     let ident = input.ident;
 
@@ -115,7 +115,7 @@ pub fn derive_document(input: TokenStream) -> TokenStream {
         Some(ident) => quote! {
             fn identifier() -> &'static str {
                 #ident
-            } 
+            }
         },
         None => {
             let ident = ident.to_string().to_case(convert_case::Case::Snake);
@@ -143,12 +143,16 @@ pub fn derive_document(input: TokenStream) -> TokenStream {
         }
     };
 
-    let fields = match struct_fields.iter().map(|field| {
-        let field = FieldInfo::from_field(field)?;
-        Ok(field_to_info_call(field))
-    }).collect::<core::result::Result<Vec<_>, darling::Error>>() {
+    let fields = match struct_fields
+        .iter()
+        .map(|field| {
+            let field = FieldInfo::from_field(field)?;
+            Ok(field_to_info_call(field))
+        })
+        .collect::<core::result::Result<Vec<_>, darling::Error>>()
+    {
         Ok(v) => v,
-        Err(e) => { return TokenStream::from(e.write_errors()) }
+        Err(e) => return TokenStream::from(e.write_errors()),
     };
 
     let output = quote! {
@@ -171,24 +175,31 @@ pub fn derive_document(input: TokenStream) -> TokenStream {
 fn field_to_info_call(field: FieldInfo) -> proc_macro2::TokenStream {
     let ty = field.ty;
 
-    let ident = field.ident.map(|i| i.to_string()).expect("this shouldn't be a tuple struct!!!!");
-    let title = field.title.unwrap_or(ident.to_case(convert_case::Case::Title));
+    let ident = field
+        .ident
+        .map(|i| i.to_string())
+        .expect("this shouldn't be a tuple struct!!!!");
+    let title = field
+        .title
+        .unwrap_or(ident.to_case(convert_case::Case::Title));
     let placeholder = match field.placeholder {
         Some(str) => quote! { Some(#str) },
-        None => quote! { None }
+        None => quote! { None },
     };
     let default = match field.default {
         Some(lit) => quote! { Some(#lit) },
         None => {
             let actual_ty = match ty {
                 Type::Path(ref path) => {
-                    if let PathArguments::AngleBracketed(generic) = &path.path.segments.last().unwrap().arguments {
+                    if let PathArguments::AngleBracketed(generic) =
+                        &path.path.segments.last().unwrap().arguments
+                    {
                         generic.args.to_token_stream()
                     } else {
                         ty.to_token_stream()
                     }
-                },
-                _ => ty.to_token_stream()
+                }
+                _ => ty.to_token_stream(),
             };
 
             quote! { None::<#actual_ty> }
