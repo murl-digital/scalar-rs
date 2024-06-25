@@ -31,7 +31,7 @@ struct FieldInfo {
     title: Option<String>,
     placeholder: Option<String>,
     default: Option<syn::Lit>,
-    validate: Flag
+    validate: Flag,
 }
 
 /// Sets up an enum for use in a Document. This macro does a couple of things:
@@ -144,12 +144,19 @@ pub fn derive_document(input: TokenStream) -> TokenStream {
         }
     };
 
-    let struct_fields = match struct_fields.iter().map(FieldInfo::from_field).collect::<Result<Vec<FieldInfo>, darling::Error>>() {
+    let struct_fields = match struct_fields
+        .iter()
+        .map(FieldInfo::from_field)
+        .collect::<Result<Vec<FieldInfo>, darling::Error>>()
+    {
         Ok(f) => f,
-        Err(e) => return TokenStream::from(e.write_errors())
+        Err(e) => return TokenStream::from(e.write_errors()),
     };
 
-    let fields = struct_fields.iter().map(|f| field_to_info_call(f.to_owned())).collect::<Vec<_>>();
+    let fields = struct_fields
+        .iter()
+        .map(|f| field_to_info_call(f.to_owned()))
+        .collect::<Vec<_>>();
 
     let validators = struct_fields.iter().filter(|&f| f.validate.is_present()).map(|f| {
         let ty = &f.ty;
@@ -201,7 +208,7 @@ fn field_to_info_call(field: FieldInfo) -> proc_macro2::TokenStream {
 
     let validator = match field.validate.is_present() {
         true => quote! { Some(stringify!(#ty)) },
-        false => quote! { None }
+        false => quote! { None },
     };
 
     let default = match field.default {

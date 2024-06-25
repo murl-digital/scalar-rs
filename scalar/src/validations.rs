@@ -14,7 +14,7 @@ pub enum ValidationError {
     #[error("Couldn't deserialize: {0}")]
     Deserialization(#[from] Box<dyn std::error::Error>),
     #[error("Validation error: {0}")]
-    Validation(String)
+    Validation(String),
 }
 
 pub type ValidatorFunction = Arc<dyn Fn(String) -> Result<(), ValidationError> + Sync + Send>;
@@ -23,12 +23,14 @@ pub trait Validator {
     fn validate(&self) -> Result<(), ValidationError>;
 }
 
-pub fn create_validator_function<V: Validator + DeserializeOwned>(model: DataModel, validator: impl Fn(&V) -> Result<(), ValidationError> + 'static + Sync + Send) -> ValidatorFunction {
+pub fn create_validator_function<V: Validator + DeserializeOwned>(
+    model: DataModel,
+    validator: impl Fn(&V) -> Result<(), ValidationError> + 'static + Sync + Send,
+) -> ValidatorFunction {
     Arc::new(move |input| {
         let value = match model {
-            DataModel::Json => {
-                serde_json::from_str(&input).map_err(|e| ValidationError::Deserialization(e.into()))?
-            }
+            DataModel::Json => serde_json::from_str(&input)
+                .map_err(|e| ValidationError::Deserialization(e.into()))?,
         };
 
         validator(&value)
@@ -42,7 +44,7 @@ impl Validator for NonZero {
     fn validate(&self) -> Result<(), ValidationError> {
         match self.0 {
             0 => Ok(()),
-            _ => Err(ValidationError::Validation("must be non zero".into()))
+            _ => Err(ValidationError::Validation("must be non zero".into())),
         }
     }
 }
@@ -53,10 +55,11 @@ impl ToEditorField<i32> for NonZero {
         name: &'static str,
         title: &'static str,
         placeholder: Option<&'static str>,
-        validator: Option<&'static str>
+        validator: Option<&'static str>,
     ) -> crate::EditorField
     where
-        Self: std::marker::Sized {
+        Self: std::marker::Sized,
+    {
         i32::to_editor_field(default, name, title, placeholder, validator)
     }
 }

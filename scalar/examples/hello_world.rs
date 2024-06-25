@@ -1,4 +1,8 @@
-use scalar::{doc_enum, validations::{DataModel, NonZero, Validator}, Document};
+use scalar::{
+    doc_enum,
+    validations::{DataModel, NonZero, Validator},
+    Document,
+};
 
 #[derive(Document)]
 #[document(identifier = "mcdonalds sprite")]
@@ -16,7 +20,7 @@ struct Hello {
     #[field(default = 3)]
     pub hello: Option<i32>,
 
-    pub oh_yes: Vec<i32>
+    pub oh_yes: Vec<i32>,
 }
 
 #[doc_enum]
@@ -28,8 +32,10 @@ enum Test {
 impl Validator for Test {
     fn validate(&self) -> Result<(), scalar::validations::ValidationError> {
         match self {
-            Self::Struct { eeee } if eeee.is_empty() => Err(scalar::validations::ValidationError::Validation("eeee can't be empty".into())),
-            _ => Ok(())
+            Self::Struct { eeee } if eeee.is_empty() => Err(
+                scalar::validations::ValidationError::Validation("eeee can't be empty".into()),
+            ),
+            _ => Ok(()),
         }
     }
 }
@@ -37,7 +43,12 @@ impl Validator for Test {
 fn main() {
     println!("ident: {}", Hello::identifier());
 
-    println!("validators: {:?}", Hello::validators(DataModel::Json).keys().collect::<Vec<&String>>());
+    println!(
+        "validators: {:?}",
+        Hello::validators(DataModel::Json)
+            .keys()
+            .collect::<Vec<&String>>()
+    );
 
     println!(
         "schema: {}",

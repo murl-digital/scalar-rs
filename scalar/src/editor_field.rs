@@ -36,7 +36,7 @@ impl ToEditorField<i32> for i32 {
         name: &'static str,
         title: &'static str,
         placeholder: Option<&'static str>,
-        validator: Option<&'static str>
+        validator: Option<&'static str>,
     ) -> EditorField
     where
         Self: std::marker::Sized,
@@ -60,7 +60,7 @@ impl ToEditorField<String> for String {
         name: &'static str,
         title: &'static str,
         placeholder: Option<&'static str>,
-        validator: Option<&'static str>
+        validator: Option<&'static str>,
     ) -> EditorField
     where
         Self: std::marker::Sized,
@@ -82,7 +82,7 @@ impl ToEditorField<MultiLine> for MultiLine {
         name: &'static str,
         title: &'static str,
         placeholder: Option<&'static str>,
-        validator: Option<&'static str>
+        validator: Option<&'static str>,
     ) -> EditorField
     where
         Self: std::marker::Sized,
@@ -104,7 +104,7 @@ impl ToEditorField<Markdown> for Markdown {
         name: &'static str,
         title: &'static str,
         placeholder: Option<&'static str>,
-        validator: Option<&'static str>
+        validator: Option<&'static str>,
     ) -> EditorField
     where
         Self: std::marker::Sized,
@@ -129,7 +129,7 @@ where
         name: &'static str,
         title: &'static str,
         placeholder: Option<&'static str>,
-        validator: Option<&'static str>
+        validator: Option<&'static str>,
     ) -> EditorField
     where
         Self: std::marker::Sized,
@@ -143,26 +143,30 @@ where
 
 impl<T> ToEditorField<T> for Vec<T>
 where
-    T: ToEditorField<T> {
+    T: ToEditorField<T>,
+{
     fn to_editor_field(
         default: Option<impl Into<T>>,
         name: &'static str,
         title: &'static str,
         placeholder: Option<&'static str>,
-        validator: Option<&'static str>
+        validator: Option<&'static str>,
     ) -> EditorField
     where
-        Self: std::marker::Sized {
+        Self: std::marker::Sized,
+    {
         let dummy_field = T::to_editor_field(default, name, title, placeholder, validator);
         let field_type = dummy_field.field_type;
-        
+
         EditorField {
             name,
             title,
             placeholder,
             required: true,
             validator,
-            field_type: EditorType::Array { of: Rc::new(field_type) }
+            field_type: EditorType::Array {
+                of: Rc::new(field_type),
+            },
         }
     }
 }

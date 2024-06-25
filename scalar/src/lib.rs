@@ -18,8 +18,6 @@ pub use editor_field::EditorField;
 pub use editor_type::EditorType;
 use validations::{DataModel, ValidatorFunction};
 
-
-
 #[derive(Serialize, Deserialize)]
 pub struct MultiLine(String);
 #[derive(Serialize, Deserialize)]

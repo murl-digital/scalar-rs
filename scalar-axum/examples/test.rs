@@ -1,5 +1,9 @@
 use axum::async_trait;
-use scalar::{doc_enum, nanoid, validations::{ValidationError, Validator}, Document, Item, Utc, DB};
+use scalar::{
+    doc_enum, nanoid,
+    validations::{ValidationError, Validator},
+    Document, Item, Utc, DB,
+};
 use scalar_axum::{generate_routes, ScalarState};
 use serde::{Deserialize, Serialize};
 use tower_http::cors::CorsLayer;
@@ -27,8 +31,10 @@ enum TestEnum {
 impl Validator for TestEnum {
     fn validate(&self) -> Result<(), scalar::validations::ValidationError> {
         match self {
-            TestEnum::Struct { eeee } if eeee.is_empty() => Err(ValidationError::Validation("eeee must have something in it".into())),
-            _ => Ok(())
+            TestEnum::Struct { eeee } if eeee.is_empty() => Err(ValidationError::Validation(
+                "eeee must have something in it".into(),
+            )),
+            _ => Ok(()),
         }
     }
 }

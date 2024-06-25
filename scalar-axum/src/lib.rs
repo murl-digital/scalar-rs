@@ -1,4 +1,10 @@
-use axum::{body::Body, extract::State, http::{Response, StatusCode}, response::IntoResponse, Json};
+use axum::{
+    body::Body,
+    extract::State,
+    http::{Response, StatusCode},
+    response::IntoResponse,
+    Json,
+};
 use scalar::{validations::ValidationError, Document, Item, Schema, DB};
 use serde::{Deserialize, Serialize};
 
@@ -16,7 +22,10 @@ pub struct ValidationFailiure(pub ValidationError);
 
 impl IntoResponse for ValidationFailiure {
     fn into_response(self) -> axum::response::Response {
-        Response::builder().status(StatusCode::NOT_ACCEPTABLE).body(Body::from(self.0.to_string())).expect("nothing's being parsed here, da hell?")
+        Response::builder()
+            .status(StatusCode::NOT_ACCEPTABLE)
+            .body(Body::from(self.0.to_string()))
+            .expect("nothing's being parsed here, da hell?")
     }
 }
 
@@ -43,7 +52,7 @@ macro_rules! generate_routes {
 
             for (key, validator) in validators {
                 router = router.route(&format!("/validators/{key}/verify"), ::axum::routing::post(|body: String| async move {
-                    validator(body).map_err(::scalar_axum::ValidationFailiure)    
+                    validator(body).map_err(::scalar_axum::ValidationFailiure)
                 }))
             }
 
