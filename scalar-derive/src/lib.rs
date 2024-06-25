@@ -1,5 +1,5 @@
 use convert_case::Casing;
-use darling::{FromDeriveInput, FromField, FromVariant};
+use darling::{util::Flag, FromDeriveInput, FromField, FromVariant};
 use proc_macro::TokenStream;
 use quote::{quote, ToTokens};
 use syn::{parse_macro_input, Data, DeriveInput, Ident, PathArguments, Type};
@@ -31,6 +31,7 @@ struct FieldInfo {
     title: Option<String>,
     placeholder: Option<String>,
     default: Option<syn::Lit>,
+    validate: Flag
 }
 
 /// Sets up an enum for use in a Document. This macro does a couple of things:
@@ -74,7 +75,7 @@ pub fn derive_enum(input: TokenStream) -> TokenStream {
                 };
 
                 quote! {
-                    ::scalar::EnumVariant {
+                    ::scalar::editor_type::EnumVariant {
                         variant_name: #ident,
                         fields: #fields_tokens
                     }
@@ -86,8 +87,8 @@ pub fn derive_enum(input: TokenStream) -> TokenStream {
 
     let output = quote! {
         impl ::scalar::editor_field::ToEditorField<#ident> for #ident {
-            fn to_editor_field(default: Option<impl Into<Self>>, name: &'static str, title: &'static str, placeholder: Option<&'static str>) -> ::scalar::EditorField where Self: std::marker::Sized {
-                ::scalar::EditorField { name, title, placeholder, required: true, field_type: ::scalar::EditorType::Enum {
+            fn to_editor_field(default: Option<impl Into<Self>>, name: &'static str, title: &'static str, placeholder: Option<&'static str>, validator: Option<&'static str>) -> ::scalar::EditorField where Self: std::marker::Sized {
+                ::scalar::EditorField { name, title, placeholder, required: true, validator, field_type: ::scalar::EditorType::Enum {
                     variants: vec![#(#variants),*]
                 } }
             }
@@ -143,17 +144,20 @@ pub fn derive_document(input: TokenStream) -> TokenStream {
         }
     };
 
-    let fields = match struct_fields
-        .iter()
-        .map(|field| {
-            let field = FieldInfo::from_field(field)?;
-            Ok(field_to_info_call(field))
-        })
-        .collect::<core::result::Result<Vec<_>, darling::Error>>()
-    {
-        Ok(v) => v,
-        Err(e) => return TokenStream::from(e.write_errors()),
+    let struct_fields = match struct_fields.iter().map(FieldInfo::from_field).collect::<Result<Vec<FieldInfo>, darling::Error>>() {
+        Ok(f) => f,
+        Err(e) => return TokenStream::from(e.write_errors())
     };
+
+    let fields = struct_fields.iter().map(|f| field_to_info_call(f.to_owned())).collect::<Vec<_>>();
+
+    let validators = struct_fields.iter().filter(|&f| f.validate.is_present()).map(|f| {
+        let ty = &f.ty;
+
+        quote! {
+            map.insert(stringify!(#ty).to_string(), ::scalar::validations::create_validator_function(model, <#ty>::validate));
+        }
+    }).collect::<Vec<_>>();
 
     let output = quote! {
         impl Document for #ident {
@@ -166,6 +170,14 @@ pub fn derive_document(input: TokenStream) -> TokenStream {
                 vec![
                     #(#fields),*
                 ]
+            }
+
+            fn validators(model: scalar::validations::DataModel) -> ::std::collections::HashMap<String, scalar::validations::ValidatorFunction> {
+                use ::scalar::validations::Validator;
+                use ::std::collections::HashMap;
+                let mut map = HashMap::new();
+                #(#validators)*
+                map
             }
         }
     };
@@ -186,6 +198,12 @@ fn field_to_info_call(field: FieldInfo) -> proc_macro2::TokenStream {
         Some(str) => quote! { Some(#str) },
         None => quote! { None },
     };
+
+    let validator = match field.validate.is_present() {
+        true => quote! { Some(stringify!(#ty)) },
+        false => quote! { None }
+    };
+
     let default = match field.default {
         Some(lit) => quote! { Some(#lit) },
         None => {
@@ -206,6 +224,6 @@ fn field_to_info_call(field: FieldInfo) -> proc_macro2::TokenStream {
         }
     };
     quote! {
-        <#ty>::to_editor_field(#default, #ident, #title, #placeholder)
+        <#ty>::to_editor_field(#default, #ident, #title, #placeholder, #validator)
     }
 }

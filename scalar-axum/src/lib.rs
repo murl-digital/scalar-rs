@@ -1,5 +1,5 @@
-use axum::{extract::State, Json};
-use scalar::{Document, Item, Schema, DB};
+use axum::{body::Body, extract::State, http::{Response, StatusCode}, response::IntoResponse, Json};
+use scalar::{validations::ValidationError, Document, Item, Schema, DB};
 use serde::{Deserialize, Serialize};
 
 pub trait ScalarState<D> {
@@ -10,6 +10,14 @@ pub trait ScalarState<D> {
 pub struct DocInfo {
     pub identifier: &'static str,
     pub title: &'static str,
+}
+
+pub struct ValidationFailiure(pub ValidationError);
+
+impl IntoResponse for ValidationFailiure {
+    fn into_response(self) -> axum::response::Response {
+        Response::builder().status(StatusCode::NOT_ACCEPTABLE).body(Body::from(self.0.to_string())).expect("nothing's being parsed here, da hell?")
+    }
 }
 
 #[macro_export]
@@ -28,6 +36,17 @@ macro_rules! generate_routes {
                 ])
             }
             router = router.route("/docs", ::axum::routing::get(get_docs));
+
+            let mut validators = ::std::collections::HashMap::new();
+
+            $(validators.extend(<$doc>::validators(::scalar::validations::DataModel::Json));)*
+
+            for (key, validator) in validators {
+                router = router.route(&format!("/validators/{key}/verify"), ::axum::routing::post(|body: String| async move {
+                    validator(body).map_err(::scalar_axum::ValidationFailiure)    
+                }))
+            }
+
             router
         }
     };

@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 pub use scalar_derive::{doc_enum, Document, Enum};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -9,36 +11,14 @@ pub use db::DB;
 
 pub mod db;
 pub mod editor_field;
+pub mod editor_type;
+pub mod validations;
 
-#[derive(Serialize, TS)]
-#[serde(tag = "type")]
-pub enum EditorType {
-    Bool { default: Option<bool> },
-    Integer { default: Option<i32> },
-    Float { default: Option<f32> },
-    Enum { variants: Vec<EnumVariant> },
-    SingleLine,
-    MultiLine,
-    Markdown,
-    Date,
-    DateTime,
-}
+pub use editor_field::EditorField;
+pub use editor_type::EditorType;
+use validations::{DataModel, ValidatorFunction};
 
-#[derive(Serialize, TS)]
-pub struct EnumVariant {
-    pub variant_name: &'static str,
-    pub fields: Option<Vec<EditorField>>,
-}
 
-#[derive(Serialize, TS)]
-#[ts(export)]
-pub struct EditorField {
-    pub name: &'static str,
-    pub title: &'static str,
-    pub placeholder: Option<&'static str>,
-    pub required: bool,
-    pub field_type: EditorType,
-}
 
 #[derive(Serialize, Deserialize)]
 pub struct MultiLine(String);
@@ -58,6 +38,7 @@ pub trait Document {
     fn title() -> &'static str;
 
     fn fields() -> Vec<EditorField>;
+    fn validators(model: DataModel) -> HashMap<String, ValidatorFunction>;
     fn schema() -> Schema {
         Schema {
             identifier: Self::identifier(),

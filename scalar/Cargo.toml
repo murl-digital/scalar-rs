@@ -8,9 +8,9 @@ async-trait = "0.1"
 chrono = { version = "0.4", features = ["serde"] }
 nanoid = "0.4.0"
 scalar-derive = { version = "0.1.0", path = "../scalar-derive" }
-serde = { version = "1", features = ["derive"] }
-ts-rs = "9"
-
-[dev-dependencies]
+# rc is enabled for EditorType, the copying issue is fine in this case, because we're dealing with a schema type.
+serde = { version = "1", features = ["derive", "rc"] }
 serde_json = "1"
+thiserror = "1"
+ts-rs = "9"
 

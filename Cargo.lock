@@ -646,6 +646,7 @@ dependencies = [
  "scalar-derive",
  "serde",
  "serde_json",
+ "thiserror",
  "ts-rs",
 ]
 

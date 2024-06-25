@@ -1,4 +1,20 @@
-use crate::{EditorField, Markdown, MultiLine};
+use std::rc::Rc;
+
+use serde::Serialize;
+use ts_rs::TS;
+
+use crate::{EditorType, Markdown, MultiLine};
+
+#[derive(Serialize, TS)]
+#[ts(export)]
+pub struct EditorField {
+    pub name: &'static str,
+    pub title: &'static str,
+    pub placeholder: Option<&'static str>,
+    pub validator: Option<&'static str>,
+    pub required: bool,
+    pub field_type: EditorType,
+}
 
 /// Convert an input type into a `scalar::EditorField`
 /// It's done this way with generics to make dealing with this in derive macros easier, and options. Oh god, options.
@@ -8,6 +24,7 @@ pub trait ToEditorField<T> {
         name: &'static str,
         title: &'static str,
         placeholder: Option<&'static str>,
+        validator: Option<&'static str>,
     ) -> EditorField
     where
         Self: std::marker::Sized;
@@ -19,6 +36,7 @@ impl ToEditorField<i32> for i32 {
         name: &'static str,
         title: &'static str,
         placeholder: Option<&'static str>,
+        validator: Option<&'static str>
     ) -> EditorField
     where
         Self: std::marker::Sized,
@@ -28,6 +46,7 @@ impl ToEditorField<i32> for i32 {
             title,
             placeholder,
             required: true,
+            validator,
             field_type: crate::EditorType::Integer {
                 default: default.map(|i| i.into()),
             },
@@ -41,6 +60,7 @@ impl ToEditorField<String> for String {
         name: &'static str,
         title: &'static str,
         placeholder: Option<&'static str>,
+        validator: Option<&'static str>
     ) -> EditorField
     where
         Self: std::marker::Sized,
@@ -50,6 +70,7 @@ impl ToEditorField<String> for String {
             title,
             placeholder,
             required: true,
+            validator,
             field_type: crate::EditorType::SingleLine,
         }
     }
@@ -61,6 +82,7 @@ impl ToEditorField<MultiLine> for MultiLine {
         name: &'static str,
         title: &'static str,
         placeholder: Option<&'static str>,
+        validator: Option<&'static str>
     ) -> EditorField
     where
         Self: std::marker::Sized,
@@ -70,6 +92,7 @@ impl ToEditorField<MultiLine> for MultiLine {
             title,
             placeholder,
             required: true,
+            validator,
             field_type: crate::EditorType::MultiLine,
         }
     }
@@ -81,6 +104,7 @@ impl ToEditorField<Markdown> for Markdown {
         name: &'static str,
         title: &'static str,
         placeholder: Option<&'static str>,
+        validator: Option<&'static str>
     ) -> EditorField
     where
         Self: std::marker::Sized,
@@ -90,6 +114,7 @@ impl ToEditorField<Markdown> for Markdown {
             title,
             placeholder,
             required: true,
+            validator,
             field_type: crate::EditorType::Markdown,
         }
     }
@@ -104,13 +129,40 @@ where
         name: &'static str,
         title: &'static str,
         placeholder: Option<&'static str>,
+        validator: Option<&'static str>
     ) -> EditorField
     where
         Self: std::marker::Sized,
     {
-        let mut field = T::to_editor_field(default, name, title, placeholder);
+        let mut field = T::to_editor_field(default, name, title, placeholder, validator);
         field.required = false;
 
         field
+    }
+}
+
+impl<T> ToEditorField<T> for Vec<T>
+where
+    T: ToEditorField<T> {
+    fn to_editor_field(
+        default: Option<impl Into<T>>,
+        name: &'static str,
+        title: &'static str,
+        placeholder: Option<&'static str>,
+        validator: Option<&'static str>
+    ) -> EditorField
+    where
+        Self: std::marker::Sized {
+        let dummy_field = T::to_editor_field(default, name, title, placeholder, validator);
+        let field_type = dummy_field.field_type;
+        
+        EditorField {
+            name,
+            title,
+            placeholder,
+            required: true,
+            validator,
+            field_type: EditorType::Array { of: Rc::new(field_type) }
+        }
     }
 }
