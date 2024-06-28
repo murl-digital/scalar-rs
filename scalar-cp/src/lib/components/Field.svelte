@@ -1,7 +1,29 @@
 <script lang="ts">
+import EnumDropdown from "./EnumDropdown.svelte";
+
     let {field, data = $bindable()} = $props();
 
-    $inspect(data);
+    if (!data[field.name]) {
+        switch (field.field_type.type) {
+            case "Integer":
+                data[field.name] = field.field_type.default;
+                break;
+
+            case "Enum":
+                if (field.field_type.default) {
+                    data[field.name] = field.field_type.default;
+                } else {
+                    data[field.name] = {
+                        type: ""
+                    };
+                }
+                break;
+        
+            default:
+                data[field.name] = null;
+                break;
+        }
+    }
 </script>
 
 {#if data} 
@@ -11,19 +33,6 @@
     {:else if field.field_type.type == "Integer"}
         <input type="number" step="1" bind:value={data[field.name]}>
     {:else if field.field_type.type == "Enum"}
-        <select bind:value={data[field.name]}>
-            {#each field.field_type.variants as variant}
-                <option value={{type: variant.variant_name}}>{variant.variant_name}</option>
-            {/each}
-        </select>
-
-        {@const struct_fields = field.field_type.variants.filter((i) => i.variant_name === data[field.name]?.type)[0]?.fields}
-        {#if struct_fields}
-            {#each struct_fields as inner_field} 
-                {#key data[field.name]}
-                    <svelte:self field={inner_field} bind:data={data[field.name]}></svelte:self>
-                {/key}
-            {/each}
-        {/if}
+        <EnumDropdown {field} bind:data={data}></EnumDropdown>
     {/if}
 {/if}
