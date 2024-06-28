@@ -1,7 +1,7 @@
 use scalar::{
     doc_enum,
-    validations::{DataModel, NonZero, Validator},
-    Document,
+    validations::{DataModel, NonZeroI32, Validator},
+    Document, EditorField,
 };
 
 #[derive(Document)]
@@ -12,7 +12,7 @@ struct Hello {
     pub oh_my_goodness: String,
 
     #[field(validate)]
-    pub wowie: NonZero,
+    pub wowie: NonZeroI32,
 
     #[field(title = "this should still work")]
     pub dang: Test,
@@ -21,6 +21,19 @@ struct Hello {
     pub hello: Option<i32>,
 
     pub oh_yes: Vec<i32>,
+
+    pub ghost: Ghost,
+
+    pub nickelback: LookAtThisStruct
+}
+
+#[derive(EditorField)]
+struct Ghost(i32);
+
+#[derive(EditorField)]
+struct LookAtThisStruct {
+    every_time_i_do_it_makes_me_laugh: String,
+    idk_how_the_rest_of_it_goes: f32
 }
 
 #[doc_enum]

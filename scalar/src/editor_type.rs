@@ -11,6 +11,7 @@ pub enum EditorType {
     Bool { default: Option<bool> },
     Integer { default: Option<i32> },
     Float { default: Option<f32> },
+    Struct { fields: Vec<EditorField> },
     Enum { variants: Vec<EnumVariant> },
     Array { of: Rc<EditorType> },
     SingleLine,

@@ -12,6 +12,13 @@ struct Document {
 }
 
 #[derive(FromDeriveInput)]
+#[darling(supports(struct_newtype, struct_named))]
+struct ToEditorField {
+    ident: syn::Ident,
+    data: darling::ast::Data<(), FieldInfo>,
+}
+
+#[derive(FromDeriveInput)]
 #[darling(supports(enum_unit, enum_named))]
 struct Enum {
     data: darling::ast::Data<EnumVariant, FieldInfo>,
@@ -47,6 +54,82 @@ pub fn doc_enum(_metadata: TokenStream, input: TokenStream) -> TokenStream {
         #input
     };
     output.into()
+}
+
+#[proc_macro_derive(EditorField, attributes(field))]
+pub fn struct_to_editor_field(input: TokenStream) -> TokenStream {
+    let input: DeriveInput = parse_macro_input!(input);
+    let struct_info = match ToEditorField::from_derive_input(&input) {
+        Ok(v) => v,
+        Err(e) => return TokenStream::from(e.write_errors())
+    };
+
+    let ident = struct_info.ident.to_owned();
+    let fields = struct_info.data.take_struct().expect("a compiler error should've been returned, this has to be a struct");
+
+    match fields.style {
+        darling::ast::Style::Tuple => {
+            let field = fields.fields.first().expect("there should always be at least one field");
+            let field_ty = &field.ty;
+            quote! {
+                impl ::scalar::editor_field::ToEditorField<#field_ty> for #ident  {
+                    fn to_editor_field(
+                        default: Option<impl Into<#field_ty>>,
+                        name: &'static str,
+                        title: &'static str,
+                        placeholder: Option<&'static str>,
+                        validator: Option<&'static str>,
+                    ) -> ::scalar::EditorField
+                    where
+                        Self: std::marker::Sized,
+                    {
+                        use ::scalar::editor_field::ToEditorField;
+                        <#field_ty>::to_editor_field(default, name, title, placeholder, validator)
+                    }
+                }
+
+                impl From<#ident> for #field_ty {
+                    fn from(val: #ident) -> Self {
+                        val.0
+                    }
+                }
+            }.into()
+        },
+        darling::ast::Style::Struct => {
+            let fields = fields
+                .iter()
+                .map(|f| field_to_info_call(f.to_owned()))
+                .collect::<Vec<_>>();
+
+            quote! {
+                impl ::scalar::editor_field::ToEditorField<#ident> for #ident {
+                    fn to_editor_field(
+                        default: Option<impl Into<#ident>>,
+                        name: &'static str,
+                        title: &'static str,
+                        placeholder: Option<&'static str>,
+                        validator: Option<&'static str>,
+                    ) -> ::scalar::EditorField
+                    where
+                        Self: std::marker::Sized,
+                    {
+                        use ::scalar::editor_field::ToEditorField;
+                        ::scalar::EditorField { 
+                            name, 
+                            title, 
+                            placeholder, 
+                            required: true, 
+                            validator, 
+                            field_type: ::scalar::EditorType::Struct {
+                                fields: vec![#(#fields),*]
+                            } 
+                        }
+                    }
+                }
+            }.into()
+        },
+        darling::ast::Style::Unit => unreachable!("it's impossible for this to be a unit struct"),
+    }
 }
 
 #[proc_macro_derive(Enum)]
