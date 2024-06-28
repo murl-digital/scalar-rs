@@ -1,6 +1,7 @@
 use std::collections::HashMap;
+use internals::ts::AnythingElse;
 
-pub use scalar_derive::{doc_enum, Document, Enum};
+pub use scalar_derive::{doc_enum, Document, EditorField, Enum};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -13,6 +14,7 @@ pub mod db;
 pub mod editor_field;
 pub mod editor_type;
 pub mod validations;
+mod internals;
 
 pub use editor_field::EditorField;
 pub use editor_type::EditorType;
@@ -46,11 +48,17 @@ pub trait Document {
     }
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct Item<D: Document> {
+#[derive(Serialize, Deserialize, TS)]
+#[ts(export, concrete(D = AnythingElse))]
+pub struct Item<D> {
+    #[serde(rename = "__sc_id")]
     pub id: String,
+    #[serde(rename = "__sc_created_at")]
     pub created_at: DateTime<Utc>,
+    #[serde(rename = "__sc_modified_at")]
     pub modified_at: DateTime<Utc>,
+    #[serde(rename = "__sc_published_at")]
     pub published_at: Option<DateTime<Utc>>,
+    #[serde(flatten)]
     pub inner: D,
 }
