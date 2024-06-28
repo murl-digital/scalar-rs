@@ -1,3 +1,5 @@
+use std::io::ErrorKind;
+
 use axum::async_trait;
 use scalar::{
     doc_enum, nanoid,
@@ -5,7 +7,7 @@ use scalar::{
     Document, Item, Utc, DB,
 };
 use scalar_axum::{generate_routes, ScalarState};
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use tower_http::cors::CorsLayer;
 
 #[derive(Document, Serialize, Deserialize, Clone)]
@@ -54,7 +56,7 @@ impl DB for Fsdb {
             inner: doc,
         };
         tokio::fs::write(
-            format!("./db/{}.json", item.id),
+            format!("./db/{}/{}.json", D::identifier(), item.id),
             serde_json::to_string_pretty(&item).unwrap(),
         )
         .await
@@ -65,7 +67,7 @@ impl DB for Fsdb {
 
     async fn update<D: Document + Serialize + Send>(&self, item: Item<D>) -> Result<Item<D>, ()> {
         tokio::fs::write(
-            format!("./db/{}.json", item.id),
+            format!("./db/{}/{}.json", D::identifier(), item.id),
             serde_json::to_string_pretty(&item).unwrap(),
         )
         .await
@@ -75,11 +77,33 @@ impl DB for Fsdb {
     }
 
     async fn delete<D: Document + Send>(&self, doc: Item<D>) -> Result<Item<D>, ()> {
-        tokio::fs::remove_file(format!("./db/{}.json", doc.id))
+        tokio::fs::remove_file(format!("./db/{}/{}.json", D::identifier(), doc.id))
             .await
             .unwrap();
 
         Ok(doc)
+    }
+
+    async fn get_all<D: Document + DeserializeOwned + Send>(&self) -> Result<Vec<Item<D>>, ()> {
+        let mut result = Vec::new();
+        let mut entries = tokio::fs::read_dir(format!("./db/{}/", D::identifier())).await.unwrap();
+
+        while let Some(entry) = entries.next_entry().await.unwrap() {
+            let file = tokio::fs::read_to_string(entry.path()).await.unwrap();
+            let doc = serde_json::from_str(&file).unwrap();
+
+            result.push(doc);
+        }
+
+        Ok(result)
+    }
+
+    async fn get_by_id<D: Document + DeserializeOwned + Send>(&self, id: &str) -> Result<Option<Item<D>>, ()> {
+        match tokio::fs::read_to_string(format!("./db/{}/{}.json", D::identifier(), id)).await {
+            Ok(v) => Ok(Some(serde_json::from_str(&v).map_err(|_| ())?)),
+            Err(e) if e.kind() == ErrorKind::NotFound => Ok(None),
+            _ => Err(())
+        }
     }
 }
 
