@@ -54,6 +54,30 @@ impl ToEditorField<i32> for i32 {
     }
 }
 
+impl ToEditorField<f32> for f32 {
+    fn to_editor_field(
+        default: Option<impl Into<Self>>,
+        name: &'static str,
+        title: &'static str,
+        placeholder: Option<&'static str>,
+        validator: Option<&'static str>,
+    ) -> EditorField
+    where
+        Self: std::marker::Sized,
+    {
+        EditorField {
+            name,
+            title,
+            placeholder,
+            required: true,
+            validator,
+            field_type: crate::EditorType::Float {
+                default: default.map(|i| i.into()),
+            },
+        }
+    }
+}
+
 impl ToEditorField<String> for String {
     fn to_editor_field(
         _default: Option<impl Into<Self>>,
