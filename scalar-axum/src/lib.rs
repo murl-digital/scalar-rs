@@ -12,12 +12,6 @@ pub trait ScalarState<D> {
     fn get_db(&self) -> &D;
 }
 
-#[derive(Serialize)]
-pub struct DocInfo {
-    pub identifier: &'static str,
-    pub title: &'static str,
-}
-
 pub struct ValidationFailiure(pub ValidationError);
 
 impl IntoResponse for ValidationFailiure {
@@ -36,9 +30,9 @@ macro_rules! generate_routes {
             let mut router = ::axum::Router::new();
             ::scalar_axum::crud_routes!(router, $state, $db, $($doc),+);
             #[axum_macros::debug_handler]
-            async fn get_docs() -> ::axum::Json<Vec<::scalar_axum::DocInfo>> {
+            async fn get_docs() -> ::axum::Json<Vec<::scalar::DocInfo>> {
                 ::axum::Json(vec![
-                    $(::scalar_axum::DocInfo {
+                    $(::scalar::DocInfo {
                         identifier: <$doc>::identifier(),
                         title: <$doc>::title()
                     }),+

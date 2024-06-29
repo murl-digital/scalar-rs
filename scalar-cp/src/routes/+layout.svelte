@@ -3,7 +3,7 @@
 
     import type { PageData } from './$types'
 
-    const {data, children} = $props();
+    const {data, children}: {data: PageData, children: any} = $props();
 </script>
 
 <div class="flex flex-row">

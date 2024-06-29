@@ -14,7 +14,7 @@ pub mod db;
 pub mod editor_field;
 pub mod editor_type;
 pub mod validations;
-mod internals;
+pub mod internals;
 
 pub use editor_field::EditorField;
 pub use editor_type::EditorType;
@@ -26,11 +26,16 @@ pub struct MultiLine(String);
 pub struct Markdown(String);
 
 #[derive(Serialize, TS)]
-#[ts(export)]
 pub struct Schema {
     identifier: &'static str,
     title: &'static str,
     fields: Vec<EditorField>,
+}
+
+#[derive(Serialize, TS)]
+pub struct DocInfo {
+    pub identifier: &'static str,
+    pub title: &'static str,
 }
 
 pub trait Document {

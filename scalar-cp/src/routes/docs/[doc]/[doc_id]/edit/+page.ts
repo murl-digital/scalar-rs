@@ -1,4 +1,5 @@
-import type { Schema } from '$lib/Schema';
+import type { Schema } from '$ts/Schema';
+import type { Item } from '$ts/Item';
 import { error } from '@sveltejs/kit';
 import type {PageLoad} from './$types';
 
@@ -10,7 +11,7 @@ export const load: PageLoad = async ({params, fetch}) => {
         throw error(404)
     }
 
-    let doc = await doc_request.json();
+    let doc: Item = await doc_request.json();
 
     return {
         schema,

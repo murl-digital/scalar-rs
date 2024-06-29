@@ -4,7 +4,7 @@
     import { page } from '$app/stores';
     import type { PageData } from './$types';
 
-    const { data } = $props();
+    const { data }: { data: PageData } = $props();
 
     let formData = $state(data.doc);
 
