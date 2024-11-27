@@ -44,7 +44,6 @@ impl Validator for TestEnum {
 #[derive(Clone)]
 struct Fsdb;
 
-#[async_trait]
 impl DB for Fsdb {
     async fn create<D: Document + Serialize + Send>(&self, doc: D) -> Result<Item<D>, ()> {
         let now = Utc::now();
@@ -86,7 +85,9 @@ impl DB for Fsdb {
 
     async fn get_all<D: Document + DeserializeOwned + Send>(&self) -> Result<Vec<Item<D>>, ()> {
         let mut result = Vec::new();
-        let mut entries = tokio::fs::read_dir(format!("./db/{}/", D::identifier())).await.unwrap();
+        let mut entries = tokio::fs::read_dir(format!("./db/{}/", D::identifier()))
+            .await
+            .unwrap();
 
         while let Some(entry) = entries.next_entry().await.unwrap() {
             let file = tokio::fs::read_to_string(entry.path()).await.unwrap();
@@ -98,11 +99,14 @@ impl DB for Fsdb {
         Ok(result)
     }
 
-    async fn get_by_id<D: Document + DeserializeOwned + Send>(&self, id: &str) -> Result<Option<Item<D>>, ()> {
+    async fn get_by_id<D: Document + DeserializeOwned + Send>(
+        &self,
+        id: &str,
+    ) -> Result<Option<Item<D>>, ()> {
         match tokio::fs::read_to_string(format!("./db/{}/{}.json", D::identifier(), id)).await {
             Ok(v) => Ok(Some(serde_json::from_str(&v).map_err(|_| ())?)),
             Err(e) if e.kind() == ErrorKind::NotFound => Ok(None),
-            _ => Err(())
+            _ => Err(()),
         }
     }
 }

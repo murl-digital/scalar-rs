@@ -5,7 +5,7 @@ use axum::{
     response::IntoResponse,
     Json,
 };
-use scalar::{validations::ValidationError, Document, Item, Schema, DB};
+use scalar::{db::DocumentModifyError, validations::ValidationError, Document, Item, Schema, DB};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 pub trait ScalarState<D> {
@@ -59,25 +59,17 @@ macro_rules! generate_routes {
 macro_rules! crud_routes {
     ($router:ident, $state:ty, $db:ty, $doc:ty) => {
         let path = format!("/docs/{}", <$doc>::identifier());
+        let drafts_path = format!("{path}/drafts/:id");
         $router = $router
             .route(&path, ::axum::routing::get(::scalar_axum::get_all_docs::<$doc, $state, $db>))
             .route(&format!("{path}/:id"), ::axum::routing::get(::scalar_axum::get_doc_by_id::<$doc, $state, $db>))
-            .route(&path, ::axum::routing::post(::scalar_axum::create::<$doc, $state, $db>))
-            .route(&path, ::axum::routing::patch(::scalar_axum::update::<$doc, $state, $db>))
-            .route(&path, ::axum::routing::delete(::scalar_axum::delete::<$doc, $state, $db>))
+            .route(&drafts_path, ::axum::routing::put(::scalar_axum::update_draft::<$doc, $state, $db>))
             .route(&format!("{path}/schema"), ::axum::routing::get(::scalar_axum::get_schema::<$doc>));
     };
 
     ($router:ident, $state:ty, $db:ty, $doc:ty, $($docs:ty),+) => {
-        let path = format!("/docs/{}", <$doc>::identifier());
-        $router = $router
-            .route(&path, ::axum::routing::get(::scalar_axum::get_all_docs::<$doc, $state, $db>))
-            .route(&format!("{path}/:id"), ::axum::routing::get(::scalar_axum::get_doc_by_id::<$doc, $state, $db>))
-            .route(&path, ::axum::routing::post(::scalar_axum::create::<$doc, $state, $db>))
-            .route(&path, ::axum::routing::patch(::scalar_axum::update::<$doc, $state, $db>))
-            .route(&path, ::axum::routing::delete(::scalar_axum::delete::<$doc, $state, $db>))
-            .route(&format!("{path}/schema"), ::axum::routing::get(::scalar_axum::get_schema::<$doc>));
-        ::scalar_axum::crud_routes!($router, $state, $db, $($docs),+)
+        ::scalar_axum::crud_routes!($router, $state, $db, $doc);
+        ::scalar_axum::crud_routes!($router, $state, $db, $($docs),+);
     };
 }
 
@@ -85,67 +77,55 @@ pub async fn get_schema<T: Document>() -> Json<Schema> {
     Json(T::schema())
 }
 
-pub async fn create<T: Document + Serialize + Send, S: ScalarState<D>, D: DB + Clone>(
-    state: State<S>,
-    doc: Json<T>,
-) -> Json<Item<T>> {
-    let db = state.get_db();
-
-    let item = db.create(doc.0).await.unwrap();
-
-    Json(item)
-}
-
-pub async fn update<
-    T: Document + Serialize + for<'a> Deserialize<'a> + Send,
+pub async fn update_draft<
+    T: Document + Serialize + DeserializeOwned + Send,
     S: ScalarState<D>,
     D: DB + Clone,
 >(
     state: State<S>,
-    doc: Json<Item<T>>,
-) -> Json<Item<T>> {
-    let db = state.get_db();
-
-    let item = db.update(doc.0).await.unwrap();
-
-    Json(item)
+    Path(id): Path<String>,
+    Json(data): Json<serde_json::Value>,
+) -> Result<Json<Item<serde_json::Value>>, StatusCode> {
+    Ok(Json(
+        state
+            .0
+            .get_db()
+            .draft::<T>(&id, data)
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?,
+    ))
 }
 
-pub async fn delete<T: Document + Serialize + Send, S: ScalarState<D>, D: DB + Clone>(
+pub async fn get_all_docs<
+    T: Document + Serialize + DeserializeOwned + Send,
+    S: ScalarState<D>,
+    D: DB + Clone,
+>(
     state: State<S>,
-    doc: Json<Item<T>>,
-) -> Json<Item<T>> {
+) -> Result<Json<Vec<Item<serde_json::Value>>>, StatusCode> {
     let db = state.get_db();
 
-    let item = db.delete(doc.0).await.unwrap();
+    let items = db
+        .get_all::<T>()
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    Json(item)
+    Ok(Json(items))
 }
 
-pub async fn get_all_docs<T: Document + Serialize + DeserializeOwned + Send, S: ScalarState<D>, D: DB + Clone>(state: State<S>) -> Json<Vec<Item<T>>> {
+pub async fn get_doc_by_id<
+    T: Document + Serialize + DeserializeOwned + Send,
+    S: ScalarState<D>,
+    D: DB + Clone,
+>(
+    state: State<S>,
+    id: Path<String>,
+) -> Result<Json<Item<serde_json::Value>>, StatusCode> {
     let db = state.get_db();
 
-    let items = db.get_all().await.unwrap();
-
-    Json(items)
-}
-
-pub enum GetDocError {
-    NotFound,
-    InternalError
-}
-
-impl IntoResponse for GetDocError {
-    fn into_response(self) -> axum::response::Response {
-        match self {
-            GetDocError::NotFound => StatusCode::NOT_FOUND.into_response(),
-            GetDocError::InternalError => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
-        }
-    }
-}
-
-pub async fn get_doc_by_id<T: Document + Serialize + DeserializeOwned + Send, S: ScalarState<D>, D: DB + Clone>(state: State<S>, id: Path<String>) -> Result<Json<Item<T>>, GetDocError> {
-    let db = state.get_db();
-
-    db.get_by_id(id.as_str()).await.map_err(|_| GetDocError::InternalError)?.map(Json).ok_or(GetDocError::NotFound)
+    db.get_by_id::<T>(id.as_str())
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .map(Json)
+        .ok_or(StatusCode::NOT_FOUND)
 }
