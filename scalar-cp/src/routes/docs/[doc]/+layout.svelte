@@ -1,20 +1,33 @@
 <script lang="ts">
-    import type { PageData } from './$types';
-    import { page } from '$app/stores';
+    import type { PageData } from "./$types";
+    import { page } from "$app/stores";
 
-    const {data, children} = $props();
+    const { data, children } = $props();
 </script>
 
-<div class="flex flex-row">
-    <div class="b-green b-opacity-100 b-5 p-3">
-        <ul class="flex flex-col">
-            {#each data.docs as doc}
-                {@const name = doc[Object.keys(doc).filter((key) => !key.startsWith("__sc"))[0]]}
-                <a class="text-gray no-underline flex flex-row items-center gap-2" href="/docs/{$page.params.doc}/{doc.__sc_id}/edit"><div class="i-ph-file"></div>{name}</a>
+<div class="flex flex-row h-full w-full">
+    <div class="b-r-solid b-1 p-3 pr-6 h-full">
+        <ul class="flex flex-col pl-0 my-0">
+            {#each data.docs as doc, index}
+                {@const name = doc.content[Object.keys(doc.content)[0]]}
+                <a
+                    class="text-gray no-underline flex flex-row items-center gap-2"
+                    href="/docs/{$page.params.doc}/{doc.__sc_id}/edit"
+                    ><div class="i-ph-file-text"></div>
+                    {name}
+                    {index}</a
+                >
             {/each}
+            <a
+                class="text-gray no-underline flex flex-row items-center gap-2"
+                href="/docs/{$page.params.doc}/create"
+            >
+                <div class="i-ph-plus"></div>
+                Create New
+            </a>
         </ul>
     </div>
-    <div>
+    <div class="h-full w-full">
         {@render children()}
     </div>
 </div>
