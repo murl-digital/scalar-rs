@@ -61,15 +61,21 @@ pub fn struct_to_editor_field(input: TokenStream) -> TokenStream {
     let input: DeriveInput = parse_macro_input!(input);
     let struct_info = match ToEditorField::from_derive_input(&input) {
         Ok(v) => v,
-        Err(e) => return TokenStream::from(e.write_errors())
+        Err(e) => return TokenStream::from(e.write_errors()),
     };
 
     let ident = struct_info.ident.to_owned();
-    let fields = struct_info.data.take_struct().expect("a compiler error should've been returned, this has to be a struct");
+    let fields = struct_info
+        .data
+        .take_struct()
+        .expect("a compiler error should've been returned, this has to be a struct");
 
     match fields.style {
         darling::ast::Style::Tuple => {
-            let field = fields.fields.first().expect("there should always be at least one field");
+            let field = fields
+                .fields
+                .first()
+                .expect("there should always be at least one field");
             let field_ty = &field.ty;
             quote! {
                 impl ::scalar::editor_field::ToEditorField<#field_ty> for #ident  {
@@ -93,8 +99,9 @@ pub fn struct_to_editor_field(input: TokenStream) -> TokenStream {
                         val.0
                     }
                 }
-            }.into()
-        },
+            }
+            .into()
+        }
         darling::ast::Style::Struct => {
             let fields = fields
                 .iter()
@@ -114,20 +121,21 @@ pub fn struct_to_editor_field(input: TokenStream) -> TokenStream {
                         Self: std::marker::Sized,
                     {
                         use ::scalar::editor_field::ToEditorField;
-                        ::scalar::EditorField { 
-                            name, 
-                            title, 
-                            placeholder, 
-                            required: true, 
-                            validator, 
+                        ::scalar::EditorField {
+                            name,
+                            title,
+                            placeholder,
+                            required: true,
+                            validator,
                             field_type: ::scalar::EditorType::Struct {
                                 fields: vec![#(#fields),*]
-                            } 
+                            }
                         }
                     }
                 }
-            }.into()
-        },
+            }
+            .into()
+        }
         darling::ast::Style::Unit => unreachable!("it's impossible for this to be a unit struct"),
     }
 }
@@ -250,6 +258,7 @@ pub fn derive_document(input: TokenStream) -> TokenStream {
     }).collect::<Vec<_>>();
 
     let output = quote! {
+        #[automatically_derived]
         impl Document for #ident {
             #doc_identifier
 
@@ -310,7 +319,7 @@ fn field_to_info_call(field: FieldInfo) -> proc_macro2::TokenStream {
                 _ => ty.to_token_stream(),
             };
 
-            quote! { None::<#actual_ty> }
+            quote! { None::<#ty> }
         }
     };
     quote! {
