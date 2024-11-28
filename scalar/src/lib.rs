@@ -1,5 +1,8 @@
-use std::collections::HashMap;
 use internals::ts::AnythingElse;
+use std::{
+    collections::HashMap,
+    ops::{Deref, DerefMut},
+};
 
 pub use scalar_derive::{doc_enum, Document, EditorField, Enum};
 use serde::{Deserialize, Serialize};
@@ -13,8 +16,14 @@ pub use db::DB;
 pub mod db;
 pub mod editor_field;
 pub mod editor_type;
-pub mod validations;
 pub mod internals;
+pub mod validations;
+
+pub use serde_json::Value;
+
+pub fn convert<T: Serialize>(value: T) -> Value {
+    serde_json::to_value(value).expect("this should never fail")
+}
 
 pub use editor_field::EditorField;
 pub use editor_type::EditorType;
@@ -24,6 +33,32 @@ use validations::{DataModel, ValidatorFunction};
 pub struct MultiLine(String);
 #[derive(Serialize, Deserialize)]
 pub struct Markdown(String);
+
+impl Deref for MultiLine {
+    type Target = String;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl DerefMut for MultiLine {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl Deref for Markdown {
+    type Target = String;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl DerefMut for Markdown {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
 
 #[derive(Serialize, TS)]
 pub struct Schema {
@@ -54,7 +89,7 @@ pub trait Document {
 }
 
 #[derive(Serialize, Deserialize, TS)]
-#[ts(export, concrete(D = AnythingElse))]
+#[ts(export, concrete(D = String))]
 pub struct Item<D> {
     #[serde(rename = "__sc_id")]
     pub id: String,
@@ -64,6 +99,7 @@ pub struct Item<D> {
     pub modified_at: DateTime<Utc>,
     #[serde(rename = "__sc_published_at")]
     pub published_at: Option<DateTime<Utc>>,
-    #[serde(flatten)]
+    #[serde(rename = "content")]
+    #[ts(type = "any")]
     pub inner: D,
 }

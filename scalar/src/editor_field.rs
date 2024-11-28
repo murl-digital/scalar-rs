@@ -1,5 +1,6 @@
 use std::rc::Rc;
 
+use chrono::{DateTime, TimeZone};
 use serde::Serialize;
 use ts_rs::TS;
 
@@ -28,6 +29,30 @@ pub trait ToEditorField<T> {
     ) -> EditorField
     where
         Self: std::marker::Sized;
+}
+
+impl ToEditorField<bool> for bool {
+    fn to_editor_field(
+        default: Option<impl Into<bool>>,
+        name: &'static str,
+        title: &'static str,
+        placeholder: Option<&'static str>,
+        validator: Option<&'static str>,
+    ) -> EditorField
+    where
+        Self: std::marker::Sized,
+    {
+        EditorField {
+            name,
+            title,
+            placeholder,
+            required: true,
+            validator,
+            field_type: crate::EditorType::Bool {
+                default: default.map(|i| i.into()),
+            },
+        }
+    }
 }
 
 impl ToEditorField<i32> for i32 {
@@ -80,7 +105,7 @@ impl ToEditorField<f32> for f32 {
 
 impl ToEditorField<String> for String {
     fn to_editor_field(
-        _default: Option<impl Into<Self>>,
+        default: Option<impl Into<Self>>,
         name: &'static str,
         title: &'static str,
         placeholder: Option<&'static str>,
@@ -95,14 +120,16 @@ impl ToEditorField<String> for String {
             placeholder,
             required: true,
             validator,
-            field_type: crate::EditorType::SingleLine,
+            field_type: crate::EditorType::SingleLine {
+                default: default.map(|i| i.into()),
+            },
         }
     }
 }
 
 impl ToEditorField<MultiLine> for MultiLine {
     fn to_editor_field(
-        _default: Option<impl Into<Self>>,
+        default: Option<impl Into<Self>>,
         name: &'static str,
         title: &'static str,
         placeholder: Option<&'static str>,
@@ -117,14 +144,16 @@ impl ToEditorField<MultiLine> for MultiLine {
             placeholder,
             required: true,
             validator,
-            field_type: crate::EditorType::MultiLine,
+            field_type: crate::EditorType::MultiLine {
+                default: default.map(|i| i.into().0),
+            },
         }
     }
 }
 
 impl ToEditorField<Markdown> for Markdown {
     fn to_editor_field(
-        _default: Option<impl Into<Self>>,
+        default: Option<impl Into<Self>>,
         name: &'static str,
         title: &'static str,
         placeholder: Option<&'static str>,
@@ -139,7 +168,33 @@ impl ToEditorField<Markdown> for Markdown {
             placeholder,
             required: true,
             validator,
-            field_type: crate::EditorType::Markdown,
+            field_type: crate::EditorType::Markdown {
+                default: default.map(|i| i.into().0),
+            },
+        }
+    }
+}
+
+impl<Z: TimeZone> ToEditorField<DateTime<Z>> for DateTime<Z> {
+    fn to_editor_field(
+        default: Option<impl Into<DateTime<Z>>>,
+        name: &'static str,
+        title: &'static str,
+        placeholder: Option<&'static str>,
+        validator: Option<&'static str>,
+    ) -> EditorField
+    where
+        Self: std::marker::Sized,
+    {
+        EditorField {
+            name,
+            title,
+            placeholder,
+            validator,
+            required: true,
+            field_type: EditorType::DateTime {
+                default: default.map(Into::into).as_ref().map(DateTime::to_utc),
+            },
         }
     }
 }
@@ -165,12 +220,45 @@ where
     }
 }
 
-impl<T> ToEditorField<T> for Vec<T>
+// impl<T> ToEditorField<T> for Vec<T>
+// where
+//     T: ToEditorField<T>,
+// {
+//     fn to_editor_field(
+//         default: Option<impl Into<T>>,
+//         name: &'static str,
+//         title: &'static str,
+//         placeholder: Option<&'static str>,
+//         validator: Option<&'static str>,
+//     ) -> EditorField
+//     where
+//         Self: std::marker::Sized,
+//     {
+//         let dummy_field = T::to_editor_field(default, name, title, placeholder, validator);
+//         let field_type = dummy_field.field_type;
+
+//         EditorField {
+//             name,
+//             title,
+//             placeholder,
+//             required: true,
+//             validator,
+//             field_type: EditorType::Array {
+//                 default: Some(
+//                     serde_json::to_value(Vec::<i32>::default()).expect("this should never fail"),
+//                 ),
+//                 of: Rc::new(field_type),
+//             },
+//         }
+//     }
+// }
+
+impl<T> ToEditorField<Vec<T>> for Vec<T>
 where
     T: ToEditorField<T>,
 {
     fn to_editor_field(
-        default: Option<impl Into<T>>,
+        default: Option<impl Into<Vec<T>>>,
         name: &'static str,
         title: &'static str,
         placeholder: Option<&'static str>,
@@ -179,7 +267,7 @@ where
     where
         Self: std::marker::Sized,
     {
-        let dummy_field = T::to_editor_field(default, name, title, placeholder, validator);
+        let dummy_field = T::to_editor_field(None::<T>, name, title, placeholder, validator);
         let field_type = dummy_field.field_type;
 
         EditorField {
@@ -189,6 +277,8 @@ where
             required: true,
             validator,
             field_type: EditorType::Array {
+                //default: default.map(|v| serde_json::to_value(v).expect("this should never fail")),
+                default: None,
                 of: Rc::new(field_type),
             },
         }
