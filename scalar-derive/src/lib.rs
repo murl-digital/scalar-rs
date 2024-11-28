@@ -177,9 +177,10 @@ pub fn derive_enum(input: TokenStream) -> TokenStream {
     };
 
     let output = quote! {
-        impl ::scalar::editor_field::ToEditorField<#ident> for #ident {
+        impl ::scalar::editor_field::ToEditorField<#ident> for #ident where Self: ::serde::Serialize {
             fn to_editor_field(default: Option<impl Into<Self>>, name: &'static str, title: &'static str, placeholder: Option<&'static str>, validator: Option<&'static str>) -> ::scalar::EditorField where Self: std::marker::Sized {
                 ::scalar::EditorField { name, title, placeholder, required: true, validator, field_type: ::scalar::EditorType::Enum {
+                    default: default.map(Into::into).map(|v| ::scalar::convert(v)),
                     variants: vec![#(#variants),*]
                 } }
             }
