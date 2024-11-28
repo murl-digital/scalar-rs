@@ -1,6 +1,5 @@
 <script lang="ts">
-    import "@unocss/reset/sanitize/sanitize.css";
-    import "@unocss/reset/sanitize/assets.css";
+    import "@unocss/reset/tailwind.css";
     import "$lib/css/base.css";
 
     import type { PageData } from "./$types";

@@ -28,7 +28,11 @@
 </script>
 
 {#snippet input(button?: Snippet)}
-    <div class="flex" id={field.name} use:melt={$ui_field}>
+    <div
+        class="flex bg-neutral-950 b-solid b-2 w-fit p-2 gap-0.5 rounded-sm"
+        id={field.name}
+        use:melt={$ui_field}
+    >
         {#each $segmentContents as seg}
             <div use:melt={$segment(seg.part)}>
                 {seg.value}
@@ -39,14 +43,18 @@
 {/snippet}
 
 {#snippet openButton()}
-    <button aria-label="Open Calendar" use:melt={$trigger}>
+    <button
+        class="mx-2 hover:bg-white hover:text-black transition-colors w-6 h-6 flex justify-center items-center"
+        aria-label="Open Calendar"
+        use:melt={$trigger}
+    >
         <div class="i-ph-calendar-blank"></div>
     </button>
 {/snippet}
 
 <label for={field.name} use:melt={$label}>{field.title}</label>
 {@render input(openButton)}
-<div use:melt={$content} class="bg-black">
+<div use:melt={$content} class="backdrop-blur-sm bg-neutral-800 bg-opacity-40">
     <div use:melt={$calendar}>
         <header class="flex flex-row">
             <button
@@ -68,13 +76,15 @@
                 <thead aria-hidden="true">
                     <tr>
                         {#each $weekdays as day}
-                            <th>
+                            <th
+                                class="text-sm font-medium text-gray-300 uppercase tracking-wide w-6 h-6"
+                            >
                                 {day}
                             </th>
                         {/each}
                     </tr>
                 </thead>
-                <tbody>
+                <tbody class="text-sm hover:cursor-pointer">
                     {#each month.weeks as days}
                         <tr>
                             {#each days as date}
@@ -83,7 +93,10 @@
                                     aria-disabled={$isDateDisabled(date) ||
                                         $isDateUnavailable(date)}
                                 >
-                                    <div use:melt={$cell(date, month.value)}>
+                                    <div
+                                        class="flex items-center justify-center text-gray-200 data-[disabled]:opacity-40 w-6 h-6 hover:bg-gray"
+                                        use:melt={$cell(date, month.value)}
+                                    >
                                         {date.day}
                                     </div>
                                 </td>

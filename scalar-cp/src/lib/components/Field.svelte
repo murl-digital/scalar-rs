@@ -60,7 +60,7 @@
         <test.component {field} bind:data />
     {/if} -->
     {#await meta}
-        <p>loading component...</p>
+        <div class="i-svg-spinners-90-ring"></div>
     {:then meta}
         {#if meta}
             <meta.component {field} bind:data />
