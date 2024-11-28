@@ -1,5 +1,10 @@
 [workspace]
 resolver = "2"
 members = [
-    "scalar"
-, "scalar-axum", "scalar-derive", "xtask"]
+    "scalar",
+    "scalar-axum",
+    "scalar-derive",
+    "scalar-img",
+    "xtask",
+    "drc-cms",
+]
