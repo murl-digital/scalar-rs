@@ -7,7 +7,7 @@ use axum::{
     Extension, Json,
 };
 use scalar::{
-    db::{Credentials, DatabaseFactory},
+    db::{Credentials, DatabaseFactory, User},
     validations::ValidationError,
     DatabaseConnection, Document, Item, Schema,
 };
@@ -51,6 +51,7 @@ macro_rules! generate_routes {
                 }))
             }
 
+            router = router.route("/me", ::axum::routing::get(::scalar_axum::me::<$db>));
             router = router.layer(::axum::middleware::from_fn_with_state($db_instance.clone(), ::scalar_axum::authenticated_connection_middleware::<$db>));
             router = router.route("/signin", ::axum::routing::post(::scalar_axum::signin::<$db>));
 
@@ -145,6 +146,17 @@ pub async fn signin<F: DatabaseFactory + Clone>(
 
 pub async fn get_schema<T: Document>() -> Json<Schema> {
     Json(T::schema())
+}
+
+pub async fn me<F: DatabaseFactory>(
+    state: Extension<<F as DatabaseFactory>::Connection>,
+) -> Result<Json<User>, StatusCode> {
+    Ok(Json(
+        state
+            .me()
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?,
+    ))
 }
 
 pub async fn update_draft<T: Document + Serialize + DeserializeOwned + Send, F: DatabaseFactory>(

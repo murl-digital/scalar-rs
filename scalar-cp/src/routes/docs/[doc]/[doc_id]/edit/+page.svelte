@@ -1,10 +1,12 @@
 <script lang="ts">
-    import Field from "$lib/components/Field.svelte";
+    import { apiFetch } from "$lib/api";
     import { untrack } from "svelte";
     import type { PageData } from "./$types";
     import { wait } from "$lib/utils";
     import { slide } from "svelte/transition";
     import Form from "$lib/components/Form.svelte";
+    import { base } from "$app/paths";
+    import { page } from "$app/stores";
 
     const { data }: { data: PageData } = $props();
 
@@ -22,7 +24,7 @@
 
     $effect(() => {
         let init = {
-            method: "PATCH",
+            method: "PUT",
             headers: {
                 "Content-Type": "application/json",
             },
@@ -32,9 +34,11 @@
         if (untrack(() => justMounted)) {
             justMounted = false;
         } else {
-            updatingPromise = fetch("./edit", init).then((value) =>
-                wait(1500, value),
-            );
+            updatingPromise = apiFetch(
+                fetch,
+                `${base}/api/docs/${$page.params.doc}/drafts/${$page.params.doc_id}`,
+                init,
+            ).then((value) => wait(1500, value));
         }
     });
 

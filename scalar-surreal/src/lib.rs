@@ -1,7 +1,7 @@
 use std::{borrow::Cow, marker::PhantomData, ops::Deref, sync::Arc};
 
 use scalar::{
-    db::{AuthenticationError, Credentials, DatabaseFactory},
+    db::{AuthenticationError, Credentials, DatabaseFactory, User},
     DateTime, Document, Item, Utc,
 };
 use serde::{de::DeserializeOwned, Deserialize, Deserializer, Serialize};
@@ -324,6 +324,15 @@ impl<C: Connection> scalar::DatabaseConnection for SurrealConnection<C> {
             })?;
 
         Ok(result.into_insecure_token())
+    }
+
+    async fn me(&self) -> Result<User, Self::Error> {
+        let user: Option<User> = self
+            .query("SELECT *, crypto::sha256(email) as gravatar_hash OMIT id, password FROM $auth")
+            .await?
+            .take(0)?;
+
+        Ok(user.expect("user should be authenticated when this is called"))
     }
 }
 
