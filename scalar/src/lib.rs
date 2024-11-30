@@ -11,7 +11,7 @@ use ts_rs::TS;
 pub use chrono::{DateTime, Utc};
 pub use nanoid::nanoid;
 
-pub use db::DB;
+pub use db::DatabaseConnection;
 
 pub mod db;
 pub mod editor_field;
@@ -73,7 +73,7 @@ pub struct DocInfo {
     pub title: &'static str,
 }
 
-pub trait Document {
+pub trait Document: Serialize + for<'de> Deserialize<'de> {
     fn identifier() -> &'static str;
     fn title() -> &'static str;
 

@@ -2,12 +2,19 @@ use std::io::ErrorKind;
 
 use axum::async_trait;
 use scalar::{
+    db::DatabaseFactory,
     doc_enum, nanoid,
     validations::{ValidationError, Validator},
-    Document, Item, Utc, DB,
+    Document, Item, Utc,
 };
-use scalar_axum::{generate_routes, ScalarState};
+use scalar_axum::generate_routes;
+use scalar_surreal::{init, SurrealStore};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde_json::Value;
+use surrealdb::{
+    engine::remote::ws::{Client, Ws},
+    opt::{auth::Root, Config},
+};
 use tower_http::cors::CorsLayer;
 
 #[derive(Document, Serialize, Deserialize, Clone)]
@@ -41,93 +48,16 @@ impl Validator for TestEnum {
     }
 }
 
-#[derive(Clone)]
-struct Fsdb;
-
-impl DB for Fsdb {
-    async fn create<D: Document + Serialize + Send>(&self, doc: D) -> Result<Item<D>, ()> {
-        let now = Utc::now();
-        let item = Item {
-            id: nanoid!(),
-            created_at: now,
-            modified_at: now,
-            published_at: None,
-            inner: doc,
-        };
-        tokio::fs::write(
-            format!("./db/{}/{}.json", D::identifier(), item.id),
-            serde_json::to_string_pretty(&item).unwrap(),
-        )
-        .await
-        .unwrap();
-
-        Ok(item)
-    }
-
-    async fn update<D: Document + Serialize + Send>(&self, item: Item<D>) -> Result<Item<D>, ()> {
-        tokio::fs::write(
-            format!("./db/{}/{}.json", D::identifier(), item.id),
-            serde_json::to_string_pretty(&item).unwrap(),
-        )
-        .await
-        .unwrap();
-
-        Ok(item)
-    }
-
-    async fn delete<D: Document + Send>(&self, doc: Item<D>) -> Result<Item<D>, ()> {
-        tokio::fs::remove_file(format!("./db/{}/{}.json", D::identifier(), doc.id))
-            .await
-            .unwrap();
-
-        Ok(doc)
-    }
-
-    async fn get_all<D: Document + DeserializeOwned + Send>(&self) -> Result<Vec<Item<D>>, ()> {
-        let mut result = Vec::new();
-        let mut entries = tokio::fs::read_dir(format!("./db/{}/", D::identifier()))
-            .await
-            .unwrap();
-
-        while let Some(entry) = entries.next_entry().await.unwrap() {
-            let file = tokio::fs::read_to_string(entry.path()).await.unwrap();
-            let doc = serde_json::from_str(&file).unwrap();
-
-            result.push(doc);
-        }
-
-        Ok(result)
-    }
-
-    async fn get_by_id<D: Document + DeserializeOwned + Send>(
-        &self,
-        id: &str,
-    ) -> Result<Option<Item<D>>, ()> {
-        match tokio::fs::read_to_string(format!("./db/{}/{}.json", D::identifier(), id)).await {
-            Ok(v) => Ok(Some(serde_json::from_str(&v).map_err(|_| ())?)),
-            Err(e) if e.kind() == ErrorKind::NotFound => Ok(None),
-            _ => Err(()),
-        }
-    }
-}
-
-#[derive(Clone)]
-struct State {
-    db: Fsdb,
-}
-
-impl ScalarState<Fsdb> for State {
-    fn get_db(&self) -> &Fsdb {
-        &self.db
-    }
-}
-
 #[tokio::main]
 async fn main() {
-    let state = State { db: Fsdb };
-    let app = generate_routes!(State, Fsdb, Test, Test2)
-        .with_state(state)
-        .layer(CorsLayer::very_permissive());
+    let factory =
+        SurrealStore::<Client, Ws, _>::new("localhost:8000", "test".into(), "test".into());
+    let conn = factory.init_system().await.unwrap();
+    init!(conn, Test, Test2);
+    drop(conn);
+    let app = generate_routes!(factory, SurrealStore<Client, Ws, &str>, Test, Test2)
+        .layer(CorsLayer::very_permissive())
+        .with_state(factory);
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
 

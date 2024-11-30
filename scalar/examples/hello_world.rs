@@ -3,8 +3,9 @@ use scalar::{
     validations::{DataModel, NonZeroI32, Validator},
     Document, EditorField,
 };
+use serde::{Deserialize, Serialize};
 
-#[derive(Document)]
+#[derive(Document, Serialize, Deserialize)]
 #[document(identifier = "mcdonalds sprite")]
 #[allow(dead_code)]
 struct Hello {
@@ -24,16 +25,16 @@ struct Hello {
 
     pub ghost: Ghost,
 
-    pub nickelback: LookAtThisStruct
+    pub nickelback: LookAtThisStruct,
 }
 
-#[derive(EditorField)]
+#[derive(EditorField, Serialize, Deserialize)]
 struct Ghost(i32);
 
-#[derive(EditorField)]
+#[derive(EditorField, Serialize, Deserialize)]
 struct LookAtThisStruct {
     every_time_i_do_it_makes_me_laugh: String,
-    idk_how_the_rest_of_it_goes: f32
+    idk_how_the_rest_of_it_goes: f32,
 }
 
 #[doc_enum]

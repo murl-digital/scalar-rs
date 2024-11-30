@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use chrono::{DateTime, TimeZone};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::{EditorType, Markdown, MultiLine};
