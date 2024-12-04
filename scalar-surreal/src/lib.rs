@@ -1,4 +1,4 @@
-use std::{borrow::Cow, marker::PhantomData, ops::Deref, sync::Arc};
+use std::{borrow::Cow, fmt::Debug, marker::PhantomData, ops::Deref, sync::Arc};
 
 use scalar::{
     db::{AuthenticationError, Credentials, DatabaseFactory, User},
@@ -23,14 +23,14 @@ where
     Ok(t.id.to_raw())
 }
 
-#[derive(Clone)]
-pub struct SurrealConnection<C: Connection> {
+#[derive(Clone, Debug)]
+pub struct SurrealConnection<C: Connection + Debug> {
     namespace: String,
     db: String,
     inner: Surreal<C>,
 }
 
-impl<C: Connection> Deref for SurrealConnection<C> {
+impl<C: Connection + Debug> Deref for SurrealConnection<C> {
     type Target = Surreal<C>;
 
     fn deref(&self) -> &Self::Target {
@@ -48,7 +48,7 @@ pub struct SurrealItem<D> {
     pub inner: D,
 }
 
-impl<D> From<SurrealItem<D>> for Item<D> {
+impl<D: Debug> From<SurrealItem<D>> for Item<D> {
     fn from(item: SurrealItem<D>) -> Self {
         Self {
             id: item.id,
@@ -60,7 +60,7 @@ impl<D> From<SurrealItem<D>> for Item<D> {
     }
 }
 
-impl<D> From<Item<D>> for SurrealItem<D> {
+impl<D: Debug> From<Item<D>> for SurrealItem<D> {
     fn from(value: Item<D>) -> Self {
         Self {
             id: value.id,
@@ -72,7 +72,11 @@ impl<D> From<Item<D>> for SurrealItem<D> {
     }
 }
 
-pub struct SurrealStore<C: Connection, S, P: IntoEndpoint<S, Client = C> + Clone + Send + Sync> {
+pub struct SurrealStore<
+    C: Connection,
+    S,
+    P: IntoEndpoint<S, Client = C> + Clone + Send + Sync + Debug,
+> {
     endpoint: P,
     namespace: String,
     db: String,
@@ -80,7 +84,27 @@ pub struct SurrealStore<C: Connection, S, P: IntoEndpoint<S, Client = C> + Clone
     scheme_marker: PhantomData<S>,
 }
 
-impl<C: Connection, S, P: IntoEndpoint<S, Client = C> + Clone + Send + Sync> Clone
+impl<C: Connection, S, P: IntoEndpoint<S, Client = C> + Clone + Send + Sync + Debug> Debug
+    for SurrealStore<C, S, P>
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SurrealStore")
+            .field(
+                "connection_type",
+                &format!(
+                    "{}, {}",
+                    std::any::type_name::<C>(),
+                    std::any::type_name::<S>()
+                ),
+            )
+            .field("endpoint", &self.endpoint)
+            .field("namespace", &self.namespace)
+            .field("db", &self.db)
+            .finish()
+    }
+}
+
+impl<C: Connection, S, P: IntoEndpoint<S, Client = C> + Clone + Send + Sync + Debug> Clone
     for SurrealStore<C, S, P>
 {
     fn clone(&self) -> Self {
@@ -94,7 +118,9 @@ impl<C: Connection, S, P: IntoEndpoint<S, Client = C> + Clone + Send + Sync> Clo
     }
 }
 
-impl<C: Connection, S, P: IntoEndpoint<S, Client = C> + Clone + Send + Sync> SurrealStore<C, S, P> {
+impl<C: Connection, S, P: IntoEndpoint<S, Client = C> + Clone + Send + Sync + Debug>
+    SurrealStore<C, S, P>
+{
     pub fn new(address: P, namespace: String, db: String) -> Self {
         Self {
             endpoint: address,
@@ -107,15 +133,16 @@ impl<C: Connection, S, P: IntoEndpoint<S, Client = C> + Clone + Send + Sync> Sur
 }
 
 impl<
-        C: Connection + Clone,
+        C: Connection + Clone + Debug,
         S: Send + Sync,
-        P: IntoEndpoint<S, Client = C> + Clone + Send + Sync,
+        P: IntoEndpoint<S, Client = C> + Clone + Send + Sync + Debug,
     > DatabaseFactory for SurrealStore<C, S, P>
 {
     type Error = surrealdb::Error;
 
     type Connection = SurrealConnection<C>;
 
+    #[tracing::instrument(level = "debug", err)]
     async fn init(&self) -> Result<Self::Connection, Self::Error> {
         let inner = Surreal::new(self.endpoint.to_owned()).await?;
 
@@ -129,6 +156,7 @@ impl<
         })
     }
 
+    #[tracing::instrument(level = "debug", err)]
     async fn init_system(&self) -> Result<Self::Connection, Self::Error> {
         let inner = Surreal::new(self.endpoint.to_owned()).await?;
 
@@ -150,15 +178,10 @@ impl<
     }
 }
 
-impl<C: Connection> Drop for SurrealConnection<C> {
-    fn drop(&mut self) {
-        println!("MEMORY LEAK PREVENTED!!!!");
-    }
-}
-
-impl<C: Connection> scalar::DatabaseConnection for SurrealConnection<C> {
+impl<C: Connection + Debug> scalar::DatabaseConnection for SurrealConnection<C> {
     type Error = surrealdb::Error;
 
+    #[tracing::instrument(level = "debug", err)]
     async fn draft<D: Document + Send>(
         &self,
         id: &str,
@@ -201,6 +224,7 @@ impl<C: Connection> scalar::DatabaseConnection for SurrealConnection<C> {
             .into())
     }
 
+    #[tracing::instrument(level = "debug", err)]
     async fn delete_draft<D: Document + Send>(
         &self,
         id: &str,
@@ -211,6 +235,9 @@ impl<C: Connection> scalar::DatabaseConnection for SurrealConnection<C> {
             id: Cow<'a, str>,
         }
 
+        //TODO: VERY BAD!!!!
+        let pre_delete = self.get_by_id::<D>(id).await?.unwrap();
+
         let result = self
             .query("LET $draft_id = type::thing(string::concat($doc, '_draft'), $id)")
             .query("LET $meta_id = type::thing(string::concat($doc, '_meta'), $id)")
@@ -219,12 +246,14 @@ impl<C: Connection> scalar::DatabaseConnection for SurrealConnection<C> {
             .bind(Bindings {
                 doc: D::identifier().into(),
                 id: id.to_owned().into(),
-            });
+            })
+            .await?;
 
-        Ok(todo!())
+        Ok(pre_delete)
     }
 
-    async fn put<D: Document + Serialize + DeserializeOwned + Send + 'static>(
+    #[tracing::instrument(level = "debug", err)]
+    async fn put<D: Document + Serialize + DeserializeOwned + Send + Debug + 'static>(
         &self,
         item: Item<D>,
     ) -> Result<Item<D>, Self::Error> {
@@ -238,10 +267,12 @@ impl<C: Connection> scalar::DatabaseConnection for SurrealConnection<C> {
             .into())
     }
 
-    async fn delete<D: Document + Send>(&self, id: &str) -> Result<Item<D>, Self::Error> {
+    #[tracing::instrument(level = "debug", err)]
+    async fn delete<D: Document + Send + Debug>(&self, id: &str) -> Result<Item<D>, Self::Error> {
         todo!()
     }
 
+    #[tracing::instrument(level = "debug", err)]
     async fn get_all<D: Document + DeserializeOwned + Send>(
         &self,
     ) -> Result<Vec<Item<serde_json::Value>>, Self::Error> {
@@ -263,6 +294,7 @@ impl<C: Connection> scalar::DatabaseConnection for SurrealConnection<C> {
         Ok(result.into_iter().map(Into::into).collect())
     }
 
+    #[tracing::instrument(level = "debug", err)]
     async fn get_by_id<D: Document + DeserializeOwned + Send>(
         &self,
         id: &str,
@@ -294,16 +326,23 @@ impl<C: Connection> scalar::DatabaseConnection for SurrealConnection<C> {
             .map(Into::into))
     }
 
+    #[tracing::instrument(level = "debug", err)]
     async fn authenticate(&self, jwt: &str) -> Result<(), AuthenticationError<Self::Error>> {
-        self.inner.authenticate(jwt).await.map_err(|e| match e {
-            Error::Api(Api::Query(_)) => AuthenticationError::BadToken,
-            Error::Db(Db::InvalidAuth) => AuthenticationError::BadToken,
-            _ => e.into(),
+        self.inner.authenticate(jwt).await.map_err(|e| {
+            println!("{e:?}");
+            match e {
+                Error::Api(Api::Query(_)) => AuthenticationError::BadToken,
+                Error::Db(Db::InvalidAuth | Db::ExpiredToken | Db::ExpiredSession) => {
+                    AuthenticationError::BadToken
+                }
+                _ => e.into(),
+            }
         })?;
 
         Ok(())
     }
 
+    #[tracing::instrument(level = "debug", err)]
     async fn signin(
         &self,
         credentials: Credentials,
@@ -312,7 +351,7 @@ impl<C: Connection> scalar::DatabaseConnection for SurrealConnection<C> {
             .inner
             .signin(Record {
                 namespace: &self.namespace,
-                database: &self.namespace,
+                database: &self.db,
                 access: "sc__editor",
                 params: credentials,
             })
@@ -336,7 +375,7 @@ impl<C: Connection> scalar::DatabaseConnection for SurrealConnection<C> {
     }
 }
 
-impl<C: Connection> SurrealConnection<C> {
+impl<C: Connection + Debug> SurrealConnection<C> {
     pub async fn init_doc<D: Document>(&self) {
         let published_table = D::identifier();
         let draft_table = format!("{published_table}_draft");
