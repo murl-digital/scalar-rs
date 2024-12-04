@@ -5,24 +5,32 @@ use scalar::{
     db::DatabaseFactory,
     doc_enum, nanoid,
     validations::{ValidationError, Validator},
-    Document, Item, Utc,
+    DateTime, Document, Item, Markdown, MultiLine, Utc,
 };
 use scalar_axum::generate_routes;
 use scalar_surreal::{init, SurrealStore};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::Value;
 use surrealdb::{
-    engine::remote::ws::{Client, Ws},
+    engine::{
+        local::{Db, SurrealKv},
+        remote::ws::{Client, Ws},
+    },
     opt::{auth::Root, Config},
 };
 use tower_http::cors::CorsLayer;
 
-#[derive(Document, Serialize, Deserialize, Clone)]
-struct Test {
-    pub hi: String,
-    pub number: i32,
-    #[field(validate)]
-    pub test: TestEnum,
+#[derive(Document, Serialize, Deserialize)]
+struct AllTypes {
+    bool: bool,
+    integer: i32,
+    float: f32,
+    single_line: String,
+    multi_line: MultiLine,
+    markdown: Markdown,
+    array: Vec<String>,
+    date_time: DateTime<Utc>,
+    enum_select: TestEnum,
 }
 
 #[derive(Document, Serialize, Deserialize, Clone)]
@@ -50,14 +58,24 @@ impl Validator for TestEnum {
 
 #[tokio::main]
 async fn main() {
-    let factory =
-        SurrealStore::<Client, Ws, _>::new("localhost:8000", "test".into(), "test".into());
+    let factory = SurrealStore::<Db, SurrealKv, _>::new(
+        (
+            "hi.db",
+            Config::new().user(Root {
+                username: "root",
+                password: "root",
+            }),
+        ),
+        "test".into(),
+        "test".into(),
+    );
     let conn = factory.init_system().await.unwrap();
-    init!(conn, Test, Test2);
+    init!(conn, AllTypes, Test2);
     drop(conn);
-    let app = generate_routes!(factory, SurrealStore<Client, Ws, &str>, Test, Test2)
-        .layer(CorsLayer::very_permissive())
-        .with_state(factory);
+    let app =
+        generate_routes!(factory, SurrealStore<Db, SurrealKv, (&str, Config)>, AllTypes, Test2)
+            .layer(CorsLayer::very_permissive())
+            .with_state(factory);
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
 

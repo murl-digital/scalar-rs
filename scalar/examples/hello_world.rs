@@ -28,6 +28,50 @@ struct Hello {
     pub nickelback: LookAtThisStruct,
 }
 
+// impl Document for Hello {
+//     fn identifier() -> &'static str {
+//         "mcdonalds sprite"
+//     }
+//     fn title() -> &'static str {
+//         "Hello"
+//     }
+//     fn fields() -> Vec<::scalar::EditorField> {
+//         use ::scalar::editor_field::ToEditorField;
+//         vec![
+//             <String>::to_editor_field(
+//                 None::<String>,
+//                 "oh_my_goodness",
+//                 "dragon enjoyer",
+//                 None,
+//                 None,
+//             ),
+//             <NonZeroI32>::to_editor_field(
+//                 None::<NonZeroI32>,
+//                 "wowie",
+//                 "Wowie",
+//                 None,
+//                 Some("NonZeroI32"),
+//             ),
+//             <Test>::to_editor_field(None::<Test>, "dang", "this should still work", None, None),
+//             <Option<i32>>::to_editor_field(Some(3), "hello", "Hello", None, None),
+//             <Vec<i32>>::to_editor_field(None::<Vec<i32>>, "oh_yes", "Oh Yes", None, None),
+//             <Ghost>::to_editor_field(None::<Ghost>, "ghost", "Ghost", None, None),
+//             <LookAtThisStruct>::to_editor_field(
+//                 None::<LookAtThisStruct>,
+//                 "nickelback",
+//                 "Nickelback",
+//                 None,
+//                 None,
+//             ),
+//         ]
+//     }
+//     fn validate(&self) -> Result<(), ::scalar::validations::ValidationError> {
+//         use ::scalar::validations::Validator;
+//         <NonZeroI32>::validate(&self.wowie)?;
+//         Ok(())
+//     }
+// }
+
 #[derive(EditorField, Serialize, Deserialize)]
 struct Ghost(i32);
 
@@ -56,13 +100,6 @@ impl Validator for Test {
 
 fn main() {
     println!("ident: {}", Hello::identifier());
-
-    println!(
-        "validators: {:?}",
-        Hello::validators(DataModel::Json)
-            .keys()
-            .collect::<Vec<&String>>()
-    );
 
     println!(
         "schema: {}",

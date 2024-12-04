@@ -1,11 +1,12 @@
 use internals::ts::AnythingElse;
 use std::{
     collections::HashMap,
+    fmt::Debug,
     ops::{Deref, DerefMut},
 };
 
 pub use scalar_derive::{doc_enum, Document, EditorField, Enum};
-use serde::{Deserialize, Serialize};
+use serde::{de, Deserialize, Serialize};
 use ts_rs::TS;
 
 pub use chrono::{DateTime, Utc};
@@ -27,12 +28,31 @@ pub fn convert<T: Serialize>(value: T) -> Value {
 
 pub use editor_field::EditorField;
 pub use editor_type::EditorType;
-use validations::{DataModel, ValidatorFunction};
+use validations::{DataModel, ValidationError, ValidatorFunction};
 
 #[derive(Serialize, Deserialize)]
 pub struct MultiLine(String);
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(transparent)]
 pub struct Markdown(String);
+
+// impl<'de> Deserialize<'de> for Markdown {
+//     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+//     where
+//         D: serde::Deserializer<'de>,
+//     {
+//         let result = String::deserialize(deserializer)?;
+
+//         if result.is_empty() {
+//             Err(<D::Error as de::Error>::invalid_value(
+//                 de::Unexpected::Str(&result),
+//                 &"a non-empty string",
+//             ))
+//         } else {
+//             Ok(Self(result))
+//         }
+//     }
+// }
 
 impl Deref for MultiLine {
     type Target = String;
@@ -78,7 +98,6 @@ pub trait Document: Serialize + for<'de> Deserialize<'de> {
     fn title() -> &'static str;
 
     fn fields() -> Vec<EditorField>;
-    fn validators(model: DataModel) -> HashMap<String, ValidatorFunction>;
     fn schema() -> Schema {
         Schema {
             identifier: Self::identifier(),
@@ -86,11 +105,13 @@ pub trait Document: Serialize + for<'de> Deserialize<'de> {
             fields: Self::fields(),
         }
     }
+
+    fn validate(&self) -> Result<(), ValidationError>;
 }
 
-#[derive(Serialize, Deserialize, TS)]
+#[derive(Serialize, Deserialize, Debug, TS)]
 #[ts(export, concrete(D = String))]
-pub struct Item<D> {
+pub struct Item<D: Debug> {
     #[serde(rename = "__sc_id")]
     pub id: String,
     #[serde(rename = "__sc_created_at")]

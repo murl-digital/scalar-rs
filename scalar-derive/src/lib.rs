@@ -109,7 +109,7 @@ pub fn struct_to_editor_field(input: TokenStream) -> TokenStream {
                 .collect::<Vec<_>>();
 
             quote! {
-                impl ::scalar::editor_field::ToEditorField<#ident> for #ident {
+                impl ::scalar::editor_field::ToEditorField<#ident> for #ident where #ident: ::serde::Serialize {
                     fn to_editor_field(
                         default: Option<impl Into<#ident>>,
                         name: &'static str,
@@ -128,6 +128,7 @@ pub fn struct_to_editor_field(input: TokenStream) -> TokenStream {
                             required: true,
                             validator,
                             field_type: ::scalar::EditorType::Struct {
+                                default: default.map(Into::into).as_ref().map(|v| ::scalar::convert(v)),
                                 fields: vec![#(#fields),*]
                             }
                         }
@@ -250,13 +251,18 @@ pub fn derive_document(input: TokenStream) -> TokenStream {
         .map(|f| field_to_info_call(f.to_owned()))
         .collect::<Vec<_>>();
 
-    let validators = struct_fields.iter().filter(|&f| f.validate.is_present()).map(|f| {
-        let ty = &f.ty;
+    let validators = struct_fields
+        .iter()
+        .filter(|&f| f.validate.is_present())
+        .map(|f| {
+            let ty = &f.ty;
+            let ident = f.ident.as_ref().expect("this shouldn't be a tuple struct!");
 
-        quote! {
-            map.insert(stringify!(#ty).to_string(), ::scalar::validations::create_validator_function(model, <#ty>::validate));
-        }
-    }).collect::<Vec<_>>();
+            quote! {
+                <#ty>::validate(&self.#ident)?;
+            }
+        })
+        .collect::<Vec<_>>();
 
     let output = quote! {
         #[automatically_derived]
@@ -272,12 +278,12 @@ pub fn derive_document(input: TokenStream) -> TokenStream {
                 ]
             }
 
-            fn validators(model: scalar::validations::DataModel) -> ::std::collections::HashMap<String, scalar::validations::ValidatorFunction> {
+            fn validate(&self) -> Result<(), ::scalar::validations::ValidationError> {
                 use ::scalar::validations::Validator;
-                use ::std::collections::HashMap;
-                let mut map = HashMap::new();
+
                 #(#validators)*
-                map
+
+                Ok(())
             }
         }
     };

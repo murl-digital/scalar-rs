@@ -1,4 +1,5 @@
 use std::error::Error;
+use std::fmt::Debug;
 
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use thiserror::Error;
@@ -7,8 +8,11 @@ use crate::{Document, Item};
 
 #[derive(Error, Debug)]
 pub enum AuthenticationError<DE: Error> {
+    #[error("Invalid token provided")]
     BadToken,
+    #[error("Invalid credentials provided")]
     BadCredentials,
+    #[error("Database error: {0}")]
     DatabaseError(#[from] DE),
 }
 
@@ -16,6 +20,15 @@ pub enum AuthenticationError<DE: Error> {
 pub struct Credentials {
     email: String,
     password: String,
+}
+
+impl Debug for Credentials {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Credentials")
+            .field("email", &self.email)
+            .field("password", &"<REDACTED>")
+            .finish()
+    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -56,11 +69,11 @@ pub trait DatabaseConnection {
         id: &str,
     ) -> Result<Item<serde_json::Value>, Self::Error>;
 
-    async fn put<D: Document + Serialize + DeserializeOwned + Send + 'static>(
+    async fn put<D: Document + Serialize + DeserializeOwned + Send + Debug + 'static>(
         &self,
         item: Item<D>,
     ) -> Result<Item<D>, Self::Error>;
-    async fn delete<D: Document + Send>(&self, id: &str) -> Result<Item<D>, Self::Error>;
+    async fn delete<D: Document + Send + Debug>(&self, id: &str) -> Result<Item<D>, Self::Error>;
     async fn get_all<D: Document + DeserializeOwned + Send>(
         &self,
     ) -> Result<Vec<Item<serde_json::Value>>, Self::Error>;

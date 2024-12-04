@@ -41,19 +41,11 @@ macro_rules! generate_routes {
             }
             router = router.route("/docs", ::axum::routing::get(get_docs));
 
-            let mut validators = ::std::collections::HashMap::new();
-
-            $(validators.extend(<$doc>::validators(::scalar::validations::DataModel::Json));)*
-
-            for (key, validator) in validators {
-                router = router.route(&format!("/validators/{key}/verify"), ::axum::routing::post(|body: String| async move {
-                    validator(body).map_err(::scalar_axum::ValidationFailiure)
-                }))
-            }
-
             router = router.route("/me", ::axum::routing::get(::scalar_axum::me::<$db>));
             router = router.layer(::axum::middleware::from_fn_with_state($db_instance.clone(), ::scalar_axum::authenticated_connection_middleware::<$db>));
             router = router.route("/signin", ::axum::routing::post(::scalar_axum::signin::<$db>));
+
+            ::scalar_axum::validate_routes__!(router, $($doc),+);
 
             router
         }
@@ -78,6 +70,19 @@ macro_rules! crud_routes__ {
     };
 }
 
+#[macro_export]
+#[doc(hidden)]
+macro_rules! validate_routes__ {
+    ($router:ident, $doc:ty) => {
+        $router = $router
+            .route(&format!("/docs/{}/verify", <$doc>::identifier()), ::axum::routing::post(::scalar_axum::validate::<$doc>));
+    };
+
+    ($router:ident, $($doc:ty),+) => {
+        $(::scalar_axum::validate_routes__!($router, $doc);)*
+    };
+}
+
 pub async fn authenticated_connection_middleware<F: DatabaseFactory + Clone>(
     State(db_factory): State<F>,
     mut req: Request,
@@ -97,10 +102,10 @@ where
         return Err(StatusCode::UNAUTHORIZED);
     };
 
-    let connection = db_factory
-        .init()
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let connection = db_factory.init().await.map_err(|e| {
+        println!("{e}");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
 
     let token = auth_header
         .starts_with("Bearer ")
@@ -115,7 +120,10 @@ where
     connection.authenticate(token).await.map_err(|e| match e {
         scalar::db::AuthenticationError::BadToken => StatusCode::UNAUTHORIZED,
         scalar::db::AuthenticationError::BadCredentials => StatusCode::UNAUTHORIZED,
-        scalar::db::AuthenticationError::DatabaseError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+        scalar::db::AuthenticationError::DatabaseError(e) => {
+            println!("auth: {e}");
+            StatusCode::INTERNAL_SERVER_ERROR
+        }
     })?;
 
     req.extensions_mut().insert(connection);
@@ -128,10 +136,10 @@ pub async fn signin<F: DatabaseFactory + Clone>(
     State(factory): State<F>,
     Json(credentials): Json<Credentials>,
 ) -> Result<String, StatusCode> {
-    let connection = factory
-        .init()
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let connection = factory.init().await.map_err(|e| {
+        println!("{e}");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
 
     println!("connection");
 
@@ -148,15 +156,22 @@ pub async fn get_schema<T: Document>() -> Json<Schema> {
     Json(T::schema())
 }
 
+pub async fn validate<D: Document>(Json(doc): Json<D>) -> Result<(), (StatusCode, String)> {
+    doc.validate().map_err(|e| match e {
+        ValidationError::Deserialization(_) => {
+            unreachable!("no deserialization error should take place here")
+        }
+        ValidationError::Validation(message) => (StatusCode::BAD_REQUEST, message),
+    })
+}
+
 pub async fn me<F: DatabaseFactory>(
     state: Extension<<F as DatabaseFactory>::Connection>,
 ) -> Result<Json<User>, StatusCode> {
-    Ok(Json(
-        state
-            .me()
-            .await
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?,
-    ))
+    Ok(Json(state.me().await.map_err(|e| {
+        println!("{e}");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?))
 }
 
 pub async fn update_draft<T: Document + Serialize + DeserializeOwned + Send, F: DatabaseFactory>(
