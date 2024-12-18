@@ -6,7 +6,7 @@
 </script>
 
 <div class="flex flex-row h-full w-full">
-    <div class="b-r-solid b-1 p-3 pr-6 h-full">
+    <div class="b-r-solid b-r-1 p-3 pr-6 h-full">
         <ul class="flex flex-col pl-0 my-0">
             {#each data.docs as doc, index}
                 {@const name = doc.content[Object.keys(doc.content)[0]]}

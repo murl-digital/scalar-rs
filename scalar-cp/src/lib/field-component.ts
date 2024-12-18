@@ -1,8 +1,9 @@
 import type { EditorField } from "$ts/EditorField";
+import type { EditorType } from "$ts/EditorType";
 import type { Component } from "svelte";
 
 export type FieldComponent = Component<
-  { field: EditorField; data: any },
+  { field: EditorField; data: any; ready: () => void },
   {},
   "data"
 >;
@@ -16,7 +17,8 @@ const components: Map<string, () => Promise<ComponentMeta>> = new Map([
     "Enum",
     async () => {
       return {
-        component: (await import("./components/EnumDropdown.svelte")).default,
+        component: (await import("./components/types/EnumDropdown.svelte"))
+          .default,
       };
     },
   ],
@@ -24,7 +26,8 @@ const components: Map<string, () => Promise<ComponentMeta>> = new Map([
     "Bool",
     async () => {
       return {
-        component: (await import("./components/Checkbox.svelte")).default,
+        component: (await import("./components/types/BoolInput.svelte"))
+          .default,
       };
     },
   ],
@@ -32,7 +35,8 @@ const components: Map<string, () => Promise<ComponentMeta>> = new Map([
     "Integer",
     async () => {
       return {
-        component: (await import("./components/IntegerInput.svelte")).default,
+        component: (await import("./components/types/IntegerInput.svelte"))
+          .default,
       };
     },
   ],
@@ -40,7 +44,8 @@ const components: Map<string, () => Promise<ComponentMeta>> = new Map([
     "Float",
     async () => {
       return {
-        component: (await import("./components/FloatInput.svelte")).default,
+        component: (await import("./components/types/FloatInput.svelte"))
+          .default,
       };
     },
   ],
@@ -48,7 +53,7 @@ const components: Map<string, () => Promise<ComponentMeta>> = new Map([
     "SingleLine",
     async () => {
       return {
-        component: (await import("./components/SingleLineInput.svelte"))
+        component: (await import("./components/types/SingleLineInput.svelte"))
           .default,
       };
     },
@@ -57,7 +62,8 @@ const components: Map<string, () => Promise<ComponentMeta>> = new Map([
     "MultiLine",
     async () => {
       return {
-        component: (await import("./components/MultiLineInput.svelte")).default,
+        component: (await import("./components/types/MultiLineInput.svelte"))
+          .default,
       };
     },
   ],
@@ -65,7 +71,8 @@ const components: Map<string, () => Promise<ComponentMeta>> = new Map([
     "Markdown",
     async () => {
       return {
-        component: (await import("./components/MarkdownInput.svelte")).default,
+        component: (await import("./components/types/MarkdownInput.svelte"))
+          .default,
       };
     },
   ],
@@ -73,15 +80,25 @@ const components: Map<string, () => Promise<ComponentMeta>> = new Map([
     "DateTime",
     async () => {
       return {
-        component: (await import("./components/DateTimeInput.svelte")).default,
+        component: (await import("./components/types/DateTimeInput.svelte"))
+          .default,
+      };
+    },
+  ],
+  [
+    "Array",
+    async () => {
+      return {
+        component: (await import("./components/types/ArrayInput.svelte"))
+          .default,
       };
     },
   ],
 ]);
 
 export async function getComponent(
-  field: EditorField,
+  type: EditorType,
 ): Promise<ComponentMeta | null> {
-  let create = components.get(field.field_type.type) ?? (() => null);
+  let create = components.get(type.type) ?? (() => null);
   return (await create()) ?? null;
 }

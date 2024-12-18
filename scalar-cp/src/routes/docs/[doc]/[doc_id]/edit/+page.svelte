@@ -15,10 +15,10 @@
     let formData = $state(data.doc);
 
     let updatingPromise = $state();
-    let justMounted = $state(true);
+    let ready = $state(false);
 
     $effect.pre(() => {
-        justMounted = true;
+        ready = false;
         formData = data.doc;
     });
 
@@ -31,9 +31,7 @@
             body: JSON.stringify(formData),
         };
 
-        if (untrack(() => justMounted)) {
-            justMounted = false;
-        } else {
+        if (untrack(() => ready)) {
             updatingPromise = apiFetch(
                 fetch,
                 `${base}/api/docs/${$page.params.doc}/drafts/${$page.params.doc_id}`,
@@ -43,13 +41,20 @@
     });
 
     $inspect(formData);
-    $inspect(justMounted);
+    $inspect(ready);
 </script>
 
 <div class="flex flex-col w-full h-full relative">
     <div class="w-full overflow-scroll">
         <div class="w-1/3 mx-auto">
-            <Form fields={data.schema.fields} bind:formData></Form>
+            <Form
+                fields={data.schema.fields}
+                bind:formData
+                ready={() => {
+                    ready = true;
+                    console.log("ready!");
+                }}
+            ></Form>
         </div>
     </div>
 

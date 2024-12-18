@@ -10,11 +10,11 @@
 <div
     class="grid grid-cols-[1fr] grid-rows-[4rem_1fr_1fr] h-screen overflow-hidden bg-dark"
 >
-    <div class="b-b-solid b-1 row-span-1 flex">
+    <div class="b-b-solid b-b-1 row-span-1 flex">
         <img class="ml-auto" src={data.avatarUrl} alt="user profile" />
     </div>
     <div class="row-start-2 row-span-2 col-span-1 overflow-scroll flex">
-        <div class="p-4 b-r-solid b-1">
+        <div class="p-4 b-r-solid b-r-1">
             <h1 class="text-sm">COLLECTIONS</h1>
             <ul class="flex flex-col gap-2 pl-2">
                 {#each data.docs as doc}

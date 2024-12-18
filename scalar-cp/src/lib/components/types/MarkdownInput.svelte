@@ -2,35 +2,60 @@
     import type { EditorField } from "$ts/EditorField";
     import { Carta, MarkdownEditor } from "carta-md";
     import DOMPurify from "isomorphic-dompurify";
-    import "carta-md/default.css";
+    import "$lib/css/carta-theme-scalar.css";
+    import { onMount } from "svelte";
 
-    let { field, data = $bindable() }: { field: EditorField; data: any } =
-        $props();
+    let {
+        field,
+        data = $bindable(),
+        ready,
+    }: { field: EditorField; data: any; ready: () => void } = $props();
+
+    let internalText = $state(data ?? "");
+
+    $effect(() => {
+        if (internalText) {
+            data = internalText;
+        } else if (data) {
+            data = null;
+        }
+    });
 
     const carta = new Carta({
         sanitizer: DOMPurify.sanitize,
     });
+
+    onMount(() => {
+        ready();
+    });
 </script>
 
-<MarkdownEditor {carta} bind:value={data[field.name]} />
+<label class="flex flex-col">
+    {field.title}
+    <MarkdownEditor theme="scalar" {carta} bind:value={internalText} />
+</label>
 
 <style>
     /* Set your monospace font (Required to have the editor working correctly!) */
-    /* :global(.carta-font-code) {
+    :global(.carta-font-code) {
         font-family: "...", monospace;
         font-size: 1.1rem;
+    }
+
+    /* :global(.carta-toolbar-left) {
+        @apply text-gray!;
     } */
 
     /* Editor dark mode */
     /* Only if you are using the default theme */
-    :global(.carta-theme__default) {
+    /* :global(.carta-theme__default) {
         --border-color: var(--border-color-dark);
         --selection-color: var(--selection-color-dark);
         --focus-outline: var(--focus-outline-dark);
         --hover-color: var(--hover-color-dark);
         --caret-color: var(--caret-color-dark);
         --text-color: var(--text-color-dark);
-    }
+    } */
 
     /* Code dark mode */
     /* Only if you didn't specify a custom code theme */
@@ -38,4 +63,8 @@
     :global(.shiki span) {
         color: var(--shiki-dark) !important;
     }
+
+    /* :global(.carta-renderer) {
+        @apply prose;
+    } */
 </style>

@@ -3,7 +3,7 @@
     import { goto, invalidateAll } from "$app/navigation";
     import { page } from "$app/stores";
     import type { PageData } from "./$types";
-    import { untrack } from "svelte";
+    import { tick, untrack } from "svelte";
     import Form from "$lib/components/Form.svelte";
     import { base } from "$app/paths";
     import { nanoid } from "nanoid";
@@ -11,11 +11,13 @@
     const { data } = $props();
 
     let formData = $state({});
-    let justMounted = $state(true);
+    let ready = $state(false);
     let timeout: Timer | undefined = $state();
 
     $effect(() => {
         clearTimeout(untrack(() => timeout));
+        timeout = undefined;
+        console.log("trigger");
 
         let init = {
             method: "PUT",
@@ -25,9 +27,8 @@
             body: JSON.stringify(formData),
         };
 
-        if (untrack(() => justMounted)) {
-            justMounted = false;
-        } else {
+        if (untrack(() => ready)) {
+            console.log("timeout set");
             timeout = setTimeout(() => {
                 create(init).then((id) =>
                     goto(`./${id}/edit`, { invalidateAll: true }),
@@ -48,7 +49,19 @@
     }
 
     $inspect(formData);
-    $inspect(data);
 </script>
 
-<Form fields={data.schema.fields} bind:formData></Form>
+<div class="w-full h-full flex">
+    <div class="w-full overflow-scroll">
+        <div class="w-1/3 mx-auto py-16">
+            <Form
+                fields={data.schema.fields}
+                bind:formData
+                ready={() => {
+                    ready = true;
+                    console.log("ready!");
+                }}
+            ></Form>
+        </div>
+    </div>
+</div>
