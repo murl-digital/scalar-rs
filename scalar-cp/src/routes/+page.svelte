@@ -3,7 +3,6 @@
 </script>
 
 <div class="flex items-center justify-center w-full h-full">
-    <ColorInput />
     <div
         class="i-fluent-emoji-high-contrast:dragon w-xl h-xl text-neutral-800 animate-pulse"
     ></div>

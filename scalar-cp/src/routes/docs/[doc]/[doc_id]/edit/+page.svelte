@@ -6,7 +6,8 @@
     import { slide } from "svelte/transition";
     import Form from "$lib/components/Form.svelte";
     import { base } from "$app/paths";
-    import { page } from "$app/stores";
+    import { page } from "$app/state";
+    import ColorInput from "$lib/components/types/ColorInput.svelte";
 
     const { data }: { data: PageData } = $props();
 
@@ -34,7 +35,7 @@
         if (untrack(() => ready)) {
             updatingPromise = apiFetch(
                 fetch,
-                `${base}/api/docs/${$page.params.doc}/drafts/${$page.params.doc_id}`,
+                `${base}/api/docs/${page.params.doc}/drafts/${page.params.doc_id}`,
                 init,
             ).then((value) => wait(1500, value));
         }
@@ -42,6 +43,9 @@
 
     $inspect(formData);
     $inspect(ready);
+
+    let colorData = $state();
+    $inspect(colorData);
 </script>
 
 <div class="flex flex-col w-full h-full relative">
@@ -55,6 +59,13 @@
                     console.log("ready!");
                 }}
             ></Form>
+            <ColorInput
+                bind:data={colorData}
+                field={null}
+                ready={() => {
+                    console.log("color ready!");
+                }}
+            ></ColorInput>
         </div>
     </div>
 

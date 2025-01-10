@@ -6,5 +6,5 @@ members = [
     "scalar-derive",
     "scalar-img",
     "xtask",
-    "drc-cms", "scalar-surreal",
+    "drc-cms", "scalar-surreal", "scalar-types-color",
 ]

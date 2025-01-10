@@ -3,36 +3,39 @@ use std::sync::Arc;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use thiserror::Error;
 
-pub enum DataModel {
-    Json,
+use crate::Document;
+
+pub struct Valid<T: Document>(T);
+
+impl<T: Document> Valid<T> {
+    pub fn new(doc: T) -> Result<Self, Vec<ValidationError>> {
+        doc.validate()?;
+        Ok(Self(doc))
+    }
 }
 
-#[derive(Error, Debug)]
-pub enum ValidationError {
-    #[error("Couldn't deserialize: {0}")]
-    Deserialization(#[from] Box<dyn std::error::Error>),
-    #[error("Validation error: {0}")]
-    Validation(String),
+#[derive(Error, Debug, Serialize)]
+#[error("Validation error on {field}: {reason}")]
+pub struct ValidationError {
+    pub field: String,
+    pub reason: String,
 }
 
-pub type ValidatorFunction = Arc<dyn Fn(String) -> Result<(), ValidationError> + Sync + Send>;
-
+#[diagnostic::on_unimplemented(
+    note = "all document fields are validated by default",
+    note = "if validation isn't necesarry, use #[validate(skip)]"
+)]
 pub trait Validator {
-    fn validate(&self) -> Result<(), ValidationError>;
+    fn validate(&self, field_name: impl AsRef<str>) -> Result<(), ValidationError>;
 }
 
-pub fn create_validator_function<V: Validator + DeserializeOwned>(
-    model: DataModel,
-    validator: impl Fn(&V) -> Result<(), ValidationError> + 'static + Sync + Send,
-) -> ValidatorFunction {
-    Arc::new(move |input| {
-        let value = match model {
-            DataModel::Json => serde_json::from_str(&input)
-                .map_err(|e| ValidationError::Deserialization(e.into()))?,
-        };
-
-        validator(&value)
-    })
+impl<T: Validator> Validator for Option<T> {
+    fn validate(&self, field_name: impl AsRef<str>) -> Result<(), ValidationError> {
+        match self.as_ref() {
+            Some(inner) => inner.validate(field_name),
+            None => Ok(()),
+        }
+    }
 }
 
 macro_rules! validator {
@@ -59,7 +62,7 @@ macro_rules! validator {
         }
 
         impl Validator for $ty {
-            fn validate(&self) -> Result<(), ValidationError> {
+            fn validate(&self, field_name: impl AsRef<str>) -> Result<(), ValidationError> {
                 let $v = self;
                 $expr
             }
@@ -73,6 +76,6 @@ pub struct NonZeroI32(pub i32);
 validator! {NonZeroI32, i32, {
     match v.0 {
         0 => Ok(()),
-        _ => Err(ValidationError::Validation("must be non zero".into())),
+        _ => Err(todo!()),
     }
 }, v}

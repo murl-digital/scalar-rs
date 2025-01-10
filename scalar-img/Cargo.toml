@@ -1,0 +1,17 @@
+[package]
+name = "scalar-img"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+image = { version = "0.25.5" }
+image_hasher = "3.0.0"
+sc-minio = { version = "0.2.3", git = "https://github.com/murl-digital/sc-minio", features = [
+    "tokio",
+] }
+thiserror = "2.0.10"
+tokio = { version = "1.41.1", features = ["rt-multi-thread"] }
+
+[dev-dependencies]
+axum = { version = "0.8.1", features = ["multipart"] }
+axum-macros = "0.5.0"

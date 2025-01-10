@@ -1,7 +1,7 @@
 <script lang="ts">
     import { apiFetch } from "$lib/api";
     import { goto, invalidateAll } from "$app/navigation";
-    import { page } from "$app/stores";
+    import { page } from "$app/state";
     import type { PageData } from "./$types";
     import { tick, untrack } from "svelte";
     import Form from "$lib/components/Form.svelte";
@@ -41,7 +41,7 @@
         let id = nanoid();
         await apiFetch(
             fetch,
-            `${base}/api/docs/${$page.params.doc}/drafts/${id}`,
+            `${base}/api/docs/${page.params.doc}/drafts/${id}`,
             init,
         );
 

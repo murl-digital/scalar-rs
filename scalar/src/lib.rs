@@ -28,7 +28,7 @@ pub fn convert<T: Serialize>(value: T) -> Value {
 
 pub use editor_field::EditorField;
 pub use editor_type::EditorType;
-use validations::{DataModel, ValidationError, ValidatorFunction};
+use validations::ValidationError;
 
 #[derive(Serialize, Deserialize)]
 pub struct MultiLine(String);
@@ -106,7 +106,7 @@ pub trait Document: Serialize + for<'de> Deserialize<'de> {
         }
     }
 
-    fn validate(&self) -> Result<(), ValidationError>;
+    fn validate(&self) -> Result<(), Vec<ValidationError>>;
 }
 
 #[derive(Serialize, Deserialize, Debug, TS)]

@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 async-trait = "0.1"
 chrono = { version = "0.4", features = ["serde"] }
+color = { version = "0.2.0", features = ["serde"] }
 nanoid = "0.4.0"
 scalar-derive = { version = "0.1.0", path = "../scalar-derive" }
 # rc is enabled for EditorType, the copying issue is fine in this case, because we're dealing with a schema type.

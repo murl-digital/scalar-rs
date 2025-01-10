@@ -1,6 +1,6 @@
 <script lang="ts">
     import type { PageData } from "./$types";
-    import { page } from "$app/stores";
+    import { page } from "$app/state";
 
     const { data, children } = $props();
 </script>
@@ -12,7 +12,7 @@
                 {@const name = doc.content[Object.keys(doc.content)[0]]}
                 <a
                     class="text-gray no-underline flex flex-row items-center gap-2"
-                    href="/docs/{$page.params.doc}/{doc.__sc_id}/edit"
+                    href="/docs/{page.params.doc}/{doc.__sc_id}/edit"
                     ><div class="i-ph-file-text"></div>
                     {name}
                     {index}</a
@@ -20,7 +20,7 @@
             {/each}
             <a
                 class="text-gray no-underline flex flex-row items-center gap-2"
-                href="/docs/{$page.params.doc}/create"
+                href="/docs/{page.params.doc}/create"
             >
                 <div class="i-ph-plus"></div>
                 Create New

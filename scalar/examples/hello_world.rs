@@ -1,30 +1,41 @@
+use std::str::FromStr;
+
+use color::{parse_color, DynamicColor};
 use scalar::{
     doc_enum,
-    validations::{DataModel, NonZeroI32, Validator},
+    validations::{NonZeroI32, Valid, ValidationError, Validator},
     Document, EditorField,
 };
 use serde::{Deserialize, Serialize};
+
+fn test_fnn(field: &str) -> Result<(), ValidationError> {
+    Ok(())
+}
 
 #[derive(Document, Serialize, Deserialize)]
 #[document(identifier = "mcdonalds sprite")]
 #[allow(dead_code)]
 struct Hello {
     #[field(title = "dragon enjoyer")]
+    #[validate(with = "test_fnn")]
     pub oh_my_goodness: String,
 
-    #[field(validate)]
     pub wowie: NonZeroI32,
 
     #[field(title = "this should still work")]
     pub dang: Test,
 
     #[field(default = 3)]
+    #[validate(skip)]
     pub hello: Option<i32>,
 
+    #[validate(skip)]
     pub oh_yes: Vec<i32>,
 
+    #[validate(skip)]
     pub ghost: Ghost,
 
+    #[validate(skip)]
     pub nickelback: LookAtThisStruct,
 }
 
@@ -65,10 +76,17 @@ struct Hello {
 //             ),
 //         ]
 //     }
-//     fn validate(&self) -> Result<(), ::scalar::validations::ValidationError> {
+//     fn validate(&self) -> Result<(), Vec<::scalar::validations::ValidationError>> {
 //         use ::scalar::validations::Validator;
-//         <NonZeroI32>::validate(&self.wowie)?;
-//         Ok(())
+//         let results = [<NonZeroI32>::validate(&self.wowie)];
+//         let errors: Vec<::scalar::validations::ValidationError> =
+//             results.into_iter().filter_map(Result::err).collect();
+
+//         if errors.is_empty() {
+//             Ok(())
+//         } else {
+//             Err(errors)
+//         }
 //     }
 // }
 
@@ -88,17 +106,23 @@ enum Test {
 }
 
 impl Validator for Test {
-    fn validate(&self) -> Result<(), scalar::validations::ValidationError> {
+    fn validate(
+        &self,
+        field_name: impl AsRef<str>,
+    ) -> Result<(), scalar::validations::ValidationError> {
         match self {
-            Self::Struct { eeee } if eeee.is_empty() => Err(
-                scalar::validations::ValidationError::Validation("eeee can't be empty".into()),
-            ),
+            Self::Struct { eeee } if eeee.is_empty() => Err(ValidationError {
+                field: String::from_str(field_name.as_ref()).unwrap(),
+                reason: "eeee can't be empty".into(),
+            }),
             _ => Ok(()),
         }
     }
 }
 
 fn main() {
+    let color: DynamicColor = parse_color("#B00B69").unwrap();
+    println!("{}", serde_json::to_string_pretty(&color).unwrap());
     println!("ident: {}", Hello::identifier());
 
     println!(

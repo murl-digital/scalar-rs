@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use chrono::{DateTime, TimeZone};
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use ts_rs::TS;
 
 use crate::{EditorType, Markdown, MultiLine};
@@ -19,7 +19,7 @@ pub struct EditorField {
 
 /// Convert an input type into a `scalar::EditorField`
 /// It's done this way with generics to make dealing with this in derive macros easier, and options. Oh god, options.
-pub trait ToEditorField<T> {
+pub trait ToEditorField<T: Serialize> {
     fn to_editor_field(
         default: Option<impl Into<T>>,
         name: &'static str,
@@ -201,7 +201,7 @@ impl<Z: TimeZone> ToEditorField<DateTime<Z>> for DateTime<Z> {
 
 impl<T> ToEditorField<T> for Option<T>
 where
-    T: ToEditorField<T>,
+    T: ToEditorField<T> + Serialize,
 {
     fn to_editor_field(
         default: Option<impl Into<T>>,
@@ -255,7 +255,7 @@ where
 
 impl<T> ToEditorField<Vec<T>> for Vec<T>
 where
-    T: ToEditorField<T>,
+    T: ToEditorField<T> + Serialize,
 {
     fn to_editor_field(
         default: Option<impl Into<Vec<T>>>,
@@ -277,8 +277,9 @@ where
             required: true,
             validator,
             field_type: EditorType::Array {
-                //default: default.map(|v| serde_json::to_value(v).expect("this should never fail")),
-                default: None,
+                default: default
+                    .map(|v| serde_json::to_value(v.into()).expect("this should never fail")),
+                //default: None,
                 of: Rc::new(field_type),
             },
         }

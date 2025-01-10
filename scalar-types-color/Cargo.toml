@@ -1,0 +1,9 @@
+[package]
+name = "scalar-types-color"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+color = "0.2.0"
+scalar = { version = "0.1.0", path = "../scalar" }
+serde = "1.0.216"

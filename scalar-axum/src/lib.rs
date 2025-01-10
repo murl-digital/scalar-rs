@@ -11,7 +11,7 @@ use scalar::{
     validations::ValidationError,
     DatabaseConnection, Document, Item, Schema,
 };
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Serialize};
 
 pub struct ValidationFailiure(pub ValidationError);
 
@@ -156,13 +156,11 @@ pub async fn get_schema<T: Document>() -> Json<Schema> {
     Json(T::schema())
 }
 
-pub async fn validate<D: Document>(Json(doc): Json<D>) -> Result<(), (StatusCode, String)> {
-    doc.validate().map_err(|e| match e {
-        ValidationError::Deserialization(_) => {
-            unreachable!("no deserialization error should take place here")
-        }
-        ValidationError::Validation(message) => (StatusCode::BAD_REQUEST, message),
-    })
+pub async fn validate<D: Document>(
+    Json(doc): Json<D>,
+) -> Result<(), (StatusCode, Json<Vec<ValidationError>>)> {
+    doc.validate()
+        .map_err(|e| (StatusCode::UNPROCESSABLE_ENTITY, Json(e)))
 }
 
 pub async fn me<F: DatabaseFactory>(

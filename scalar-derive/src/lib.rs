@@ -1,8 +1,8 @@
 use convert_case::Casing;
 use darling::{util::Flag, FromDeriveInput, FromField, FromVariant};
 use proc_macro::TokenStream;
-use quote::{quote, ToTokens};
-use syn::{parse_macro_input, Data, DeriveInput, Ident, PathArguments, Type};
+use quote::quote;
+use syn::{parse_macro_input, Data, DeriveInput, Ident};
 
 #[derive(FromDeriveInput)]
 #[darling(attributes(document), supports(struct_named))]
@@ -38,7 +38,15 @@ struct FieldInfo {
     title: Option<String>,
     placeholder: Option<String>,
     default: Option<syn::Lit>,
-    validate: Flag,
+}
+
+#[derive(FromField, Clone)]
+#[darling(attributes(validate))]
+struct ValidateInfo {
+    ident: Option<syn::Ident>,
+    ty: syn::Type,
+    skip: Flag,
+    with: Option<Ident>,
 }
 
 /// Sets up an enum for use in a Document. This macro does a couple of things:
@@ -190,7 +198,7 @@ pub fn derive_enum(input: TokenStream) -> TokenStream {
     output.into()
 }
 
-#[proc_macro_derive(Document, attributes(document, field))]
+#[proc_macro_derive(Document, attributes(document, field, validate))]
 pub fn derive_document(input: TokenStream) -> TokenStream {
     let input: DeriveInput = parse_macro_input!(input);
     let document = match Document::from_derive_input(&input) {
@@ -237,7 +245,7 @@ pub fn derive_document(input: TokenStream) -> TokenStream {
         }
     };
 
-    let struct_fields = match struct_fields
+    let struct_field_infos = match struct_fields
         .iter()
         .map(FieldInfo::from_field)
         .collect::<Result<Vec<FieldInfo>, darling::Error>>()
@@ -246,23 +254,41 @@ pub fn derive_document(input: TokenStream) -> TokenStream {
         Err(e) => return TokenStream::from(e.write_errors()),
     };
 
-    let fields = struct_fields
+    let struct_validators = match struct_fields
+        .iter()
+        .map(ValidateInfo::from_field)
+        .collect::<Result<Vec<ValidateInfo>, darling::Error>>()
+    {
+        Ok(f) => f,
+        Err(e) => return TokenStream::from(e.write_errors()),
+    };
+
+    let fields = struct_field_infos
         .iter()
         .map(|f| field_to_info_call(f.to_owned()))
         .collect::<Vec<_>>();
 
-    let validators = struct_fields
+    let validators = struct_validators
         .iter()
-        .filter(|&f| f.validate.is_present())
+        .filter(|&f| !f.skip.is_present())
         .map(|f| {
             let ty = &f.ty;
             let ident = f.ident.as_ref().expect("this shouldn't be a tuple struct!");
+            let ident_str = ident.to_string();
 
-            quote! {
-                <#ty>::validate(&self.#ident)?;
+            if let Some(fn_ident) = f.with.as_ref() {
+                quote! {
+                    #fn_ident(&self.#ident)
+                }
+            } else {
+                quote! {
+                    <#ty as Validator>::validate(&self.#ident, #ident_str)
+                }
             }
         })
         .collect::<Vec<_>>();
+
+    let validators_count = validators.len();
 
     let output = quote! {
         #[automatically_derived]
@@ -278,12 +304,19 @@ pub fn derive_document(input: TokenStream) -> TokenStream {
                 ]
             }
 
-            fn validate(&self) -> Result<(), ::scalar::validations::ValidationError> {
+            fn validate(&self) -> Result<(), Vec<::scalar::validations::ValidationError>> {
                 use ::scalar::validations::Validator;
 
-                #(#validators)*
+                let results: [Result<(), ::scalar::validations::ValidationError>; #validators_count]  = [#(#validators),*];
 
-                Ok(())
+                let errors: Vec<::scalar::validations::ValidationError> =
+                    results.into_iter().filter_map(Result::err).collect();
+
+                if errors.is_empty() {
+                    Ok(())
+                } else {
+                    Err(errors)
+                }
             }
         }
     };
@@ -305,31 +338,18 @@ fn field_to_info_call(field: FieldInfo) -> proc_macro2::TokenStream {
         None => quote! { None },
     };
 
-    let validator = match field.validate.is_present() {
-        true => quote! { Some(stringify!(#ty)) },
-        false => quote! { None },
-    };
+    // let validator = match field.validate.is_present() {
+    //     true => quote! { Some(stringify!(#ty)) },
+    //     false => quote! { None },
+    // };
 
     let default = match field.default {
         Some(lit) => quote! { Some(#lit) },
         None => {
-            let actual_ty = match ty {
-                Type::Path(ref path) => {
-                    if let PathArguments::AngleBracketed(generic) =
-                        &path.path.segments.last().unwrap().arguments
-                    {
-                        generic.args.to_token_stream()
-                    } else {
-                        ty.to_token_stream()
-                    }
-                }
-                _ => ty.to_token_stream(),
-            };
-
             quote! { None::<#ty> }
         }
     };
     quote! {
-        <#ty>::to_editor_field(#default, #ident, #title, #placeholder, #validator)
+        <#ty>::to_editor_field(#default, #ident, #title, #placeholder, None)
     }
 }

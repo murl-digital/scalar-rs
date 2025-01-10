@@ -4,15 +4,21 @@
     import { Colord, colord } from "colord";
     import { Spring } from "svelte/motion";
 
-    // let {
-    //     field,
-    //     data = $bindable(),
-    //     ready,
-    // }: { field: EditorField; data: any; ready: () => void } = $props();
+    let {
+        field,
+        data = $bindable(),
+        ready,
+    }: { field: EditorField; data: any; ready: () => void } = $props();
 
-    let hue = $state(194);
-    let sat = $state(100);
-    let val = $state(100);
+    let initialColor = data
+        ? colord(data).toHsv()
+        : field?.field_type?.default
+          ? colord(field.field_type.default).toHsv()
+          : null;
+
+    let hue = $state(initialColor?.h ?? 0);
+    let sat = $state(initialColor?.s ?? 0);
+    let val = $state(initialColor?.v ?? 0);
 
     let colorBlock: HTMLCanvasElement | undefined = $state();
     let colorStrip: HTMLCanvasElement | undefined = $state();
@@ -21,19 +27,35 @@
         () => {
             return {
                 x: (sat / 100) * (colorBlock?.width ?? 0),
-                y: 256 - (val / 100) * (colorBlock?.height ?? 0),
+                y:
+                    (colorBlock?.height ?? 0) -
+                    (val / 100) * (colorBlock?.height ?? 0),
             };
         },
         { stiffness: 0.08, damping: 0.3 },
     );
     let colorStripCursor = Spring.of(
         () => {
-            return { x: (hue / 360) * 360 };
+            return { y: (hue / 360) * (colorStrip?.height ?? 0) };
         },
         { stiffness: 0.08, damping: 0.3 },
     );
 
     let color: Colord = $derived(colord({ h: hue, s: sat, v: val }));
+    $effect(() => {
+        if (!colorBlockDragging && !colorStripDragging) {
+            let rgba = color.rgba;
+            data = {
+                r: rgba.r / 255,
+                g: rgba.g / 255,
+                b: rgba.b / 255,
+                a: rgba.a,
+            };
+        }
+    });
+    $effect(() => {
+        ready();
+    });
 
     let colorBlockCtx: CanvasRenderingContext2D;
     let colorStripCtx: CanvasRenderingContext2D;
@@ -105,8 +127,8 @@
             let hueColors = colorStripCtx.createLinearGradient(
                 0,
                 0,
-                colorStrip.width,
                 0,
+                colorStrip.height,
             );
             hueColors.addColorStop(0, "rgb(255, 0, 0)");
             hueColors.addColorStop(0.17, "rgb(255, 255, 0)");
@@ -122,16 +144,16 @@
             colorStripCtx.shadowColor = "black";
             colorStripCtx.shadowBlur = 4;
             colorStripCtx.fillRect(
-                colorStripCursor.current.x - 4,
                 0,
+                colorStripCursor.current.y - 4,
+                colorStrip.width,
                 5,
-                colorStrip.height,
             );
         }
     });
 
-    let colorBlockDragging = false;
-    let colorStripDragging = false;
+    let colorBlockDragging = $state(false);
+    let colorStripDragging = $state(false);
 
     const clamp = (n: number, min: number, max: number) =>
         Math.min(Math.max(n, min), max);
@@ -153,7 +175,7 @@
             var x = e.clientX - rec.left;
             var y = e.clientY - rec.top;
 
-            hue = Math.round((x / colorStrip.width) * 360);
+            hue = Math.round((y / colorStrip.height) * 360);
         }
     }
 
@@ -183,17 +205,19 @@
     }}
 />
 
-<canvas
-    onmousedown={colorBlockMouseDown}
-    bind:this={colorBlock}
-    width="256"
-    height="256"
-></canvas>
-<canvas
-    onmousedown={colorStripMouseDown}
-    bind:this={colorStrip}
-    width="360"
-    height="20"
->
-</canvas>
-<div class="w-12 h-6" style:background={color.toRgbString()}></div>
+<div class="flex-none">
+    <canvas
+        width="256"
+        height="256"
+        onmousedown={colorBlockMouseDown}
+        bind:this={colorBlock}
+    ></canvas>
+    <canvas
+        onmousedown={colorStripMouseDown}
+        bind:this={colorStrip}
+        width="20"
+        height="256"
+    >
+    </canvas>
+    <div class="w-12 h-6" style:background={color.toRgbString()}></div>
+</div>
