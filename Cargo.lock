@@ -3962,6 +3962,7 @@ dependencies = [
  "thiserror 1.0.69",
  "trait-variant",
  "ts-rs",
+ "url",
 ]
 
 [[package]]
@@ -4000,8 +4001,11 @@ dependencies = [
  "image",
  "image_hasher",
  "sc-minio",
+ "scalar",
+ "serde",
  "thiserror 2.0.10",
  "tokio",
+ "url",
 ]
 
 [[package]]
@@ -4014,15 +4018,6 @@ dependencies = [
  "surrealdb",
  "tokio",
  "tracing",
-]
-
-[[package]]
-name = "scalar-types-color"
-version = "0.1.0"
-dependencies = [
- "color",
- "scalar",
- "serde",
 ]
 
 [[package]]
@@ -5241,6 +5236,7 @@ dependencies = [
  "form_urlencoded",
  "idna",
  "percent-encoding",
+ "serde",
 ]
 
 [[package]]

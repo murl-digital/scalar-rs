@@ -1,4 +1,4 @@
-use std::{borrow::Cow, fmt::Debug, marker::PhantomData, ops::Deref, sync::Arc};
+use std::{borrow::Cow, fmt::Debug, marker::PhantomData, ops::Deref};
 
 use scalar::{
     db::{AuthenticationError, Credentials, DatabaseFactory, User},
@@ -9,7 +9,7 @@ use surrealdb::{
     error::{Api, Db},
     opt::{
         auth::{Record, Root},
-        IntoEndpoint, IntoQuery,
+        IntoEndpoint,
     },
     sql::Thing,
     Connection, Error, Surreal,
@@ -238,7 +238,7 @@ impl<C: Connection + Debug> scalar::DatabaseConnection for SurrealConnection<C> 
         //TODO: VERY BAD!!!!
         let pre_delete = self.get_by_id::<D>(id).await?.unwrap();
 
-        let result = self
+        let _ = self
             .query("LET $draft_id = type::thing(string::concat($doc, '_draft'), $id)")
             .query("LET $meta_id = type::thing(string::concat($doc, '_meta'), $id)")
             .query("DELETE $draft_id")
@@ -395,7 +395,7 @@ impl<C: Connection + Debug> SurrealConnection<C> {
             .query(format!("DEFINE FIELD IF NOT EXISTS draft ON {meta_table} TYPE option<record<{draft_table}>>"))
             .query(format!("DEFINE FIELD IF NOT EXISTS published ON {meta_table} TYPE option<record<{published_table}>>"))
             .await
-            .expect(&format!("setting up tables for {published_table} failed"));
+            .unwrap_or_else(|e| panic!("setting up tables for {published_table} failed: {e}"));
     }
 
     pub async fn init_auth(&self) {

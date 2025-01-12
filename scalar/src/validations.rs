@@ -1,6 +1,4 @@
-use std::sync::Arc;
-
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::Document;
@@ -40,18 +38,26 @@ impl<T: Validator> Validator for Option<T> {
 
 macro_rules! validator {
     ($ty:ty, $inner:ty, $expr:block, $v:ident) => {
-        impl crate::editor_field::ToEditorField<$inner> for $ty {
+        impl crate::editor_field::ToEditorField for $ty {
             fn to_editor_field(
-                default: Option<impl Into<$inner>>,
+                default: Option<impl Into<$ty>>,
                 name: &'static str,
                 title: &'static str,
                 placeholder: Option<&'static str>,
                 validator: Option<&'static str>,
+                component_key: Option<&'static str>,
             ) -> crate::EditorField
             where
                 Self: std::marker::Sized,
             {
-                <$inner>::to_editor_field(default, name, title, placeholder, validator)
+                <$inner>::to_editor_field(
+                    default.map(|v| v.into().0),
+                    name,
+                    title,
+                    placeholder,
+                    validator,
+                    component_key,
+                )
             }
         }
 

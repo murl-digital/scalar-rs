@@ -5,11 +5,18 @@ use std::{
 
 use image::ImageFormat;
 use image_hasher::HasherConfig;
-use sc_minio::{
-    client::{Bucket, BucketArgs},
-    Minio,
-};
+use sc_minio::client::{Bucket, BucketArgs};
+use scalar::{editor_field::ToEditorField, EditorField};
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use url::Url;
+
+#[derive(EditorField, Serialize, Deserialize)]
+#[field(editor_component = "image")]
+pub struct ImageData<D: ToEditorField> {
+    url: Url,
+    additional_data: D,
+}
 
 #[derive(Clone)]
 pub struct WrappedBucket {
@@ -26,7 +33,7 @@ pub enum CreateBucketError {
 }
 
 impl WrappedBucket {
-    pub async fn new<'e>(
+    pub async fn new(
         bucket: Bucket,
         prefix: Option<impl Into<String>>,
     ) -> Result<Self, CreateBucketError> {

@@ -9,8 +9,11 @@ image_hasher = "3.0.0"
 sc-minio = { version = "0.2.3", git = "https://github.com/murl-digital/sc-minio", features = [
     "tokio",
 ] }
+scalar = { version = "0.1.0", path = "../scalar", features = ["url"] }
+serde = "1.0.217"
 thiserror = "2.0.10"
 tokio = { version = "1.41.1", features = ["rt-multi-thread"] }
+url = { version = "2.5.4", features = ["serde"] }
 
 [dev-dependencies]
 axum = { version = "0.8.1", features = ["multipart"] }

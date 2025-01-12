@@ -1,12 +1,10 @@
-use internals::ts::AnythingElse;
 use std::{
-    collections::HashMap,
     fmt::Debug,
     ops::{Deref, DerefMut},
 };
 
 pub use scalar_derive::{doc_enum, Document, EditorField, Enum};
-use serde::{de, Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 pub use chrono::{DateTime, Utc};

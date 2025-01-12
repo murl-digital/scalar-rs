@@ -1,9 +1,6 @@
-use std::sync::Arc;
-
 use axum::{
     extract::{Multipart, State},
     http::StatusCode,
-    response::IntoResponse,
     routing::put,
     Router,
 };

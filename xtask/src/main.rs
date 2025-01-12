@@ -11,7 +11,7 @@ enum XtaskCommand {
     Dev,
 }
 
-const PACKAGE_DIR: &'static str = env!("CARGO_MANIFEST_DIR");
+const PACKAGE_DIR: &str = env!("CARGO_MANIFEST_DIR");
 
 fn main() -> Result<(), anyhow::Error> {
     let command = XtaskCommand::parse();
