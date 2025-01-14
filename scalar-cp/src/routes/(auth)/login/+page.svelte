@@ -25,6 +25,7 @@
         if (response.ok) {
             sessionStorage.setItem("token", await response.text());
             appState.authenticated = true;
+            console.log("what");
             goto(`${base}/`, { invalidateAll: true });
         }
     }

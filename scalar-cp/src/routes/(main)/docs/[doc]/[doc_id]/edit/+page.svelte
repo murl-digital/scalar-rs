@@ -7,7 +7,6 @@
     import Form from "$lib/components/Form.svelte";
     import { base } from "$app/paths";
     import { page } from "$app/state";
-    import ColorInput from "$lib/components/types/ColorInput.svelte";
 
     const { data }: { data: PageData } = $props();
 
@@ -59,13 +58,6 @@
                     console.log("ready!");
                 }}
             ></Form>
-            <ColorInput
-                bind:data={colorData}
-                field={null}
-                ready={() => {
-                    console.log("color ready!");
-                }}
-            ></ColorInput>
         </div>
     </div>
 
