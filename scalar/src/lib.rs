@@ -26,7 +26,7 @@ pub fn convert<T: Serialize>(value: T) -> Value {
 
 pub use editor_field::EditorField;
 pub use editor_type::EditorType;
-use validations::ValidationError;
+use validations::Validate;
 
 #[derive(Serialize, Deserialize)]
 pub struct MultiLine(String);
@@ -91,7 +91,7 @@ pub struct DocInfo {
     pub title: &'static str,
 }
 
-pub trait Document: Serialize + for<'de> Deserialize<'de> {
+pub trait Document: Validate {
     fn identifier() -> &'static str;
     fn title() -> &'static str;
 
@@ -103,13 +103,11 @@ pub trait Document: Serialize + for<'de> Deserialize<'de> {
             fields: Self::fields(),
         }
     }
-
-    fn validate(&self) -> Result<(), Vec<ValidationError>>;
 }
 
 #[derive(Serialize, Deserialize, Debug, TS)]
 #[ts(export, concrete(D = String))]
-pub struct Item<D: Debug> {
+pub struct Item<D> {
     #[serde(rename = "__sc_id")]
     pub id: String,
     #[serde(rename = "__sc_created_at")]
@@ -121,4 +119,10 @@ pub struct Item<D: Debug> {
     #[serde(rename = "content")]
     #[ts(type = "any")]
     pub inner: D,
+}
+
+impl<D: Document> Validate for Item<D> {
+    fn validate(&self) -> Result<(), validations::ValidationError> {
+        self.inner.validate()
+    }
 }

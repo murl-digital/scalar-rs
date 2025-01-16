@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+base64-url = "3.0.0"
 image = { version = "0.25.5" }
 image_hasher = "3.0.0"
 sc-minio = { version = "0.2.3", git = "https://github.com/murl-digital/sc-minio", features = [

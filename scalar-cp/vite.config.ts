@@ -18,4 +18,7 @@ export default defineConfig({
     }),
     sveltekit(),
   ],
+  define: {
+    __ENABLE_CARTA_SSR_HIGHLIGHTER__: false,
+  },
 });

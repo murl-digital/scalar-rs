@@ -6,17 +6,22 @@ edition = "2021"
 [dependencies]
 async-trait = "0.1"
 chrono = { version = "0.4", features = ["serde"] }
-color = { version = "0.2.0", features = ["serde"] }
 nanoid = "0.4.0"
+rgb = { version = "0.8.50", optional = true, features = ["serde"] }
 scalar-derive = { version = "0.1.0", path = "../scalar-derive" }
 # rc is enabled for EditorType, the copying issue is fine in this case, because we're dealing with a schema type.
 serde = { version = "1", features = ["derive", "rc"] }
 serde_json = "1"
 thiserror = "1"
+tracing = "0.1.41"
 trait-variant = "0.1.2"
-ts-rs = {version = "9", features = ["chrono-impl"]}
+ts-rs = { version = "9", features = ["chrono-impl"] }
 url = { version = "2.5.4", optional = true, features = ["serde"] }
 
 [features]
 url = ["dep:url"]
+rgb = ["dep:rgb"]
 
+[[example]]
+name = "hello_world"
+required-features = ["rgb"]

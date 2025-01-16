@@ -14,7 +14,7 @@ export type ComponentMeta = {
 
 const components: Map<string, () => Promise<ComponentMeta>> = new Map([
   [
-    "Enum",
+    "enum",
     async () => {
       return {
         component: (await import("./components/types/EnumDropdown.svelte"))
@@ -23,7 +23,7 @@ const components: Map<string, () => Promise<ComponentMeta>> = new Map([
     },
   ],
   [
-    "Bool",
+    "bool",
     async () => {
       return {
         component: (await import("./components/types/BoolInput.svelte"))
@@ -32,7 +32,7 @@ const components: Map<string, () => Promise<ComponentMeta>> = new Map([
     },
   ],
   [
-    "Integer",
+    "integer",
     async () => {
       return {
         component: (await import("./components/types/IntegerInput.svelte"))
@@ -41,7 +41,7 @@ const components: Map<string, () => Promise<ComponentMeta>> = new Map([
     },
   ],
   [
-    "Float",
+    "float",
     async () => {
       return {
         component: (await import("./components/types/FloatInput.svelte"))
@@ -50,7 +50,7 @@ const components: Map<string, () => Promise<ComponentMeta>> = new Map([
     },
   ],
   [
-    "SingleLine",
+    "single-line",
     async () => {
       return {
         component: (await import("./components/types/SingleLineInput.svelte"))
@@ -59,7 +59,7 @@ const components: Map<string, () => Promise<ComponentMeta>> = new Map([
     },
   ],
   [
-    "MultiLine",
+    "multi-line",
     async () => {
       return {
         component: (await import("./components/types/MultiLineInput.svelte"))
@@ -68,7 +68,7 @@ const components: Map<string, () => Promise<ComponentMeta>> = new Map([
     },
   ],
   [
-    "Markdown",
+    "markdown",
     async () => {
       return {
         component: (await import("./components/types/MarkdownInput.svelte"))
@@ -77,7 +77,7 @@ const components: Map<string, () => Promise<ComponentMeta>> = new Map([
     },
   ],
   [
-    "DateTime",
+    "date-time",
     async () => {
       return {
         component: (await import("./components/types/DateTimeInput.svelte"))
@@ -86,10 +86,28 @@ const components: Map<string, () => Promise<ComponentMeta>> = new Map([
     },
   ],
   [
-    "Array",
+    "array",
     async () => {
       return {
         component: (await import("./components/types/ArrayInput.svelte"))
+          .default,
+      };
+    },
+  ],
+  [
+    "color-input",
+    async () => {
+      return {
+        component: (await import("./components/types/ColorInput.svelte"))
+          .default,
+      };
+    },
+  ],
+  [
+    "image",
+    async () => {
+      return {
+        component: (await import("./components/types/ImageInput.svelte"))
           .default,
       };
     },
@@ -99,6 +117,8 @@ const components: Map<string, () => Promise<ComponentMeta>> = new Map([
 export async function getComponent(
   type: EditorType,
 ): Promise<ComponentMeta | null> {
-  let create = components.get(type.type) ?? (() => null);
+  console.log(type.component_key);
+  let create = components.get(type.component_key ?? type.type) ?? (() => null);
+  console.log(create);
   return (await create()) ?? null;
 }

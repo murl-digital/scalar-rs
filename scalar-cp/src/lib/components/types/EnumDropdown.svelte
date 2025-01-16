@@ -10,8 +10,8 @@
         ready,
     }: { field: EditorField; data: any; ready: () => void } = $props();
 
-    if (field.field_type.type !== "Enum") {
-        error(500);
+    if (field.field_type.type !== "enum") {
+        error(500, "EnumDropdown was given a field that was not an enum");
     }
 
     if (field.field_type.default) {
@@ -57,11 +57,8 @@
 
 <label class="flex flex-col">
     {field.title}
-    {#if field.field_type.type === "Enum"}
-        <select
-            bind:value={data.type}
-            class="bg-neutral-700 outline outline-1 outline-gray text-white rounded-sm ring ring-transparent hover:ring-purple focus:ring-purple focus-visible:ring-purple ring-offset-2 ring-offset-dark ring-2"
-        >
+    {#if field.field_type.type === "enum"}
+        <select bind:value={data.type} class="input-base">
             {#each field.field_type.variants as variant}
                 <option value={variant.variant_name}
                     >{variant.variant_name}</option

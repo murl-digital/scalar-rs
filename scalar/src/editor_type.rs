@@ -7,7 +7,7 @@ use ts_rs::TS;
 use crate::EditorField;
 
 #[derive(Serialize, TS)]
-#[serde(tag = "type")]
+#[serde(tag = "type", rename_all = "kebab-case")]
 pub enum EditorType {
     Bool {
         component_key: Option<String>,
@@ -58,6 +58,9 @@ pub enum EditorType {
     DateTime {
         component_key: Option<String>,
         default: Option<DateTime<Utc>>,
+    },
+    Null {
+        component_key: Option<String>,
     },
 }
 

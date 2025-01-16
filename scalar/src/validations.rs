@@ -1,36 +1,63 @@
+use std::{fmt::Display, sync::Arc};
+
 use serde::{Deserialize, Serialize};
-use thiserror::Error;
 
-use crate::Document;
+pub struct Valid<T: Validate>(T);
 
-pub struct Valid<T: Document>(T);
+impl<T: Validate> Valid<T> {
+    pub fn new(val: T) -> Result<Self, ValidationError> {
+        val.validate()?;
+        Ok(Self(val))
+    }
 
-impl<T: Document> Valid<T> {
-    pub fn new(doc: T) -> Result<Self, Vec<ValidationError>> {
-        doc.validate()?;
-        Ok(Self(doc))
+    pub fn inner(self) -> T {
+        self.0
     }
 }
 
-#[derive(Error, Debug, Serialize)]
-#[error("Validation error on {field}: {reason}")]
-pub struct ValidationError {
-    pub field: String,
-    pub reason: String,
+macro_rules! wrapped_string {
+    ($ty:ident) => {
+        #[derive(Serialize, Debug)]
+        pub struct $ty(pub Arc<str>);
+
+        impl Display for $ty {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                f.write_str(&self.0)
+            }
+        }
+
+        impl From<&str> for $ty {
+            fn from(val: &str) -> Self {
+                Self(val.into())
+            }
+        }
+    };
+}
+
+wrapped_string!(Reason);
+wrapped_string!(Field);
+
+/// validatoin error
+#[derive(Debug, Serialize)]
+pub enum ValidationError {
+    /// a single type is invalid (e.g NonZeroI32 is 0, email is invalid, etc.)
+    Single(Reason),
+    /// a struct/document of validated types is invalid for one or more reasons
+    Composite(Vec<(Field, ValidationError)>),
 }
 
 #[diagnostic::on_unimplemented(
     note = "all document fields are validated by default",
     note = "if validation isn't necesarry, use #[validate(skip)]"
 )]
-pub trait Validator {
-    fn validate(&self, field_name: impl AsRef<str>) -> Result<(), ValidationError>;
+pub trait Validate {
+    fn validate(&self) -> Result<(), ValidationError>;
 }
 
-impl<T: Validator> Validator for Option<T> {
-    fn validate(&self, field_name: impl AsRef<str>) -> Result<(), ValidationError> {
+impl<T: Validate> Validate for Option<T> {
+    fn validate(&self) -> Result<(), ValidationError> {
         match self.as_ref() {
-            Some(inner) => inner.validate(field_name),
+            Some(inner) => inner.validate(),
             None => Ok(()),
         }
     }
@@ -67,8 +94,8 @@ macro_rules! validator {
             }
         }
 
-        impl Validator for $ty {
-            fn validate(&self, field_name: impl AsRef<str>) -> Result<(), ValidationError> {
+        impl Validate for $ty {
+            fn validate(&self) -> Result<(), ValidationError> {
                 let $v = self;
                 $expr
             }
@@ -82,6 +109,6 @@ pub struct NonZeroI32(pub i32);
 validator! {NonZeroI32, i32, {
     match v.0 {
         0 => Ok(()),
-        _ => Err(todo!()),
+        _ => Err(ValidationError::Single("value must not be zero".into())),
     }
 }, v}

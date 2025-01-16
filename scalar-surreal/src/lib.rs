@@ -2,6 +2,7 @@ use std::{borrow::Cow, fmt::Debug, marker::PhantomData, ops::Deref};
 
 use scalar::{
     db::{AuthenticationError, Credentials, DatabaseFactory, User},
+    validations::Valid,
     DateTime, Document, Item, Utc,
 };
 use serde::{de::DeserializeOwned, Deserialize, Deserializer, Serialize};
@@ -48,7 +49,7 @@ pub struct SurrealItem<D> {
     pub inner: D,
 }
 
-impl<D: Debug> From<SurrealItem<D>> for Item<D> {
+impl<D> From<SurrealItem<D>> for Item<D> {
     fn from(item: SurrealItem<D>) -> Self {
         Self {
             id: item.id,
@@ -182,6 +183,54 @@ impl<C: Connection + Debug> scalar::DatabaseConnection for SurrealConnection<C> 
     type Error = surrealdb::Error;
 
     #[tracing::instrument(level = "debug", err)]
+    async fn authenticate(&self, jwt: &str) -> Result<(), AuthenticationError<Self::Error>> {
+        self.inner.authenticate(jwt).await.map_err(|e| {
+            println!("{e:?}");
+            match e {
+                Error::Api(Api::Query(_)) => AuthenticationError::BadToken,
+                Error::Db(Db::InvalidAuth | Db::ExpiredToken | Db::ExpiredSession) => {
+                    AuthenticationError::BadToken
+                }
+                _ => e.into(),
+            }
+        })?;
+
+        Ok(())
+    }
+
+    #[tracing::instrument(level = "debug", err)]
+    async fn signin(
+        &self,
+        credentials: Credentials,
+    ) -> Result<String, AuthenticationError<Self::Error>> {
+        let result = self
+            .inner
+            .signin(Record {
+                namespace: &self.namespace,
+                database: &self.db,
+                access: "sc__editor",
+                params: credentials,
+            })
+            .await
+            .map_err(|e| match e {
+                Error::Api(Api::Query(_)) => AuthenticationError::BadCredentials,
+                Error::Db(Db::InvalidAuth) => AuthenticationError::BadCredentials,
+                _ => e.into(),
+            })?;
+
+        Ok(result.into_insecure_token())
+    }
+
+    async fn me(&self) -> Result<User, Self::Error> {
+        let user: Option<User> = self
+            .query("SELECT *, crypto::sha256(email) as gravatar_hash OMIT id, password FROM $auth")
+            .await?
+            .take(0)?;
+
+        Ok(user.expect("user should be authenticated when this is called"))
+    }
+
+    #[tracing::instrument(level = "debug", err)]
     async fn draft<D: Document + Send>(
         &self,
         id: &str,
@@ -198,7 +247,7 @@ impl<C: Connection + Debug> scalar::DatabaseConnection for SurrealConnection<C> 
             .query("LET $draft_id = type::thing(string::concat($doc, '_draft'), $id)")
             .query("LET $meta_id = type::thing(string::concat($doc, '_meta'), $id)")
             .query("UPSERT $draft_id SET inner = $inner")
-            .query("UPSERT type::thing(string::concat($doc, '_meta'), $id) SET draft = $draft_id, modified_at = time::now()")
+            .query("UPSERT $meta_id SET draft = $draft_id, modified_at = time::now()")
             .query(
                 "SELECT
                 id,
@@ -225,7 +274,7 @@ impl<C: Connection + Debug> scalar::DatabaseConnection for SurrealConnection<C> 
     }
 
     #[tracing::instrument(level = "debug", err)]
-    async fn delete_draft<D: Document + Send>(
+    async fn delete_draft<D: Document + Send + DeserializeOwned>(
         &self,
         id: &str,
     ) -> Result<Item<serde_json::Value>, Self::Error> {
@@ -250,6 +299,50 @@ impl<C: Connection + Debug> scalar::DatabaseConnection for SurrealConnection<C> 
             .await?;
 
         Ok(pre_delete)
+    }
+
+    async fn publish<D: Document + Send + Serialize + DeserializeOwned + 'static>(
+        &self,
+        id: &str,
+        publish_at: Option<DateTime<Utc>>,
+        data: Valid<D>,
+    ) -> Result<Item<D>, Self::Error> {
+        #[derive(Serialize)]
+        struct Bindings<'a, D> {
+            doc: Cow<'a, str>,
+            id: Cow<'a, str>,
+            publish_at: Option<DateTime<Utc>>,
+            inner: D,
+        }
+
+        let mut result = self
+            .query("LET $published_id = type::thing($doc, $id)")
+            .query("LET $draft_id = type::thing(string::concat($doc, '_draft'), $id)")
+            .query("LET $meta_id = type::thing(string::concat($doc, '_meta'), $id)")
+            .query("UPSERT $published_id SET inner = $inner, published_at = $published_at")
+            .query("UPSERT $meta_id SET published = $published_id, modified_at = time::now(), draft = NONE")
+            .query("DELETE $draft_id")
+            .query(
+                "SELECT
+                id,
+                created_at,
+                modified_at,
+                IF draft IS NOT NONE THEN draft.inner ELSE published.inner END AS inner,
+                published.published_at AS published_at
+            FROM $meta_id
+            FETCH draft, published",
+            ).bind(Bindings::<D> {
+                doc: D::identifier().into(),
+                id: id.to_owned().into(),
+                publish_at,
+                inner: data.inner()
+            }).await?;
+
+        let thingy: Option<SurrealItem<D>> = result.take(6).expect("this should always succeed");
+
+        Ok(thingy
+            .expect("this option should always return something")
+            .into())
     }
 
     #[tracing::instrument(level = "debug", err)]
@@ -324,54 +417,6 @@ impl<C: Connection + Debug> scalar::DatabaseConnection for SurrealConnection<C> 
             .await?
             .take::<Option<SurrealItem<serde_json::Value>>>(1)?
             .map(Into::into))
-    }
-
-    #[tracing::instrument(level = "debug", err)]
-    async fn authenticate(&self, jwt: &str) -> Result<(), AuthenticationError<Self::Error>> {
-        self.inner.authenticate(jwt).await.map_err(|e| {
-            println!("{e:?}");
-            match e {
-                Error::Api(Api::Query(_)) => AuthenticationError::BadToken,
-                Error::Db(Db::InvalidAuth | Db::ExpiredToken | Db::ExpiredSession) => {
-                    AuthenticationError::BadToken
-                }
-                _ => e.into(),
-            }
-        })?;
-
-        Ok(())
-    }
-
-    #[tracing::instrument(level = "debug", err)]
-    async fn signin(
-        &self,
-        credentials: Credentials,
-    ) -> Result<String, AuthenticationError<Self::Error>> {
-        let result = self
-            .inner
-            .signin(Record {
-                namespace: &self.namespace,
-                database: &self.db,
-                access: "sc__editor",
-                params: credentials,
-            })
-            .await
-            .map_err(|e| match e {
-                Error::Api(Api::Query(_)) => AuthenticationError::BadCredentials,
-                Error::Db(Db::InvalidAuth) => AuthenticationError::BadCredentials,
-                _ => e.into(),
-            })?;
-
-        Ok(result.into_insecure_token())
-    }
-
-    async fn me(&self) -> Result<User, Self::Error> {
-        let user: Option<User> = self
-            .query("SELECT *, crypto::sha256(email) as gravatar_hash OMIT id, password FROM $auth")
-            .await?
-            .take(0)?;
-
-        Ok(user.expect("user should be authenticated when this is called"))
     }
 }
 

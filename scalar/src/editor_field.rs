@@ -31,6 +31,31 @@ pub trait ToEditorField {
         Self: std::marker::Sized;
 }
 
+impl ToEditorField for () {
+    fn to_editor_field(
+        _default: Option<impl Into<Self>>,
+        name: &'static str,
+        title: &'static str,
+        placeholder: Option<&'static str>,
+        validator: Option<&'static str>,
+        component_key: Option<&'static str>,
+    ) -> EditorField
+    where
+        Self: std::marker::Sized,
+    {
+        EditorField {
+            name,
+            title,
+            placeholder,
+            required: true,
+            validator,
+            field_type: crate::EditorType::Null {
+                component_key: component_key.map(Into::into),
+            },
+        }
+    }
+}
+
 impl ToEditorField for bool {
     fn to_editor_field(
         default: Option<impl Into<bool>>,
@@ -301,6 +326,75 @@ impl ToEditorField for url::Url {
             field_type: crate::EditorType::SingleLine {
                 default: default.map(Into::into).map(Into::into),
                 component_key: component_key.map(Into::into).or_else(|| Some("url".into())),
+            },
+        }
+    }
+}
+
+#[cfg(feature = "rgb")]
+impl ToEditorField for rgb::RGB8 {
+    fn to_editor_field(
+        default: Option<impl Into<Self>>,
+        name: &'static str,
+        title: &'static str,
+        placeholder: Option<&'static str>,
+        validator: Option<&'static str>,
+        component_key: Option<&'static str>,
+    ) -> EditorField
+    where
+        Self: std::marker::Sized,
+    {
+        let default = default.map(Into::into);
+
+        super::EditorField {
+            name,
+            title,
+            placeholder,
+            validator,
+            required: true,
+            field_type: crate::EditorType::Struct {
+                component_key: component_key.map(Into::into).or(Some("color-input".into())),
+                default: default.map(crate::convert),
+                fields: vec![
+                    i32::to_editor_field(default.map(|c| c.r as i32), "r", "", None, None, None),
+                    i32::to_editor_field(default.map(|c| c.g as i32), "g", "", None, None, None),
+                    i32::to_editor_field(default.map(|c| c.b as i32), "b", "", None, None, None),
+                ],
+            },
+        }
+    }
+}
+
+#[cfg(feature = "rgb")]
+impl ToEditorField for rgb::RGBA8 {
+    fn to_editor_field(
+        default: Option<impl Into<Self>>,
+        name: &'static str,
+        title: &'static str,
+        placeholder: Option<&'static str>,
+        validator: Option<&'static str>,
+        component_key: Option<&'static str>,
+    ) -> EditorField
+    where
+        Self: std::marker::Sized,
+    {
+        let default = default.map(Into::into);
+
+        super::EditorField {
+            name,
+            title,
+            placeholder,
+            validator,
+            required: true,
+            field_type: crate::EditorType::Struct {
+                component_key: component_key.map(Into::into).or(Some("color-input".into())),
+                default: default.map(crate::convert),
+                fields: vec![
+                    i32::to_editor_field(default.map(|c| c.r as i32), "r", "", None, None, None),
+                    i32::to_editor_field(default.map(|c| c.g as i32), "g", "", None, None, None),
+                    i32::to_editor_field(default.map(|c| c.b as i32), "b", "", None, None, None),
+                    i32::to_editor_field(default.map(|c| c.a as i32), "a", "", None, None, None),
+                ],
             },
         }
     }

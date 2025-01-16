@@ -1,8 +1,9 @@
 use axum::{
-    extract::{Multipart, State},
+    body::Bytes,
+    extract::State,
     http::StatusCode,
-    routing::put,
-    Router,
+    routing::{get, put},
+    Json, Router,
 };
 use axum_macros::debug_handler;
 use sc_minio::{provider::StaticProvider, Minio};
@@ -28,6 +29,7 @@ async fn main() {
 
     let router = Router::new()
         .route("/upload", put(upload))
+        .route("/list", get(list))
         .with_state(wrapped_bucket);
 
     axum::serve(TcpListener::bind("0.0.0.0:5000").await.unwrap(), router)
@@ -36,14 +38,22 @@ async fn main() {
 }
 
 #[debug_handler]
-async fn upload(
-    State(client): State<WrappedBucket>,
-    mut multipart: Multipart,
-) -> Result<String, StatusCode> {
-    if let Some(field) = multipart.next_field().await.unwrap() {
-        let bytes = field.bytes().await.unwrap();
-        Ok(scalar_img::upload(&client, bytes.as_ref().into()).await)
-    } else {
-        Err(StatusCode::BAD_REQUEST)
-    }
+async fn upload(State(client): State<WrappedBucket>, bytes: Bytes) -> Result<String, StatusCode> {
+    client
+        .upload(bytes.as_ref().into())
+        .await
+        .map_err(|e| match e {
+            scalar_img::UploadError::MalformedImage => StatusCode::UNPROCESSABLE_ENTITY,
+            scalar_img::UploadError::Client(error) => StatusCode::INTERNAL_SERVER_ERROR,
+        })
+}
+
+#[debug_handler]
+async fn list(State(client): State<WrappedBucket>) -> Result<Json<Vec<String>>, StatusCode> {
+    Ok(Json(
+        client
+            .list()
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?,
+    ))
 }

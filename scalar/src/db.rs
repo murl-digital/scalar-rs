@@ -1,10 +1,11 @@
 use std::error::Error;
 use std::fmt::Debug;
 
+use chrono::{DateTime, Utc};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::{Document, Item};
+use crate::{validations::Valid, Document, Item};
 
 #[derive(Error, Debug)]
 pub enum AuthenticationError<DE: Error> {
@@ -64,10 +65,17 @@ pub trait DatabaseConnection {
         id: &str,
         data: serde_json::Value,
     ) -> Result<Item<serde_json::Value>, Self::Error>;
-    async fn delete_draft<D: Document + Send>(
+    async fn delete_draft<D: Document + Send + DeserializeOwned>(
         &self,
         id: &str,
     ) -> Result<Item<serde_json::Value>, Self::Error>;
+
+    async fn publish<D: Document + Send + Serialize + DeserializeOwned + 'static>(
+        &self,
+        id: &str,
+        publish_at: Option<DateTime<Utc>>,
+        data: Valid<D>,
+    ) -> Result<Item<D>, Self::Error>;
 
     async fn put<D: Document + Serialize + DeserializeOwned + Send + Debug + 'static>(
         &self,

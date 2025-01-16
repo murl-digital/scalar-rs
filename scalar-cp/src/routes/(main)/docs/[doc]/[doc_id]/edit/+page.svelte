@@ -47,9 +47,9 @@
     $inspect(colorData);
 </script>
 
-<div class="flex flex-col w-full h-full relative">
-    <div class="w-full overflow-scroll">
-        <div class="w-1/3 mx-auto">
+<div class="flex flex-col flex-initial w-full h-full">
+    <div class="w-full flex-auto overflow-scroll py-8">
+        <div class="mx-auto w-1/3">
             <Form
                 fields={data.schema.fields}
                 bind:formData
@@ -61,11 +61,11 @@
         </div>
     </div>
 
-    <div class="bg-red w-full h-16 mt-auto">
+    <div class="b-t-solid b-t-2 w-full h-32">
         {#await updatingPromise}
             <div
                 transition:slide
-                class="w-lg h-lg i-svg-spinners-blocks-wave"
+                class="size-8 i-svg-spinners-blocks-wave"
             ></div>
         {/await}
     </div>

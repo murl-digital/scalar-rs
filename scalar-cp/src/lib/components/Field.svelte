@@ -45,7 +45,10 @@
         <meta.component {field} bind:data ready={() => ready()} />
     {:else}
         <div>
-            !! WARNING !! component for {field.field_type.type} not found
+            !! WARNING !! component for {field.field_type.component_key ??
+                field.field_type.type} not found
         </div>
     {/if}
+{:catch ex}
+    <span>{JSON.stringify(ex)}</span>
 {/await}

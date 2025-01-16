@@ -1,9 +1,6 @@
-use std::str::FromStr;
-
-use color::{parse_color, DynamicColor};
 use scalar::{
     doc_enum,
-    validations::{NonZeroI32, Valid, ValidationError, Validator},
+    validations::{NonZeroI32, Validate, ValidationError},
     Document, EditorField,
 };
 use serde::{Deserialize, Serialize};
@@ -38,6 +35,29 @@ struct Hello {
     #[validate(skip)]
     pub nickelback: LookAtThisStruct,
 }
+
+// impl Validate for Hello {
+//     fn validate(&self) -> Result<(), ::scalar::validations::ValidationError> {
+//         use ::scalar::validations::Validate;
+
+//         let results: [(::scalar::validations::Field, Result<(), ::scalar::validations::ValidationError>); 3] = [
+//             ("oh_my_goodness".into(), test_fnn(&self.oh_my_goodness)),
+//             ("wowie".into(), Validate::validate(&self.wowie)),
+//             ("dang".into(), Validate::validate(&self.dang)),
+//         ];
+
+//         let errors: Vec<(Field, ::scalar::validations::ValidationError)> = results
+//             .into_iter()
+//             .filter_map(|(f, r)| r.err().map(|e| (f, e)))
+//             .collect();
+
+//         if errors.is_empty() {
+//             Ok(())
+//         } else {
+//             Err(::scalar::validations::ValidationError::Composite(errors))
+//         }
+//     }
+// }
 
 // impl Document for Hello {
 //     fn identifier() -> &'static str {
@@ -105,26 +125,18 @@ enum Test {
     Struct { eeee: String },
 }
 
-impl Validator for Test {
-    fn validate(
-        &self,
-        field_name: impl AsRef<str>,
-    ) -> Result<(), scalar::validations::ValidationError> {
+impl Validate for Test {
+    fn validate(&self) -> Result<(), scalar::validations::ValidationError> {
         match self {
-            Self::Struct { eeee } if eeee.is_empty() => Err(ValidationError {
-                field: String::from_str(field_name.as_ref()).unwrap(),
-                reason: "eeee can't be empty".into(),
-            }),
+            Self::Struct { eeee } if eeee.is_empty() => {
+                Err(ValidationError::Single("eeee can't be empty".into()))
+            }
             _ => Ok(()),
         }
     }
 }
 
 fn main() {
-    let color: DynamicColor = parse_color("#B00B69").unwrap();
-    println!("{}", serde_json::to_string_pretty(&color).unwrap());
-    println!("ident: {}", Hello::identifier());
-
     println!(
         "schema: {}",
         serde_json::to_string_pretty(&Hello::fields()).unwrap()

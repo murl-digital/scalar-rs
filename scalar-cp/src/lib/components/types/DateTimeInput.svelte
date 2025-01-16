@@ -20,7 +20,7 @@
         states: { months, headingValue, weekdays, segmentContents, value },
         helpers: { isDateDisabled, isDateUnavailable },
     } = createDatePicker({
-        granularity: "minute",
+        granularity: "day",
     });
 
     let {
@@ -61,7 +61,7 @@
 
 {#snippet openButton()}
     <button
-        class="mx-2 hover:bg-white hover:text-black transition-colors w-6 h-6 flex justify-center items-center focus-visible:outline-purple focus-visible:outline-solid"
+        class="mx-2 input-button p-0 my-0 w-6 h-6 flex justify-center items-center"
         aria-label="Open Calendar"
         use:melt={$trigger}
     >

@@ -293,11 +293,11 @@ pub fn derive_document(input: TokenStream) -> TokenStream {
 
             if let Some(fn_ident) = f.with.as_ref() {
                 quote! {
-                    #fn_ident(&self.#ident)
+                    (#ident_str.into(), #fn_ident(&self.#ident))
                 }
             } else {
                 quote! {
-                    <#ty as Validator>::validate(&self.#ident, #ident_str)
+                    (#ident_str.into(), ::scalar::validations::Validate::validate(&self.#ident))
                 }
             }
         })
@@ -318,19 +318,21 @@ pub fn derive_document(input: TokenStream) -> TokenStream {
                     #(#fields),*
                 ]
             }
+        }
 
-            fn validate(&self) -> Result<(), Vec<::scalar::validations::ValidationError>> {
-                use ::scalar::validations::Validator;
+        impl ::scalar::validations::Validate for #ident {
+            fn validate(&self) -> Result<(), ::scalar::validations::ValidationError> {
+                let results: [(::scalar::validations::Field, Result<(), ::scalar::validations::ValidationError>); #validators_count] = [#(#validators),*];
 
-                let results: [Result<(), ::scalar::validations::ValidationError>; #validators_count]  = [#(#validators),*];
-
-                let errors: Vec<::scalar::validations::ValidationError> =
-                    results.into_iter().filter_map(Result::err).collect();
+                let errors: Vec<(::scalar::validations::Field, ::scalar::validations::ValidationError)> = results
+                    .into_iter()
+                    .filter_map(|(f, r)| r.err().map(|e| (f, e)))
+                    .collect();
 
                 if errors.is_empty() {
                     Ok(())
                 } else {
-                    Err(errors)
+                    Err(::scalar::validations::ValidationError::Composite(errors))
                 }
             }
         }

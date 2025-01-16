@@ -1,7 +1,4 @@
 <script lang="ts">
-    import "@unocss/reset/tailwind.css";
-    import "$lib/css/base.css";
-
     import type { PageData } from "./$types";
 
     const { data, children }: { data: PageData; children: any } = $props();

@@ -7,11 +7,14 @@ edition = "2021"
 axum = "0.7"
 axum-macros = "0.4.1"
 paste = "1.0.15"
-scalar = { version = "0.1.0", path = "../scalar" }
+rgb = { version = "0.8.50", features = ["serde"] }
+scalar = { version = "0.1.0", path = "../scalar", features = ["rgb"] }
 serde = "1"
 serde_json = "1"
 
 [dev-dependencies]
+sc-minio = { git = "https://github.com/murl-digital/sc-minio" }
+scalar-img = { path = "../scalar-img" }
 scalar-surreal = { path = "../scalar-surreal" }
 surrealdb = { version = "2.1.2" }
 tokio = { version = "1.38.0", features = ["rt-multi-thread", "fs"] }

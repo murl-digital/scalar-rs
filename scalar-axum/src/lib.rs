@@ -17,10 +17,9 @@ pub struct ValidationFailiure(pub ValidationError);
 
 impl IntoResponse for ValidationFailiure {
     fn into_response(self) -> axum::response::Response {
-        Response::builder()
-            .status(StatusCode::NOT_ACCEPTABLE)
-            .body(Body::from(self.0.to_string()))
-            .expect("nothing's being parsed here, da hell?")
+        let mut response = Json(self.0).into_response();
+        *response.status_mut() = StatusCode::NOT_ACCEPTABLE;
+        response
     }
 }
 
@@ -158,7 +157,7 @@ pub async fn get_schema<T: Document>() -> Json<Schema> {
 
 pub async fn validate<D: Document>(
     Json(doc): Json<D>,
-) -> Result<(), (StatusCode, Json<Vec<ValidationError>>)> {
+) -> Result<(), (StatusCode, Json<ValidationError>)> {
     doc.validate()
         .map_err(|e| (StatusCode::UNPROCESSABLE_ENTITY, Json(e)))
 }

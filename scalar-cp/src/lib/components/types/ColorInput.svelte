@@ -1,7 +1,8 @@
 <script lang="ts">
     import type { EditorField } from "$ts/EditorField";
     import { error } from "@sveltejs/kit";
-    import { Colord, colord } from "colord";
+    import { colord } from "colord";
+    import type { Colord } from "colord";
     import { Spring } from "svelte/motion";
 
     let {
@@ -9,6 +10,18 @@
         data = $bindable(),
         ready,
     }: { field: EditorField; data: any; ready: () => void } = $props();
+
+    let isAlpha = $derived(
+        field.field_type.type === "struct" &&
+            field.field_type.fields.some((f) => f.name === "a"),
+    );
+
+    if (
+        field.field_type.type !== "struct" ||
+        field.field_type.component_key !== "color-input"
+    ) {
+        error(500, "ColorInput was not given a color field");
+    }
 
     let initialColor = data
         ? colord(data).toHsv()
@@ -19,9 +32,11 @@
     let hue = $state(initialColor?.h ?? 0);
     let sat = $state(initialColor?.s ?? 0);
     let val = $state(initialColor?.v ?? 0);
+    let alpha = $state(initialColor?.a ?? 1);
 
     let colorBlock: HTMLCanvasElement | undefined = $state();
     let colorStrip: HTMLCanvasElement | undefined = $state();
+    let alphaStrip: HTMLCanvasElement | undefined = $state();
 
     let colorBlockCursor = Spring.of(
         () => {
@@ -40,38 +55,43 @@
         },
         { stiffness: 0.08, damping: 0.3 },
     );
+    let alphaStripCursor = Spring.of(
+        () => {
+            return { y: (1 - alpha) * (colorStrip?.height ?? 0) };
+        },
+        { stiffness: 0.08, damping: 0.3 },
+    );
 
-    let color: Colord = $derived(colord({ h: hue, s: sat, v: val }));
+    let color: Colord = $derived(colord({ h: hue, s: sat, v: val, a: alpha }));
     $effect(() => {
-        if (!colorBlockDragging && !colorStripDragging) {
+        if (!colorBlockDragging && !colorStripDragging && !alphaStripDragging) {
             let rgba = color.rgba;
-            data = {
-                r: rgba.r / 255,
-                g: rgba.g / 255,
-                b: rgba.b / 255,
-                a: rgba.a,
-            };
+            data = isAlpha
+                ? {
+                      r: Math.floor(rgba.r),
+                      g: Math.floor(rgba.g),
+                      b: Math.floor(rgba.b),
+                      a: Math.floor(255 * alpha),
+                  }
+                : {
+                      r: Math.floor(rgba.r),
+                      g: Math.floor(rgba.g),
+                      b: Math.floor(rgba.b),
+                  };
         }
     });
     $effect(() => {
         ready();
     });
 
-    let colorBlockCtx: CanvasRenderingContext2D;
-    let colorStripCtx: CanvasRenderingContext2D;
-
     $effect(() => {
-        if (!colorBlockCtx) {
-            colorBlockCtx =
-                colorBlock?.getContext("2d") ??
-                error(500, "couldn't initialize context");
-        }
-
-        let color = colord({ h: hue, s: 255, v: 255 });
-
-        //colorBlockCtx.clearRect(0, 0, colorBlock.width, colorBlock.height);
         if (colorBlock) {
+            const colorBlockCtx =
+                colorBlock.getContext("2d") ??
+                error(500, "couldn't initialize context");
             colorBlockCtx.reset();
+
+            let color = colord({ h: hue, s: 255, v: 255 });
 
             let whiteGrd = colorBlockCtx.createLinearGradient(
                 0,
@@ -115,13 +135,10 @@
     });
 
     $effect(() => {
-        if (!colorStripCtx) {
-            colorStripCtx =
+        if (colorStrip) {
+            const colorStripCtx =
                 colorStrip?.getContext("2d") ??
                 error(500, "couldn't initialize context");
-        }
-
-        if (colorStrip) {
             colorStripCtx.reset();
 
             let hueColors = colorStripCtx.createLinearGradient(
@@ -152,8 +169,64 @@
         }
     });
 
+    $effect(() => {
+        if (alphaStrip) {
+            const alphaStripCtx =
+                alphaStrip.getContext("2d") ??
+                error(500, "couldn't initialize context");
+            alphaStripCtx.reset();
+
+            let cols = 2;
+            let rows = 50;
+            let squareSize = 5;
+
+            let whiteSquareColor = "#BDBDBD";
+            let blackSquareColor = "#707070";
+
+            for (let j = 0; j * squareSize < alphaStrip.height; j++)
+                for (let i = 0; i * squareSize < alphaStrip.width; i++) {
+                    if (
+                        (i % 2 == 0 && j % 2 == 0) ||
+                        (i % 2 != 0 && j % 2 != 0)
+                    )
+                        alphaStripCtx.fillStyle = whiteSquareColor;
+                    else alphaStripCtx.fillStyle = blackSquareColor;
+                    alphaStripCtx.fillRect(
+                        i * squareSize,
+                        j * squareSize,
+                        squareSize,
+                        squareSize,
+                    );
+                }
+
+            let blackGrd = alphaStripCtx.createLinearGradient(
+                0,
+                0,
+                0,
+                alphaStrip.height,
+            );
+            let opaqueColor = color.alpha(1);
+            blackGrd.addColorStop(0, opaqueColor.toHex());
+            blackGrd.addColorStop(1, "transparent");
+
+            alphaStripCtx.fillStyle = blackGrd;
+            alphaStripCtx.fillRect(0, 0, alphaStrip.width, alphaStrip.height);
+
+            alphaStripCtx.fillStyle = "white";
+            alphaStripCtx.shadowColor = "black";
+            alphaStripCtx.shadowBlur = 4;
+            alphaStripCtx.fillRect(
+                0,
+                alphaStripCursor.current.y - 4,
+                alphaStrip.width,
+                5,
+            );
+        }
+    });
+
     let colorBlockDragging = $state(false);
     let colorStripDragging = $state(false);
+    let alphaStripDragging = $state(false);
 
     const clamp = (n: number, min: number, max: number) =>
         Math.min(Math.max(n, min), max);
@@ -175,7 +248,17 @@
             var x = e.clientX - rec.left;
             var y = e.clientY - rec.top;
 
-            hue = Math.round((y / colorStrip.height) * 360);
+            hue = Math.round(Math.abs((y / colorStrip.height) * 360) % 360);
+        }
+    }
+
+    function handleAlphaCursor(e: MouseEvent) {
+        if (alphaStrip) {
+            var rec = alphaStrip.getBoundingClientRect();
+            var x = e.clientX - rec.left;
+            var y = e.clientY - rec.top;
+
+            alpha = 1 - Math.min(Math.max(y / alphaStrip.height, 0), 1);
         }
     }
 
@@ -188,12 +271,16 @@
         colorStripDragging = true;
         handleHueCursor(e);
     }
+
+    function alphaStripMouseDown(e: MouseEvent) {
+        alphaStripDragging = true;
+        handleAlphaCursor(e);
+    }
 </script>
 
 <svelte:window
     onmouseup={() => {
-        colorBlockDragging = false;
-        colorStripDragging = false;
+        colorBlockDragging = colorStripDragging = alphaStripDragging = false;
     }}
     onmousemove={(e) => {
         if (colorBlockDragging) {
@@ -202,10 +289,13 @@
         if (colorStripDragging) {
             handleHueCursor(e);
         }
+        if (alphaStripDragging) {
+            handleAlphaCursor(e);
+        }
     }}
 />
 
-<div class="flex-none">
+<div class="flex gap-3">
     <canvas
         width="256"
         height="256"
@@ -219,5 +309,14 @@
         height="256"
     >
     </canvas>
+    {#if isAlpha}
+        <canvas
+            onmousedown={alphaStripMouseDown}
+            bind:this={alphaStrip}
+            width="20"
+            height="256"
+        >
+        </canvas>
+    {/if}
     <div class="w-12 h-6" style:background={color.toRgbString()}></div>
 </div>

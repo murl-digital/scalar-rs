@@ -14,7 +14,7 @@
         data = [];
     }
 
-    if (field.field_type.type != "Array") {
+    if (field.field_type.type != "array") {
         error(500, "invalid field type");
     }
 
@@ -36,26 +36,17 @@
     });
 </script>
 
-{#if field.field_type.type == "Array"}
-    {#each data as elem, i}
-        {#await meta}
-            <div class="i-svg-spinners-90-ring"></div>
-        {:then meta}
-            {#if meta}
-                <meta.component
-                    field={of}
-                    bind:data={data[i]}
-                    ready={() => {}}
-                />
-            {:else}
-                <div>
-                    !! WARNING !! component for {field.field_type.type} not found
-                </div>
-            {/if}
-        {/await}
-    {/each}
-    <button
-        class="bg-white w-fit color-black px-2 py-1 rounded-md"
-        onclick={() => data.push(null)}>Add</button
-    >
-{/if}
+{#each data as elem, i}
+    {#await meta}
+        <div class="i-svg-spinners-90-ring"></div>
+    {:then meta}
+        {#if meta}
+            <meta.component field={of} bind:data={data[i]} ready={() => {}} />
+        {:else}
+            <div>
+                !! WARNING !! component for {field.field_type.type} not found
+            </div>
+        {/if}
+    {/await}
+{/each}
+<button class="input-button" onclick={() => data.push(null)}>Add</button>

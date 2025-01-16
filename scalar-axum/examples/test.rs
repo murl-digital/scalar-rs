@@ -1,10 +1,21 @@
+use axum::{
+    body::Bytes,
+    extract::{DefaultBodyLimit, State},
+    http::StatusCode,
+    routing::{get, put},
+    Json,
+};
+use axum_macros::FromRef;
+use rgb::{RGB8, RGBA8};
+use sc_minio::{provider::StaticProvider, Minio};
 use scalar::{
     db::DatabaseFactory,
     doc_enum,
-    validations::{ValidationError, Validator},
+    validations::{Validate, ValidationError},
     DateTime, Document, Markdown, MultiLine, Utc,
 };
 use scalar_axum::generate_routes;
+use scalar_img::{ImageData, WrappedBucket};
 use scalar_surreal::{init, SurrealStore};
 use serde::{Deserialize, Serialize};
 use surrealdb::{
@@ -31,6 +42,12 @@ struct AllTypes {
     array: Vec<String>,
     #[validate(skip)]
     date_time: DateTime<Utc>,
+    #[validate(skip)]
+    color: RGB8,
+    #[validate(skip)]
+    color_alpha: RGBA8,
+    #[validate(skip)]
+    image: ImageData<()>,
     enum_select: TestEnum,
 }
 
@@ -47,16 +64,12 @@ enum TestEnum {
     Struct { eeee: String },
 }
 
-impl Validator for TestEnum {
-    fn validate(
-        &self,
-        field_name: impl AsRef<str>,
-    ) -> Result<(), scalar::validations::ValidationError> {
+impl Validate for TestEnum {
+    fn validate(&self) -> Result<(), scalar::validations::ValidationError> {
         match self {
-            TestEnum::Struct { eeee } if eeee.is_empty() => Err(ValidationError {
-                field: field_name.as_ref().into(),
-                reason: "eeee must have something in it".into(),
-            }),
+            TestEnum::Struct { eeee } if eeee.is_empty() => Err(ValidationError::Single(
+                "eeee must have something in it".into(),
+            )),
             _ => Ok(()),
         }
     }
@@ -64,6 +77,21 @@ impl Validator for TestEnum {
 
 #[tokio::main]
 async fn main() {
+    let client = Minio::builder()
+        .endpoint("192.168.0.121:9000")
+        .provider(StaticProvider::new(
+            "4NPWPU3t08ulF8jOXQsm",
+            "E0qqX4jUeBP5wA4dUMU9ctOYRfLbdhuhqiRYLD5S",
+            None,
+        ))
+        .secure(false)
+        .build()
+        .unwrap();
+
+    let wrapped_bucket = WrappedBucket::new(client.bucket("dev"), None::<String>)
+        .await
+        .unwrap();
+
     let factory = SurrealStore::<Client, Ws, _>::new(
         (
             "localhost:8000",
@@ -78,9 +106,24 @@ async fn main() {
     let conn = factory.init_system().await.unwrap();
     init!(conn, AllTypes, Test2);
     drop(conn);
+
+    #[derive(FromRef, Clone)]
+    struct AppState {
+        factory: SurrealStore<Client, Ws, (&'static str, Config)>,
+        wrapped_bucket: WrappedBucket,
+    }
+
     let app = generate_routes!(factory, SurrealStore<Client, Ws, (&str, Config)>, AllTypes, Test2)
+        .route(
+            "/images/upload",
+            put(upload).layer(DefaultBodyLimit::disable()),
+        )
+        .route("/images/list", get(list))
         .layer(CorsLayer::very_permissive())
-        .with_state(factory);
+        .with_state(AppState {
+            factory,
+            wrapped_bucket,
+        });
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
 
@@ -90,4 +133,23 @@ async fn main() {
     );
 
     axum::serve(listener, app).await.unwrap();
+}
+
+async fn upload(State(client): State<WrappedBucket>, bytes: Bytes) -> Result<String, StatusCode> {
+    client
+        .upload(bytes.as_ref().into())
+        .await
+        .map_err(|e| match e {
+            scalar_img::UploadError::MalformedImage => StatusCode::UNPROCESSABLE_ENTITY,
+            scalar_img::UploadError::Client(error) => StatusCode::INTERNAL_SERVER_ERROR,
+        })
+}
+
+async fn list(State(client): State<WrappedBucket>) -> Result<Json<Vec<String>>, StatusCode> {
+    Ok(Json(
+        client
+            .list()
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?,
+    ))
 }
