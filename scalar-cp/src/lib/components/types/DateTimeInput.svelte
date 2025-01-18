@@ -2,6 +2,8 @@
     import type { EditorField } from "$ts/EditorField";
     import { createDatePicker, melt } from "@melt-ui/svelte";
     import { onMount, type Snippet } from "svelte";
+    import { now, getLocalTimeZone, toZoned } from "@internationalized/date";
+    import { fly } from "svelte/transition";
 
     const {
         elements: {
@@ -17,10 +19,19 @@
             segment,
             trigger,
         },
-        states: { months, headingValue, weekdays, segmentContents, value },
+        states: {
+            months,
+            headingValue,
+            weekdays,
+            segmentContents,
+            value,
+            open,
+        },
         helpers: { isDateDisabled, isDateUnavailable },
     } = createDatePicker({
+        defaultPlaceholder: now(getLocalTimeZone()),
         granularity: "day",
+        forceVisible: true,
     });
 
     let {
@@ -32,7 +43,7 @@
     $inspect($value);
     $effect(() => {
         if ($value) {
-            data = $value;
+            data = toZoned($value, getLocalTimeZone()).toAbsoluteString();
         }
     });
 
@@ -61,7 +72,7 @@
 
 {#snippet openButton()}
     <button
-        class="mx-2 input-button p-0 my-0 w-6 h-6 flex justify-center items-center"
+        class="mx-2 input-button !p-0 !my-0 w-6 h-6 flex justify-center items-center"
         aria-label="Open Calendar"
         use:melt={$trigger}
     >
@@ -72,62 +83,69 @@
 <label for={field.name} use:melt={$label}>
     {field.title}
     {@render input(openButton)}
-    <div
-        use:melt={$content}
-        class="backdrop-blur-sm bg-neutral-800 bg-opacity-40"
-    >
-        <div use:melt={$calendar}>
-            <header class="flex flex-row">
-                <button
-                    class="bg-transparent color-gray"
-                    aria-label="Previous Month"
-                    use:melt={$prevButton}
-                >
-                    <div class="i-ph-arrow-left"></div>
-                </button>
-                <div use:melt={$heading}>
-                    {$headingValue}
-                </div>
-                <button aria-label="Next Month" use:melt={$nextButton}>
-                    <div class="i-ph-arrow-right"></div>
-                </button>
-            </header>
-            {#each $months as month}
-                <table class="w-full" use:melt={$grid}>
-                    <thead aria-hidden="true">
-                        <tr>
-                            {#each $weekdays as day}
-                                <th
-                                    class="text-sm font-medium text-gray-300 uppercase tracking-wide w-6 h-6"
-                                >
-                                    {day}
-                                </th>
-                            {/each}
-                        </tr>
-                    </thead>
-                    <tbody class="text-sm hover:cursor-pointer">
-                        {#each month.weeks as days}
+    {#if $open}
+        <div
+            use:melt={$content}
+            transition:fly={{ y: 10, duration: 100 }}
+            class="bg-dark rounded-sm shadow border-1 p-2 my-2"
+        >
+            <div use:melt={$calendar}>
+                <header class="flex flex-row">
+                    <button
+                        class="bg-transparent color-gray"
+                        aria-label="Previous Month"
+                        use:melt={$prevButton}
+                    >
+                        <div class="i-ph-arrow-left"></div>
+                    </button>
+                    <div use:melt={$heading}>
+                        {$headingValue}
+                    </div>
+                    <button aria-label="Next Month" use:melt={$nextButton}>
+                        <div class="i-ph-arrow-right"></div>
+                    </button>
+                </header>
+                {#each $months as month}
+                    <table class="w-full" use:melt={$grid}>
+                        <thead aria-hidden="true">
                             <tr>
-                                {#each days as date}
-                                    <td
-                                        role="gridcell"
-                                        aria-disabled={$isDateDisabled(date) ||
-                                            $isDateUnavailable(date)}
+                                {#each $weekdays as day}
+                                    <th
+                                        class="text-sm font-medium text-gray-300 uppercase tracking-wide w-6 h-6"
                                     >
-                                        <div
-                                            class="flex items-center justify-center text-gray-200 data-[disabled]:opacity-40 w-6 h-6 hover:bg-gray"
-                                            use:melt={$cell(date, month.value)}
-                                        >
-                                            {date.day}
-                                        </div>
-                                    </td>
+                                        {day}
+                                    </th>
                                 {/each}
                             </tr>
-                        {/each}
-                    </tbody>
-                </table>
-            {/each}
+                        </thead>
+                        <tbody class="text-sm hover:cursor-pointer">
+                            {#each month.weeks as days}
+                                <tr>
+                                    {#each days as date}
+                                        <td
+                                            role="gridcell"
+                                            aria-disabled={$isDateDisabled(
+                                                date,
+                                            ) || $isDateUnavailable(date)}
+                                        >
+                                            <div
+                                                class="flex items-center justify-center text-gray-200 data-[disabled]:opacity-40 w-6 h-6 hover:bg-gray"
+                                                use:melt={$cell(
+                                                    date,
+                                                    month.value,
+                                                )}
+                                            >
+                                                {date.day}
+                                            </div>
+                                        </td>
+                                    {/each}
+                                </tr>
+                            {/each}
+                        </tbody>
+                    </table>
+                {/each}
+            </div>
+            {@render input()}
         </div>
-        {@render input()}
-    </div>
+    {/if}
 </label>

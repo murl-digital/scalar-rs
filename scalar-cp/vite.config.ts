@@ -2,6 +2,7 @@ import { sveltekit } from "@sveltejs/kit/vite";
 import { transformerDirectives } from "unocss";
 import UnoCSS from "@unocss/svelte-scoped/vite";
 import { defineConfig } from "vite";
+import { splashScreen } from "vite-plugin-splash-screen";
 
 export default defineConfig({
   server: {
@@ -13,6 +14,10 @@ export default defineConfig({
     },
   },
   plugins: [
+    splashScreen({
+      logoSrc: "logo.svg",
+      splashBg: "#222",
+    }),
     UnoCSS({
       cssFileTransformers: [transformerDirectives()],
     }),

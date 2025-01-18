@@ -1,8 +1,9 @@
 <script lang="ts">
     import type { EditorField } from "$ts/EditorField";
+    import { SvelteSet } from "svelte/reactivity";
     import Field from "./Field.svelte";
 
-    let ready_ids = new Set();
+    let ready_ids = $state(new SvelteSet());
 
     let {
         fields,
@@ -18,12 +19,11 @@
 
     $inspect(ready_ids);
 
-    function check() {
-        console.log(ready_ids.size);
+    $effect(() => {
         if (ready_ids.size == fields.length) {
             ready();
         }
-    }
+    });
 </script>
 
 <form class="flex flex-col gap-6">
@@ -33,8 +33,6 @@
             {field}
             ready={() => {
                 ready_ids.add(field.name);
-                console.log(ready_ids);
-                check();
             }}
         ></Field>
     {/each}

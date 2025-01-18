@@ -112,6 +112,15 @@ const components: Map<string, () => Promise<ComponentMeta>> = new Map([
       };
     },
   ],
+  [
+    "struct",
+    async () => {
+      return {
+        component: (await import("./components/types/StructInput.svelte"))
+          .default,
+      };
+    },
+  ],
 ]);
 
 export async function getComponent(

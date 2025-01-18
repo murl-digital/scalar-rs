@@ -2,8 +2,7 @@
     import { apiFetch } from "$lib/api";
     import { goto, invalidateAll } from "$app/navigation";
     import { page } from "$app/state";
-    import type { PageData } from "./$types";
-    import { tick, untrack } from "svelte";
+    import { untrack } from "svelte";
     import Form from "$lib/components/Form.svelte";
     import { base } from "$app/paths";
     import { nanoid } from "nanoid";
@@ -12,12 +11,11 @@
 
     let formData = $state({});
     let ready = $state(false);
-    let timeout: Timer | undefined = $state();
+    let timeout: number | undefined = $state();
 
     $effect(() => {
         clearTimeout(untrack(() => timeout));
         timeout = undefined;
-        console.log("trigger");
 
         let init = {
             method: "PUT",
@@ -28,7 +26,6 @@
         };
 
         if (untrack(() => ready)) {
-            console.log("timeout set");
             timeout = setTimeout(() => {
                 create(init).then((id) =>
                     goto(`./${id}/edit`, { invalidateAll: true }),

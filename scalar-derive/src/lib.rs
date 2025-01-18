@@ -48,7 +48,6 @@ struct FieldInfo {
 #[darling(attributes(validate))]
 struct ValidateInfo {
     ident: Option<syn::Ident>,
-    ty: syn::Type,
     skip: Flag,
     with: Option<Ident>,
 }
@@ -287,7 +286,6 @@ pub fn derive_document(input: TokenStream) -> TokenStream {
         .iter()
         .filter(|&f| !f.skip.is_present())
         .map(|f| {
-            let ty = &f.ty;
             let ident = f.ident.as_ref().expect("this shouldn't be a tuple struct!");
             let ident_str = ident.to_string();
 

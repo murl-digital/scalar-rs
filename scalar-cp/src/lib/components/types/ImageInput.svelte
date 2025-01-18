@@ -7,6 +7,8 @@
     import { flyAndScale } from "$lib/utils";
     import { base } from "$app/paths";
     import { apiFetch, wire } from "$lib/api";
+    import { addHighlight } from "@melt-ui/svelte/internal/helpers";
+    import Field from "../Field.svelte";
 
     const {
         elements: {
@@ -32,15 +34,39 @@
         ready,
     }: { field: EditorField; data: any; ready: () => void } = $props();
 
+    let innerReady = $state(false);
+
     if (
         field.field_type.type !== "struct" ||
         field.field_type.component_key !== "image"
     ) {
-        error(500, "ImageInput was not given a color field");
+        error(500, "ImageInput was not given an image field");
+    }
+
+    let additionalData = field.field_type.fields.find(
+        (elem) => elem.name === "additional_data",
+    );
+
+    if (!additionalData) {
+        error(500, "ImageInput was not given an additional_data field");
+    }
+
+    if (!data) {
+        data = {
+            url: null,
+            additionalData: null,
+        };
+    }
+
+    if (additionalData.field_type.type === "null") {
+        data["additional_data"] = null;
+        innerReady = true;
     }
 
     $effect(() => {
-        ready();
+        if (innerReady) {
+            ready();
+        }
     });
 
     let uploadProgress = $state(0);
@@ -59,9 +85,7 @@
 
             xhr.onloadend = () => {
                 resolve(xhr.readyState === 4 && xhr.status === 200);
-                data = {
-                    url: xhr.responseText,
-                };
+                data["url"] = xhr.responseText;
             };
             xhr.setRequestHeader("Content-Type", "application/octet-stream");
             xhr.send(f);
@@ -86,6 +110,13 @@
         use:melt={$tab_trigger("select")}>Select Existing</button
     >
 </div>
+{#if additionalData.field_type.type !== "null"}
+    <Field
+        field={additionalData}
+        bind:data={data["additional_data"]}
+        ready={() => (innerReady = true)}
+    ></Field>
+{/if}
 {#if $open}
     <div use:melt={$portalled}>
         <div
@@ -110,7 +141,7 @@
                 </div>
                 <div use:melt={$tab_content("upload")}>
                     <div
-                        use:filedrop={{}}
+                        use:filedrop={{ fileLimit: 1 }}
                         onfiledrop={(e) =>
                             uploadFile(e.detail.files.accepted[0])}
                         class="input-base w-sm h-16"

@@ -74,7 +74,7 @@ macro_rules! crud_routes__ {
 macro_rules! validate_routes__ {
     ($router:ident, $doc:ty) => {
         $router = $router
-            .route(&format!("/docs/{}/verify", <$doc>::identifier()), ::axum::routing::post(::scalar_axum::validate::<$doc>));
+            .route(&format!("/docs/{}/validate", <$doc>::identifier()), ::axum::routing::post(::scalar_axum::validate::<$doc>));
     };
 
     ($router:ident, $($doc:ty),+) => {

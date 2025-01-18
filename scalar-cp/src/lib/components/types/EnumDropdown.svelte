@@ -14,12 +14,14 @@
         error(500, "EnumDropdown was given a field that was not an enum");
     }
 
-    if (field.field_type.default) {
-        data = field.field_type.default;
-    } else {
-        data = {
-            type: "",
-        };
+    if (!data) {
+        if (field.field_type.default) {
+            data = field.field_type.default;
+        } else {
+            data = {
+                type: "",
+            };
+        }
     }
 
     let struct_fields = $derived(

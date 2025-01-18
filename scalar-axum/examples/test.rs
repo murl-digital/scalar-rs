@@ -12,7 +12,7 @@ use scalar::{
     db::DatabaseFactory,
     doc_enum,
     validations::{Validate, ValidationError},
-    DateTime, Document, Markdown, MultiLine, Utc,
+    DateTime, Document, EditorField, Markdown, MultiLine, Utc,
 };
 use scalar_axum::generate_routes;
 use scalar_img::{ImageData, WrappedBucket};
@@ -47,8 +47,13 @@ struct AllTypes {
     #[validate(skip)]
     color_alpha: RGBA8,
     #[validate(skip)]
-    image: ImageData<()>,
+    image: ImageData<ImageInner>,
     enum_select: TestEnum,
+}
+
+#[derive(EditorField, Serialize, Deserialize)]
+struct ImageInner {
+    info: String,
 }
 
 #[derive(Document, Serialize, Deserialize, Clone)]
@@ -105,6 +110,16 @@ async fn main() {
     );
     let conn = factory.init_system().await.unwrap();
     init!(conn, AllTypes, Test2);
+    conn.query(
+        "CREATE IF NOT EXISTS sc__editor:admin CONTENT {
+        name: 'drac',
+        email: 'contact@draconium.productions',
+        password: crypto::argon2::generate('password'),
+        admin: true
+    }",
+    )
+    .await
+    .unwrap();
     drop(conn);
 
     #[derive(FromRef, Clone)]
