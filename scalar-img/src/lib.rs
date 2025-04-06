@@ -19,6 +19,13 @@ pub struct ImageData<D: ToEditorField> {
     additional_data: D,
 }
 
+#[derive(EditorField, Serialize, Deserialize)]
+#[field(editor_component = "file")]
+pub struct FileData<D: ToEditorField> {
+    url: Url,
+    additional_data: D,
+}
+
 #[derive(Clone)]
 pub struct WrappedBucket {
     bucket: Bucket,
