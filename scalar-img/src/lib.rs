@@ -6,7 +6,7 @@ use std::{
 use base64_url::escape_in_place;
 use image::ImageFormat;
 use image_hasher::HasherConfig;
-use sc_minio::client::{Bucket, BucketArgs, ListObjectsArgs};
+use s3::Bucket;
 use scalar::{editor_field::ToEditorField, EditorField};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -35,9 +35,9 @@ pub struct WrappedBucket {
 #[derive(Error, Debug)]
 pub enum CreateBucketError {
     #[error("can't access provided bucket {0:?}. either it doesn't exist or the provided client doesn't have access to it.")]
-    NoAccess(BucketArgs),
-    #[error("minio client error: {0}")]
-    Client(#[from] sc_minio::error::Error),
+    NoAccess(String),
+    #[error("s3 client error: {0}")]
+    Client(#[from] s3::error::S3Error),
 }
 
 impl WrappedBucket {
@@ -46,7 +46,7 @@ impl WrappedBucket {
         prefix: Option<impl Into<String>>,
     ) -> Result<Self, CreateBucketError> {
         if !bucket.exists().await? {
-            return Err(CreateBucketError::NoAccess(bucket.bucket_args()));
+            return Err(CreateBucketError::NoAccess(bucket.name));
         }
 
         Ok(Self {
@@ -63,8 +63,8 @@ impl WrappedBucket {
 pub enum UploadError {
     #[error("provided image was malformed")]
     MalformedImage,
-    #[error("minio client error: {0}")]
-    Client(#[from] sc_minio::error::Error),
+    #[error("s3 client error: {0}")]
+    Client(#[from] s3::error::S3Error),
 }
 
 #[derive(Error, Debug)]
@@ -97,25 +97,23 @@ impl WrappedBucket {
         let prefix = self.prefix.as_str();
         let key = format!("{prefix}{hash_string}.png");
 
-        self.bucket
-            .put_object(key.clone(), encoded_bytes.into())
-            .await?;
+        self.bucket.put_object(key.clone(), &encoded_bytes).await?;
 
-        Ok(self.bucket.object_url(key))
+        Ok(format!("{}/{}", self.bucket.url(), key))
     }
 
     pub async fn list(&self) -> Result<Vec<String>, ListImagesError> {
         Ok(self
             .bucket
-            .list_objects(ListObjectsArgs::default().prefix(&self.prefix))
+            .list(self.prefix.clone(), None)
             .await
             .map_err(|e| ListImagesError {
                 source: Box::new(e),
-                bucket: format!("{:?}", self.bucket.bucket_args()),
+                bucket: format!("{:?}", self.bucket.name()),
             })?
-            .contents
             .iter()
-            .map(|o| self.bucket.object_url(&o.key))
+            .flat_map(|r| &r.contents)
+            .map(|o| format!("{}/{}", self.bucket.url(), o.key))
             .collect())
     }
 }

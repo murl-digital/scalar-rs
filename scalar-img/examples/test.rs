@@ -6,26 +6,30 @@ use axum::{
     Json, Router,
 };
 use axum_macros::debug_handler;
-use sc_minio::{provider::StaticProvider, Minio};
+use s3::{creds::Credentials, Bucket};
 use scalar_img::WrappedBucket;
 use tokio::net::TcpListener;
 
 #[tokio::main]
 async fn main() {
-    let client = Minio::builder()
-        .endpoint("192.168.0.121:9000")
-        .provider(StaticProvider::new(
-            "4NPWPU3t08ulF8jOXQsm",
-            "E0qqX4jUeBP5wA4dUMU9ctOYRfLbdhuhqiRYLD5S",
-            None,
-        ))
-        .secure(false)
-        .build()
-        .unwrap();
+    let mut bucket = Bucket::new(
+        "dev",
+        s3::Region::Custom {
+            region: "".into(),
+            endpoint: "http://192.168.0.121:9000".into(),
+        },
+        Credentials {
+            access_key: Some("4NPWPU3t08ulF8jOXQsm".into()),
+            secret_key: Some("E0qqX4jUeBP5wA4dUMU9ctOYRfLbdhuhqiRYLD5S".into()),
+            security_token: None,
+            session_token: None,
+            expiration: None,
+        },
+    )
+    .unwrap();
+    bucket.set_path_style();
 
-    let wrapped_bucket = WrappedBucket::new(client.bucket("dev"), None::<String>)
-        .await
-        .unwrap();
+    let wrapped_bucket = WrappedBucket::new(*bucket, None::<String>).await.unwrap();
 
     let router = Router::new()
         .route("/upload", put(upload))
@@ -50,10 +54,8 @@ async fn upload(State(client): State<WrappedBucket>, bytes: Bytes) -> Result<Str
 
 #[debug_handler]
 async fn list(State(client): State<WrappedBucket>) -> Result<Json<Vec<String>>, StatusCode> {
-    Ok(Json(
-        client
-            .list()
-            .await
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?,
-    ))
+    Ok(Json(client.list().await.map_err(|e| {
+        println!("{e}");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?))
 }
