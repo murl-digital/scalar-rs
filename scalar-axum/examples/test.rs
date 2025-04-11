@@ -1,13 +1,11 @@
 use axum::{
-    body::Bytes,
-    extract::{DefaultBodyLimit, State},
-    http::StatusCode,
+    extract::DefaultBodyLimit,
     routing::{get, put},
-    Json,
+    Router,
 };
 use axum_macros::FromRef;
 use rgb::{RGB8, RGBA8};
-use sc_minio::{provider::StaticProvider, Minio};
+use s3::{creds::Credentials, Bucket};
 use scalar::{
     db::DatabaseFactory,
     doc_enum,
@@ -15,7 +13,10 @@ use scalar::{
     DateTime, Document, EditorField, Markdown, MultiLine, Utc,
 };
 use scalar_axum::generate_routes;
-use scalar_img::{ImageData, WrappedBucket};
+use scalar_img::{
+    axum::{list, upload_file, upload_image},
+    ImageData, WrappedBucket,
+};
 use scalar_surreal::{init, SurrealStore};
 use serde::{Deserialize, Serialize};
 use surrealdb::{
@@ -82,20 +83,24 @@ impl Validate for TestEnum {
 
 #[tokio::main]
 async fn main() {
-    let client = Minio::builder()
-        .endpoint("192.168.0.121:9000")
-        .provider(StaticProvider::new(
-            "4NPWPU3t08ulF8jOXQsm",
-            "E0qqX4jUeBP5wA4dUMU9ctOYRfLbdhuhqiRYLD5S",
-            None,
-        ))
-        .secure(false)
-        .build()
-        .unwrap();
+    let mut bucket = Bucket::new(
+        "dev",
+        s3::Region::Custom {
+            region: "".into(),
+            endpoint: "http://192.168.0.121:9000".into(),
+        },
+        Credentials {
+            access_key: Some("4NPWPU3t08ulF8jOXQsm".into()),
+            secret_key: Some("E0qqX4jUeBP5wA4dUMU9ctOYRfLbdhuhqiRYLD5S".into()),
+            security_token: None,
+            session_token: None,
+            expiration: None,
+        },
+    )
+    .unwrap();
+    bucket.set_path_style();
 
-    let wrapped_bucket = WrappedBucket::new(client.bucket("dev"), None::<String>)
-        .await
-        .unwrap();
+    let wrapped_bucket = WrappedBucket::new(*bucket, None::<String>).await.unwrap();
 
     let factory = SurrealStore::<Client, Ws, _>::new(
         (
@@ -110,16 +115,16 @@ async fn main() {
     );
     let conn = factory.init_system().await.unwrap();
     init!(conn, AllTypes, Test2);
-    conn.query(
-        "CREATE IF NOT EXISTS sc__editor:admin CONTENT {
-        name: 'drac',
-        email: 'contact@draconium.productions',
-        password: crypto::argon2::generate('password'),
-        admin: true
-    }",
-    )
-    .await
-    .unwrap();
+    // conn.query(
+    //     "CREATE IF NOT EXISTS sc__editor:admin CONTENT {
+    //     name: 'drac',
+    //     email: 'contact@draconium.productions',
+    //     password: crypto::argon2::generate('password'),
+    //     admin: true
+    // }",
+    // )
+    // .await
+    // .unwrap();
     drop(conn);
 
     #[derive(FromRef, Clone)]
@@ -128,13 +133,15 @@ async fn main() {
         wrapped_bucket: WrappedBucket,
     }
 
+    let media_router = Router::new()
+        .route("/images/upload", put(upload_image))
+        .route("/files/upload", put(upload_file))
+        .layer(DefaultBodyLimit::disable())
+        .route("/images/list", get(list));
+
     let app = generate_routes!(factory, SurrealStore<Client, Ws, (&str, Config)>, AllTypes, Test2)
-        .route(
-            "/images/upload",
-            put(upload).layer(DefaultBodyLimit::disable()),
-        )
-        .route("/images/list", get(list))
         .layer(CorsLayer::very_permissive())
+        .merge(media_router)
         .with_state(AppState {
             factory,
             wrapped_bucket,
@@ -148,23 +155,4 @@ async fn main() {
     );
 
     axum::serve(listener, app).await.unwrap();
-}
-
-async fn upload(State(client): State<WrappedBucket>, bytes: Bytes) -> Result<String, StatusCode> {
-    client
-        .upload(bytes.as_ref().into())
-        .await
-        .map_err(|e| match e {
-            scalar_img::UploadError::MalformedImage => StatusCode::UNPROCESSABLE_ENTITY,
-            scalar_img::UploadError::Client(error) => StatusCode::INTERNAL_SERVER_ERROR,
-        })
-}
-
-async fn list(State(client): State<WrappedBucket>) -> Result<Json<Vec<String>>, StatusCode> {
-    Ok(Json(
-        client
-            .list()
-            .await
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?,
-    ))
 }

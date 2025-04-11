@@ -7,7 +7,7 @@ use axum::{
 };
 use axum_macros::debug_handler;
 use s3::{creds::Credentials, Bucket};
-use scalar_img::WrappedBucket;
+use scalar_img::{UploadImageError, WrappedBucket};
 use tokio::net::TcpListener;
 
 #[tokio::main]
@@ -42,14 +42,11 @@ async fn main() {
 }
 
 #[debug_handler]
-async fn upload(State(client): State<WrappedBucket>, bytes: Bytes) -> Result<String, StatusCode> {
-    client
-        .upload(bytes.as_ref().into())
-        .await
-        .map_err(|e| match e {
-            scalar_img::UploadError::MalformedImage => StatusCode::UNPROCESSABLE_ENTITY,
-            scalar_img::UploadError::Client(error) => StatusCode::INTERNAL_SERVER_ERROR,
-        })
+async fn upload(
+    State(client): State<WrappedBucket>,
+    bytes: Bytes,
+) -> Result<String, UploadImageError> {
+    client.upload_image(bytes.as_ref().into()).await
 }
 
 #[debug_handler]

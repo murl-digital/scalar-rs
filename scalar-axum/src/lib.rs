@@ -1,5 +1,4 @@
 use axum::{
-    body::Body,
     extract::{Path, Request, State},
     http::{self, StatusCode},
     middleware::Next,
@@ -8,7 +7,7 @@ use axum::{
 };
 use scalar::{
     db::{Credentials, DatabaseFactory, User},
-    validations::ValidationError,
+    validations::{Valid, ValidationError},
     DatabaseConnection, Document, Item, Schema,
 };
 use serde::{de::DeserializeOwned, Serialize};
@@ -24,11 +23,57 @@ impl IntoResponse for ValidationFailiure {
 }
 
 #[macro_export]
+#[doc(hidden)]
+macro_rules! crud_routes__ {
+    ($router:ident, $db:ty, $doc:ty) => {
+        let path = format!("/docs/{}", <$doc>::identifier());
+        let drafts_path = format!("{path}/drafts/{{id}}");
+        $router = $router
+            .route(&path, ::axum::routing::get(::scalar_axum::get_all_docs::<$doc, $db>))
+            .route(&format!("{path}/{{id}}"), ::axum::routing::get(::scalar_axum::get_doc_by_id::<$doc, $db>))
+            .route(&drafts_path, ::axum::routing::put(::scalar_axum::update_draft::<$doc, $db>))
+            .route(&format!("{path}/schema"), ::axum::routing::get(::scalar_axum::get_schema::<$doc>));
+    };
+
+    ($router:ident, $db:ty, $($doc:ty),+) => {
+        $(::scalar_axum::crud_routes__!($router, $db, $doc);)*
+    };
+}
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! publish_routes__ {
+    ($router:ident, $db:ty, $doc:ty) => {
+        let path = format!("/docs/{}", <$doc>::identifier());
+        $router = $router
+            .route(&format!("{path}/{{id}}/publish"), ::axum::routing::post(::scalar_axum::publish_doc::<$doc, $db>));
+    };
+
+    ($router:ident, $db:ty, $($doc:ty),+) => {
+        $(::scalar_axum::publish_routes__!($router, $db, $doc);)*
+    };
+}
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! validate_routes__ {
+    ($router:ident, $doc:ty) => {
+        $router = $router
+            .route(&format!("/docs/{}/validate", <$doc>::identifier()), ::axum::routing::post(::scalar_axum::validate::<$doc>));
+    };
+
+    ($router:ident, $($doc:ty),+) => {
+        $(::scalar_axum::validate_routes__!($router, $doc);)*
+    };
+}
+
+#[macro_export]
 macro_rules! generate_routes {
     ($db_instance:ident, $db:ty, $($doc:ty),+) => {
         {
             let mut router = ::axum::Router::new();
             ::scalar_axum::crud_routes__!(router, $db, $($doc),+);
+            ::scalar_axum::publish_routes__!(router, $db, $($doc),+);
             #[axum_macros::debug_handler]
             async fn get_docs() -> ::axum::Json<Vec<::scalar::DocInfo>> {
                 ::axum::Json(vec![
@@ -48,37 +93,6 @@ macro_rules! generate_routes {
 
             router
         }
-    };
-}
-
-#[macro_export]
-#[doc(hidden)]
-macro_rules! crud_routes__ {
-    ($router:ident, $db:ty, $doc:ty) => {
-        let path = format!("/docs/{}", <$doc>::identifier());
-        let drafts_path = format!("{path}/drafts/:id");
-        $router = $router
-            .route(&path, ::axum::routing::get(::scalar_axum::get_all_docs::<$doc, $db>))
-            .route(&format!("{path}/:id"), ::axum::routing::get(::scalar_axum::get_doc_by_id::<$doc, $db>))
-            .route(&drafts_path, ::axum::routing::put(::scalar_axum::update_draft::<$doc, $db>))
-            .route(&format!("{path}/schema"), ::axum::routing::get(::scalar_axum::get_schema::<$doc>));
-    };
-
-    ($router:ident, $db:ty, $($doc:ty),+) => {
-        $(::scalar_axum::crud_routes__!($router, $db, $doc);)*
-    };
-}
-
-#[macro_export]
-#[doc(hidden)]
-macro_rules! validate_routes__ {
-    ($router:ident, $doc:ty) => {
-        $router = $router
-            .route(&format!("/docs/{}/validate", <$doc>::identifier()), ::axum::routing::post(::scalar_axum::validate::<$doc>));
-    };
-
-    ($router:ident, $($doc:ty),+) => {
-        $(::scalar_axum::validate_routes__!($router, $doc);)*
     };
 }
 
@@ -182,6 +196,26 @@ pub async fn update_draft<T: Document + Serialize + DeserializeOwned + Send, F: 
             .await
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?,
     ))
+}
+
+pub async fn publish_doc<
+    D: Document + Serialize + DeserializeOwned + Send + 'static,
+    F: DatabaseFactory,
+>(
+    Path(id): Path<String>,
+    state: Extension<<F as DatabaseFactory>::Connection>,
+    doc: Json<D>,
+) -> Result<(), StatusCode> {
+    state
+        .publish(
+            &id,
+            None,
+            Valid::new(doc.0).map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?,
+        )
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok(())
 }
 
 pub async fn get_all_docs<T: Document + Serialize + DeserializeOwned + Send, F: DatabaseFactory>(
