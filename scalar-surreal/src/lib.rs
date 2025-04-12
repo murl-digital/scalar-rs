@@ -81,7 +81,7 @@ pub struct SurrealStore<
     endpoint: P,
     namespace: String,
     db: String,
-    connection_marker: PhantomData<C>,
+    inner_instance: Surreal<C>,
     scheme_marker: PhantomData<S>,
 }
 
@@ -113,7 +113,7 @@ impl<C: Connection, S, P: IntoEndpoint<S, Client = C> + Clone + Send + Sync + De
             endpoint: self.endpoint.clone(),
             namespace: self.namespace.clone(),
             db: self.db.clone(),
-            connection_marker: PhantomData,
+            inner_instance: self.inner_instance.clone(),
             scheme_marker: PhantomData,
         }
     }
@@ -122,14 +122,15 @@ impl<C: Connection, S, P: IntoEndpoint<S, Client = C> + Clone + Send + Sync + De
 impl<C: Connection, S, P: IntoEndpoint<S, Client = C> + Clone + Send + Sync + Debug>
     SurrealStore<C, S, P>
 {
-    pub fn new(address: P, namespace: String, db: String) -> Self {
-        Self {
-            endpoint: address,
+    pub async fn new(address: P, namespace: String, db: String) -> Result<Self, surrealdb::Error> {
+        let endpoint = address;
+        Ok(Self {
+            endpoint: endpoint.clone(),
             namespace,
             db,
-            connection_marker: PhantomData,
+            inner_instance: Surreal::new(endpoint).await?,
             scheme_marker: PhantomData,
-        }
+        })
     }
 }
 
@@ -145,7 +146,7 @@ impl<
 
     #[tracing::instrument(level = "debug", err)]
     async fn init(&self) -> Result<Self::Connection, Self::Error> {
-        let inner = Surreal::new(self.endpoint.to_owned()).await?;
+        let inner = self.inner_instance.clone();
 
         inner.use_ns(&self.namespace).await?;
         inner.use_db(&self.db).await?;
@@ -159,7 +160,7 @@ impl<
 
     #[tracing::instrument(level = "debug", err)]
     async fn init_system(&self) -> Result<Self::Connection, Self::Error> {
-        let inner = Surreal::new(self.endpoint.to_owned()).await?;
+        let inner = self.inner_instance.clone();
 
         inner.use_ns(&self.namespace).await?;
         inner.use_db(&self.db).await?;
@@ -451,7 +452,7 @@ impl<C: Connection + Debug> SurrealConnection<C> {
             .query("DEFINE FIELD IF NOT EXISTS email ON sc__editor TYPE string ASSERT string::is::email($value)")
             .query("DEFINE FIELD IF NOT EXISTS password ON sc__editor TYPE string")
             .query("DEFINE FIELD IF NOT EXISTS admin ON sc__editor TYPE bool")
-            .query("DEFINE INDEX email ON user FIELDS email UNIQUE")
+            .query("DEFINE INDEX email ON sc__editor FIELDS email UNIQUE")
             .query("
             DEFINE ACCESS OVERWRITE sc__editor ON DATABASE TYPE RECORD
             SIGNIN (
