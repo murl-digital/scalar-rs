@@ -4,10 +4,13 @@
         <meta charset="utf-8" />
         <link rel="icon" href="%sveltekit.assets%/favicon.png" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        %unocss-svelte-scoped.global% %sveltekit.head% %splash.head%
+        %unocss-svelte-scoped.global% %sveltekit.head%
     </head>
     <body data-sveltekit-preload-data="hover">
+        <div id="splash">
+            <!-- "vanilla", independent from framework and its hydration -->
+            <div id="spinner"></div>
+        </div>
         <div style="display: contents">%sveltekit.body%</div>
-        %splash.body%
     </body>
 </html>

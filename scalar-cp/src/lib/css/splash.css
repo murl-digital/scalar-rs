@@ -1,0 +1,11 @@
+#splash {
+    @apply bg-dark w-screen h-screen absolute top-0 left-0 transition-transform flex items-center justify-center z-50;
+}
+
+#splash[data_loaded="true"] {
+    @apply transform-translate-y-[-100%];
+}
+
+#spinner {
+    @apply i-svg-spinners:ring-resize w-16 h-16;
+}

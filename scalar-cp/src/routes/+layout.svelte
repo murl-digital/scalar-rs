@@ -1,12 +1,16 @@
 <script lang="ts">
     import "@unocss/reset/tailwind.css";
     import "$lib/css/base.css";
-    import { hideSplashScreen } from "vite-plugin-splash-screen/runtime";
+    import "$lib/css/splash.css";
 
     let { children } = $props();
 
     $effect(() => {
-        hideSplashScreen();
+        let elem = document.getElementById("splash");
+
+        if (elem) {
+            elem.setAttribute("data_loaded", "true");
+        }
     });
 </script>
 
