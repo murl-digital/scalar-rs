@@ -5,7 +5,7 @@ use scalar::{
 };
 use serde::{Deserialize, Serialize};
 
-fn test_fnn(field: &str) -> Result<(), ValidationError> {
+fn test_fnn(_field: &str) -> Result<(), ValidationError> {
     Ok(())
 }
 
@@ -14,7 +14,7 @@ fn test_fnn(field: &str) -> Result<(), ValidationError> {
 #[allow(dead_code)]
 struct Hello {
     #[field(title = "dragon enjoyer")]
-    #[validate(with = "test_fnn")]
+    #[validate(with = test_fnn)]
     pub oh_my_goodness: String,
 
     pub wowie: NonZeroI32,
