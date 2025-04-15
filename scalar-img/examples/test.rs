@@ -5,7 +5,6 @@ use axum::{
     routing::{get, put},
     Json, Router,
 };
-use axum_macros::debug_handler;
 use s3::{creds::Credentials, Bucket};
 use scalar_img::{UploadImageError, WrappedBucket};
 use tokio::net::TcpListener;
@@ -41,7 +40,6 @@ async fn main() {
         .unwrap();
 }
 
-#[debug_handler]
 async fn upload(
     State(client): State<WrappedBucket>,
     bytes: Bytes,
@@ -49,7 +47,6 @@ async fn upload(
     client.upload_image(bytes.as_ref().into()).await
 }
 
-#[debug_handler]
 async fn list(State(client): State<WrappedBucket>) -> Result<Json<Vec<String>>, StatusCode> {
     Ok(Json(client.list().await.map_err(|e| {
         println!("{e}");
