@@ -139,36 +139,32 @@ where
     let auth_header = req
         .headers()
         .get(http::header::AUTHORIZATION)
-        .and_then(|header| header.to_str().ok());
-
-    let auth_header = if let Some(auth_header) = auth_header {
-        auth_header.trim()
-    } else {
-        return Err(StatusCode::UNAUTHORIZED);
-    };
+        .map(|header| {
+            header
+                .to_str()
+                .map(str::trim)
+                .map_err(|_| StatusCode::BAD_REQUEST)
+        })
+        .ok_or(StatusCode::UNAUTHORIZED)??;
 
     let connection = db_factory.init().await.map_err(|e| {
         println!("{e}");
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
 
-    let token = auth_header
+    let (_, token) = auth_header
         .starts_with("Bearer ")
         .then(|| {
             auth_header
                 .split_at_checked(7)
                 .ok_or(StatusCode::UNAUTHORIZED)
         })
-        .ok_or(StatusCode::UNAUTHORIZED)??
-        .1;
+        .ok_or(StatusCode::UNAUTHORIZED)??;
 
     connection.authenticate(token).await.map_err(|e| match e {
         scalar::db::AuthenticationError::BadToken => StatusCode::UNAUTHORIZED,
         scalar::db::AuthenticationError::BadCredentials => StatusCode::UNAUTHORIZED,
-        scalar::db::AuthenticationError::DatabaseError(e) => {
-            println!("auth: {e}");
-            StatusCode::INTERNAL_SERVER_ERROR
-        }
+        scalar::db::AuthenticationError::DatabaseError(_) => StatusCode::INTERNAL_SERVER_ERROR,
     })?;
 
     req.extensions_mut().insert(connection);
