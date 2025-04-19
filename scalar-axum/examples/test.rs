@@ -102,9 +102,9 @@ async fn main() {
 
     let wrapped_bucket = WrappedBucket::new(*bucket, None::<String>).await.unwrap();
 
-    let factory = SurrealStore::<Client, Ws, _>::new(
+    let factory = SurrealStore::new::<RocksDb, _>(
         (
-            "localhost:8000",
+            "../db/hi.db",
             Config::new().user(Root {
                 username: "root",
                 password: "root",
@@ -112,7 +112,9 @@ async fn main() {
         ),
         "test".into(),
         "test".into(),
-    );
+    )
+    .await
+    .unwrap();
     let conn = factory.init_system().await.unwrap();
     init!(conn, AllTypes, Test2);
     // conn.query(
@@ -129,19 +131,11 @@ async fn main() {
 
     #[derive(FromRef, Clone)]
     struct AppState {
-        factory: SurrealStore<Client, Ws, (&'static str, Config)>,
+        factory: SurrealStore<Db>,
         wrapped_bucket: WrappedBucket,
     }
 
-    let media_router = Router::new()
-        .route("/images/upload", put(upload_image))
-        .route("/files/upload", put(upload_file))
-        .layer(DefaultBodyLimit::disable())
-        .route("/images/list", get(list));
-
-    let app = generate_routes!(factory, SurrealStore<Client, Ws, (&str, Config)>, AllTypes, Test2)
-        .layer(CorsLayer::very_permissive())
-        .merge(media_router)
+    let api_router = generate_routes!({AppState}, factory: SurrealStore<Db>, [AllTypes, Test2])
         .with_state(AppState {
             factory,
             wrapped_bucket,

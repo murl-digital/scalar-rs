@@ -1,4 +1,4 @@
-use std::{borrow::Cow, fmt::Debug, marker::PhantomData, ops::Deref};
+use std::{borrow::Cow, fmt::Debug, ops::Deref};
 
 use scalar::{
     db::{AuthenticationError, Credentials, DatabaseFactory, User},
@@ -73,73 +73,28 @@ impl<D: Debug> From<Item<D>> for SurrealItem<D> {
     }
 }
 
-pub struct SurrealStore<
-    C: Connection,
-    S,
-    P: IntoEndpoint<S, Client = C> + Clone + Send + Sync + Debug,
-> {
-    endpoint: P,
+#[derive(Debug, Clone)]
+pub struct SurrealStore<C: Connection> {
     namespace: String,
     db: String,
     inner_instance: Surreal<C>,
-    scheme_marker: PhantomData<S>,
 }
 
-impl<C: Connection, S, P: IntoEndpoint<S, Client = C> + Clone + Send + Sync + Debug> Debug
-    for SurrealStore<C, S, P>
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("SurrealStore")
-            .field(
-                "connection_type",
-                &format!(
-                    "{}, {}",
-                    std::any::type_name::<C>(),
-                    std::any::type_name::<S>()
-                ),
-            )
-            .field("endpoint", &self.endpoint)
-            .field("namespace", &self.namespace)
-            .field("db", &self.db)
-            .finish()
-    }
-}
-
-impl<C: Connection, S, P: IntoEndpoint<S, Client = C> + Clone + Send + Sync + Debug> Clone
-    for SurrealStore<C, S, P>
-{
-    fn clone(&self) -> Self {
-        Self {
-            endpoint: self.endpoint.clone(),
-            namespace: self.namespace.clone(),
-            db: self.db.clone(),
-            inner_instance: self.inner_instance.clone(),
-            scheme_marker: PhantomData,
-        }
-    }
-}
-
-impl<C: Connection, S, P: IntoEndpoint<S, Client = C> + Clone + Send + Sync + Debug>
-    SurrealStore<C, S, P>
-{
-    pub async fn new(address: P, namespace: String, db: String) -> Result<Self, surrealdb::Error> {
-        let endpoint = address;
+impl<C: Connection> SurrealStore<C> {
+    pub async fn new<S, P: IntoEndpoint<S, Client = C>>(
+        address: P,
+        namespace: String,
+        db: String,
+    ) -> Result<Self, surrealdb::Error> {
         Ok(Self {
-            endpoint: endpoint.clone(),
             namespace,
             db,
-            inner_instance: Surreal::new(endpoint).await?,
-            scheme_marker: PhantomData,
+            inner_instance: Surreal::new(address).await?,
         })
     }
 }
 
-impl<
-        C: Connection + Clone + Debug,
-        S: Send + Sync,
-        P: IntoEndpoint<S, Client = C> + Clone + Send + Sync + Debug,
-    > DatabaseFactory for SurrealStore<C, S, P>
-{
+impl<C: Connection + Clone + Debug> DatabaseFactory for SurrealStore<C> {
     type Error = surrealdb::Error;
 
     type Connection = SurrealConnection<C>;

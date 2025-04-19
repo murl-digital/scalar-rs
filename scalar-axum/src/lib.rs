@@ -69,12 +69,11 @@ macro_rules! validate_routes__ {
 
 #[macro_export]
 macro_rules! generate_routes {
-    ($db_instance:ident, $db:ty, $($doc:ty),+) => {
+    ({$app_state:ty}, $db_instance:ident: $db:ty, [$($doc:ty),+]) => {
         {
-            let mut router = ::axum::Router::new();
+            let mut router = ::axum::Router::<$app_state>::new();
             ::scalar_axum::crud_routes__!(router, $db, $($doc),+);
             ::scalar_axum::publish_routes__!(router, $db, $($doc),+);
-            #[axum_macros::debug_handler]
             async fn get_docs() -> ::axum::Json<Vec<::scalar::DocInfo>> {
                 ::axum::Json(vec![
                     $(::scalar::DocInfo {
