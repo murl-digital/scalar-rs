@@ -1,3 +1,4 @@
 /target
 /db
 /typescript_bindings
+.env

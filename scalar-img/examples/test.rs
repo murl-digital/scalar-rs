@@ -6,7 +6,7 @@ use axum::{
     Json, Router,
 };
 use s3::{creds::Credentials, Bucket};
-use scalar_img::{UploadImageError, WrappedBucket};
+use scalar_img::WrappedBucket;
 use tokio::net::TcpListener;
 
 #[tokio::main]
@@ -28,7 +28,7 @@ async fn main() {
     .unwrap();
     bucket.set_path_style();
 
-    let wrapped_bucket = WrappedBucket::new(*bucket, None::<String>).await.unwrap();
+    let wrapped_bucket = WrappedBucket::new(*bucket).await.unwrap();
 
     let router = Router::new()
         .route("/upload", put(upload))
@@ -40,15 +40,15 @@ async fn main() {
         .unwrap();
 }
 
-async fn upload(
-    State(client): State<WrappedBucket>,
-    bytes: Bytes,
-) -> Result<String, UploadImageError> {
-    client.upload_image(bytes.as_ref().into()).await
+async fn upload(State(client): State<WrappedBucket>, bytes: Bytes) -> Result<String, StatusCode> {
+    client
+        .upload_image(bytes)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }
 
 async fn list(State(client): State<WrappedBucket>) -> Result<Json<Vec<String>>, StatusCode> {
-    Ok(Json(client.list().await.map_err(|e| {
+    Ok(Json(client.list_images().await.map_err(|e| {
         println!("{e}");
         StatusCode::INTERNAL_SERVER_ERROR
     })?))

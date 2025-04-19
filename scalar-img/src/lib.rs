@@ -1,19 +1,15 @@
-use std::{
-    io::{BufWriter, Cursor},
-    sync::Arc,
-};
+use std::io::{BufWriter, Cursor};
 
 use base64_url::escape_in_place;
+use bytes::Bytes;
 use image::ImageFormat;
 use image_hasher::HasherConfig;
 use s3::Bucket;
 use scalar::{editor_field::ToEditorField, EditorField};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use tokio::io::AsyncRead;
 use url::Url;
-
-#[cfg(feature = "axum")]
-pub mod axum;
 
 #[derive(EditorField, Serialize, Deserialize)]
 #[field(editor_component = "image")]
@@ -32,7 +28,7 @@ pub struct FileData<D: ToEditorField> {
 #[derive(Clone)]
 pub struct WrappedBucket {
     bucket: Bucket,
-    prefix: String,
+    public_url: Url,
 }
 
 #[derive(Error, Debug)]
@@ -44,10 +40,7 @@ pub enum CreateBucketError {
 }
 
 impl WrappedBucket {
-    pub async fn new(
-        bucket: Bucket,
-        prefix: Option<impl Into<String>>,
-    ) -> Result<Self, CreateBucketError> {
+    pub async fn new(bucket: Bucket) -> Result<Self, CreateBucketError> {
         if !bucket.exists().await.map_err(|e| ClientError {
             source: Box::new(e),
             bucket: bucket.name(),
@@ -55,13 +48,17 @@ impl WrappedBucket {
             return Err(CreateBucketError::NoAccess(bucket.name));
         }
 
-        Ok(Self {
-            bucket,
-            prefix: prefix
-                .map(Into::into)
-                .map(|s| format!("{s}/"))
-                .unwrap_or_default(),
-        })
+        let public_url = Url::parse(&format!("{}/", &bucket.url()))
+            .expect("bucket url should DEFINITELY be valid...");
+
+        println!("{public_url}");
+
+        Ok(Self { bucket, public_url })
+    }
+
+    pub fn with_public_url(mut self, public_url: Url) -> Self {
+        self.public_url = public_url;
+        self
     }
 }
 
@@ -76,12 +73,15 @@ pub enum UploadImageError {
 #[derive(Error, Debug)]
 #[error("couldn't list objects in bucket {bucket}, source: {source}")]
 pub struct ClientError {
-    source: Box<dyn std::error::Error + Send>,
+    source: Box<dyn std::error::Error + Send + Sync>,
     bucket: String,
 }
 
+const FILES_PREFIX: &str = "files";
+const IMAGES_PREFIX: &str = "images";
+
 impl WrappedBucket {
-    pub async fn upload_image(&self, image: Arc<[u8]>) -> Result<String, UploadImageError> {
+    pub async fn upload_image(&self, image: Bytes) -> Result<String, UploadImageError> {
         let (encoded_bytes, hash_string) = tokio::task::spawn_blocking(move || {
             let image =
                 image::load_from_memory(&image).map_err(|_| UploadImageError::MalformedImage)?;
@@ -104,46 +104,77 @@ impl WrappedBucket {
         .await
         .expect("something has gone very wrong")?;
 
-        let prefix = self.prefix.as_str();
-        let key = format!("{prefix}image/{hash_string}.png");
+        let key = format!("{IMAGES_PREFIX}/{hash_string}.png");
 
         self.bucket
-            .put_object(&key, &encoded_bytes)
+            .put_object_with_content_type(&key, &encoded_bytes, "image/png")
             .await
             .map_err(|e| self.client_error(e))?;
 
-        Ok(format!("{}/{}", self.bucket.url(), key))
+        Ok(self
+            .public_url
+            .join(&key)
+            .expect("url should always be valid")
+            .to_string())
     }
 
-    pub async fn upload_file(
+    pub async fn upload_file<R: AsyncRead + Unpin>(
         &self,
-        file_name: String,
-        file: Arc<[u8]>,
+        file_name: &str,
+        mime_type: &str,
+        file: &mut R,
     ) -> Result<String, ClientError> {
-        let prefix = self.prefix.as_str();
-        let key = format!("{prefix}files/{file_name}");
+        let key = format!("{FILES_PREFIX}/{file_name}");
 
         self.bucket
-            .put_object(&key, &file)
+            .put_object_stream_with_content_type(file, &key, mime_type)
             .await
             .map_err(|e| self.client_error(e))?;
 
-        Ok(format!("{}/{}", self.bucket.url(), key))
+        Ok(self
+            .public_url
+            .join(&key)
+            .expect("url should always be valid")
+            .to_string())
     }
 
-    pub async fn list(&self) -> Result<Vec<String>, ClientError> {
+    pub async fn list_images(&self) -> Result<Vec<String>, ClientError> {
         Ok(self
             .bucket
-            .list(self.prefix.clone(), None)
+            .list(IMAGES_PREFIX.into(), None)
             .await
             .map_err(|e| self.client_error(e))?
             .iter()
             .flat_map(|r| &r.contents)
-            .map(|o| format!("{}/{}", self.bucket.url(), o.key))
+            .map(|o| {
+                self.public_url
+                    .join(&o.key)
+                    .expect("should always be a valid url")
+                    .to_string()
+            })
             .collect())
     }
 
-    fn client_error<E: std::error::Error + Send + 'static>(&self, error: E) -> ClientError {
+    pub async fn list_files(&self) -> Result<Vec<String>, ClientError> {
+        Ok(self
+            .bucket
+            .list(FILES_PREFIX.into(), None)
+            .await
+            .map_err(|e| self.client_error(e))?
+            .iter()
+            .flat_map(|r| &r.contents)
+            .map(|o| {
+                self.public_url
+                    .join(&o.key)
+                    .expect("should always be a valid url")
+                    .to_string()
+            })
+            .collect())
+    }
+}
+
+impl WrappedBucket {
+    fn client_error<E: std::error::Error + Send + Sync + 'static>(&self, error: E) -> ClientError {
         ClientError {
             source: Box::new(error),
             bucket: self.bucket.name(),

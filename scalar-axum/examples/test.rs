@@ -1,11 +1,9 @@
-use axum::{
-    extract::DefaultBodyLimit,
-    routing::{get, put},
-    Router,
-};
+use std::env;
+
+use axum::Router;
 use axum_macros::FromRef;
 use rgb::{RGB8, RGBA8};
-use s3::{creds::Credentials, Bucket};
+use s3::{creds::Credentials, Bucket, Region};
 use scalar::{
     db::DatabaseFactory,
     doc_enum,
@@ -13,17 +11,18 @@ use scalar::{
     DateTime, Document, EditorField, Markdown, MultiLine, Utc,
 };
 use scalar_axum::generate_routes;
-use scalar_img::{
-    axum::{list, upload_file, upload_image},
-    ImageData, WrappedBucket,
-};
+use scalar_img::{ImageData, WrappedBucket};
 use scalar_surreal::{init, SurrealStore};
 use serde::{Deserialize, Serialize};
 use surrealdb::{
-    engine::remote::ws::{Client, Ws},
+    engine::local::{Db, RocksDb},
     opt::{auth::Root, Config},
 };
-use tower_http::cors::CorsLayer;
+use tower_http::{
+    cors::CorsLayer,
+    services::{ServeDir, ServeFile},
+};
+use url::Url;
 
 #[derive(Document, Serialize, Deserialize)]
 struct AllTypes {
@@ -82,25 +81,19 @@ impl Validate for TestEnum {
 }
 
 #[tokio::main]
-async fn main() {
-    let mut bucket = Bucket::new(
-        "dev",
-        s3::Region::Custom {
-            region: "".into(),
-            endpoint: "http://192.168.0.121:9000".into(),
-        },
-        Credentials {
-            access_key: Some("4NPWPU3t08ulF8jOXQsm".into()),
-            secret_key: Some("E0qqX4jUeBP5wA4dUMU9ctOYRfLbdhuhqiRYLD5S".into()),
-            security_token: None,
-            session_token: None,
-            expiration: None,
-        },
-    )
-    .unwrap();
-    bucket.set_path_style();
+async fn main() -> anyhow::Result<()> {
+    dotenvy::dotenv()?;
+    let region = Region::R2 {
+        account_id: env::var("R2_ACCTID")?,
+    };
+    let credentials = Credentials::default()?;
+    println!("{credentials:?}");
 
-    let wrapped_bucket = WrappedBucket::new(*bucket, None::<String>).await.unwrap();
+    let bucket = Bucket::new("drc-prd-test", region, credentials)?.with_path_style();
+
+    let wrapped_bucket = WrappedBucket::new(*bucket).await?.with_public_url(
+        Url::parse("https://super-secret-media-testing.draconium.music/").unwrap(),
+    );
 
     let factory = SurrealStore::new::<RocksDb, _>(
         (
@@ -117,16 +110,16 @@ async fn main() {
     .unwrap();
     let conn = factory.init_system().await.unwrap();
     init!(conn, AllTypes, Test2);
-    // conn.query(
-    //     "CREATE IF NOT EXISTS sc__editor:admin CONTENT {
-    //     name: 'drac',
-    //     email: 'contact@draconium.productions',
-    //     password: crypto::argon2::generate('password'),
-    //     admin: true
-    // }",
-    // )
-    // .await
-    // .unwrap();
+    conn.query(
+        "UPSERT sc__editor CONTENT {
+        name: 'drac 2',
+        email: 'joseph.md.sorensen@gmail.com',
+        password: crypto::argon2::generate('password'),
+        admin: true
+    }",
+    )
+    .await
+    .unwrap();
     drop(conn);
 
     #[derive(FromRef, Clone)]
@@ -141,12 +134,16 @@ async fn main() {
             wrapped_bucket,
         });
 
+    let app = Router::new()
+        .nest("/api", api_router)
+        .fallback_service(
+            ServeDir::new("../scalar-cp/build")
+                .not_found_service(ServeFile::new("../scalar-cp/build/index.html")),
+        )
+        .layer(CorsLayer::permissive());
+
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
 
-    println!(
-        "{}",
-        serde_json::to_string_pretty(&scalar::Utc::now()).unwrap()
-    );
-
-    axum::serve(listener, app).await.unwrap();
+    axum::serve(listener, app).await?;
+    Ok(())
 }

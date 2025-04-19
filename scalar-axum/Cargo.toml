@@ -3,21 +3,33 @@ name = "scalar-axum"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+img = ["dep:scalar-img"]
+
 [dependencies]
 axum = "0.8"
-axum-macros = "0.4.1"
-paste = "1.0.15"
-rgb = { version = "0.8.50", features = ["serde"] }
+rgb = { version = "0.8", features = ["serde"] }
 scalar = { version = "0.1.0", path = "../scalar", features = ["rgb"] }
+scalar-img = { path = "../scalar-img", optional = true }
+thiserror = "2"
 serde = "1"
 serde_json = "1"
+tokio-util = { version = "0.7.14", features = ["io"] }
+tokio-stream = "0.1.17"
 
 [dev-dependencies]
-rust-s3 = "0.35.1"
-axum = { version = "0.8", features = ["multipart"] }
+scalar-axum = { version = "*", features = ["img"], path = "." }
+surrealdb = { version = "2.1", default-features = false, features = [
+    "kv-rocksdb",
+] }
+rust-s3 = "0.35"
+axum = { version = "0.8", features = ["multipart", "http2"] }
+axum-macros = "0.5"
 scalar-img = { path = "../scalar-img" }
 scalar-surreal = { path = "../scalar-surreal" }
-surrealdb = { version = "2.1.2" }
-tokio = { version = "1.38.0", features = ["rt-multi-thread", "fs"] }
-tower-http = { version = "0.5.2", features = ["cors"] }
-thiserror = "2.0.12"
+tokio = { version = "1", features = ["rt-multi-thread", "fs"] }
+tower-http = { version = "0.5", features = ["cors", "fs"] }
+thiserror = "2"
+dotenvy = "0.15.7"
+anyhow = { version = "1.0.98", features = ["backtrace"] }
+url = "2.5.4"
