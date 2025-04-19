@@ -34,24 +34,6 @@ pub struct MultiLine(String);
 #[serde(transparent)]
 pub struct Markdown(String);
 
-// impl<'de> Deserialize<'de> for Markdown {
-//     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-//     where
-//         D: serde::Deserializer<'de>,
-//     {
-//         let result = String::deserialize(deserializer)?;
-
-//         if result.is_empty() {
-//             Err(<D::Error as de::Error>::invalid_value(
-//                 de::Unexpected::Str(&result),
-//                 &"a non-empty string",
-//             ))
-//         } else {
-//             Ok(Self(result))
-//         }
-//     }
-// }
-
 impl Deref for MultiLine {
     type Target = String;
 
