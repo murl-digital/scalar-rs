@@ -1,6 +1,8 @@
 [package]
 name = "scalar-img"
+license = "MIT OR Apache-2.0"
 description = "s3 based image storage for scalar, a data oriented, [I'M NOT GOING TO SAY IT], ergonomic cms system"
+authors = ["Joe \"drac\" Sorensen <hello@murl.digital>"]
 version = "0.1.0"
 edition = "2021"
 
@@ -10,7 +12,7 @@ bytes = "1.10.1"
 image = { version = "0.25" }
 image_hasher = "3"
 rust-s3 = "0.35"
-scalar = { version = "0.1.0-alpha0.0", path = "../scalar", features = ["url"] }
+scalar = { version = "0.1.0", path = "../scalar", features = ["url"] }
 serde = "1"
 thiserror = "2"
 tokio = { version = "1", features = ["rt"] }
