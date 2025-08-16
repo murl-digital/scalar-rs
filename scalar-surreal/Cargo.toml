@@ -2,7 +2,7 @@
 name = "scalar-surreal"
 license = "MIT OR Apache-2.0"
 description = "surrealdb driver for scalar, a data oriented, [I'M NOT GOING TO SAY IT], ergonomic cms system"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 
 [dependencies]

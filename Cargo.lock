@@ -4004,7 +4004,7 @@ dependencies = [
 
 [[package]]
 name = "scalar-axum"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "anyhow",
  "axum",
@@ -4029,7 +4029,7 @@ dependencies = [
 
 [[package]]
 name = "scalar-cms"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "chrono",
  "nanoid",
@@ -4046,7 +4046,7 @@ dependencies = [
 
 [[package]]
 name = "scalar-derive"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "convert_case",
  "darling",
@@ -4057,7 +4057,7 @@ dependencies = [
 
 [[package]]
 name = "scalar-img"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "axum",
  "base64-url",
@@ -4075,7 +4075,7 @@ dependencies = [
 
 [[package]]
 name = "scalar-surreal"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "scalar-cms",
  "serde",

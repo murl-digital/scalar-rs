@@ -3,7 +3,7 @@ name = "scalar-img"
 license = "MIT OR Apache-2.0"
 description = "s3 based image storage for scalar, a data oriented, [I'M NOT GOING TO SAY IT], ergonomic cms system"
 authors = ["Joe \"drac\" Sorensen <hello@murl.digital>"]
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 
 [dependencies]
