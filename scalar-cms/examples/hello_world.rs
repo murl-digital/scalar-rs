@@ -1,4 +1,4 @@
-use scalar::{
+use scalar_cms::{
     doc_enum,
     validations::{NonZeroI32, Validate, ValidationError},
     Document, EditorField,
@@ -37,16 +37,16 @@ struct Hello {
 }
 
 // impl Validate for Hello {
-//     fn validate(&self) -> Result<(), ::scalar::validations::ValidationError> {
-//         use ::scalar::validations::Validate;
+//     fn validate(&self) -> Result<(), ::scalar_cms::validations::ValidationError> {
+//         use ::scalar_cms::validations::Validate;
 
-//         let results: [(::scalar::validations::Field, Result<(), ::scalar::validations::ValidationError>); 3] = [
+//         let results: [(::scalar_cms::validations::Field, Result<(), ::scalar_cms::validations::ValidationError>); 3] = [
 //             ("oh_my_goodness".into(), test_fnn(&self.oh_my_goodness)),
 //             ("wowie".into(), Validate::validate(&self.wowie)),
 //             ("dang".into(), Validate::validate(&self.dang)),
 //         ];
 
-//         let errors: Vec<(Field, ::scalar::validations::ValidationError)> = results
+//         let errors: Vec<(Field, ::scalar_cms::validations::ValidationError)> = results
 //             .into_iter()
 //             .filter_map(|(f, r)| r.err().map(|e| (f, e)))
 //             .collect();
@@ -54,7 +54,7 @@ struct Hello {
 //         if errors.is_empty() {
 //             Ok(())
 //         } else {
-//             Err(::scalar::validations::ValidationError::Composite(errors))
+//             Err(::scalar_cms::validations::ValidationError::Composite(errors))
 //         }
 //     }
 // }
@@ -66,8 +66,8 @@ struct Hello {
 //     fn title() -> &'static str {
 //         "Hello"
 //     }
-//     fn fields() -> Vec<::scalar::EditorField> {
-//         use ::scalar::editor_field::ToEditorField;
+//     fn fields() -> Vec<::scalar_cms::EditorField> {
+//         use ::scalar_cms::editor_field::ToEditorField;
 //         vec![
 //             <String>::to_editor_field(
 //                 None::<String>,
@@ -96,10 +96,10 @@ struct Hello {
 //             ),
 //         ]
 //     }
-//     fn validate(&self) -> Result<(), Vec<::scalar::validations::ValidationError>> {
-//         use ::scalar::validations::Validator;
+//     fn validate(&self) -> Result<(), Vec<::scalar_cms::validations::ValidationError>> {
+//         use ::scalar_cms::validations::Validator;
 //         let results = [<NonZeroI32>::validate(&self.wowie)];
-//         let errors: Vec<::scalar::validations::ValidationError> =
+//         let errors: Vec<::scalar_cms::validations::ValidationError> =
 //             results.into_iter().filter_map(Result::err).collect();
 
 //         if errors.is_empty() {
@@ -126,7 +126,7 @@ enum Test {
 }
 
 impl Validate for Test {
-    fn validate(&self) -> Result<(), scalar::validations::ValidationError> {
+    fn validate(&self) -> Result<(), scalar_cms::validations::ValidationError> {
         match self {
             Self::Struct { eeee } if eeee.is_empty() => {
                 Err(ValidationError::Single("eeee can't be empty".into()))

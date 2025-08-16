@@ -5,7 +5,7 @@ use axum::{
     response::{IntoResponse, Response},
     Extension, Json, Router,
 };
-use scalar::{
+use scalar_cms::{
     db::{Credentials, DatabaseFactory, User},
     validations::{Valid, ValidationError},
     DatabaseConnection, Document, Item, Schema,
@@ -106,9 +106,9 @@ macro_rules! generate_routes {
             let mut router = ::axum::Router::<$app_state>::new();
             ::scalar_axum::crud_routes__!(router, $db, $($doc),+);
             ::scalar_axum::publish_routes__!(router, $db, $($doc),+);
-            async fn get_docs() -> ::axum::Json<Vec<::scalar::DocInfo>> {
+            async fn get_docs() -> ::axum::Json<Vec<::scalar_cms::DocInfo>> {
                 ::axum::Json(vec![
-                    $(::scalar::DocInfo {
+                    $(::scalar_cms::DocInfo {
                         identifier: <$doc>::identifier(),
                         title: <$doc>::title()
                     }),+
@@ -162,9 +162,9 @@ where
         .ok_or(StatusCode::UNAUTHORIZED)??;
 
     connection.authenticate(token).await.map_err(|e| match e {
-        scalar::db::AuthenticationError::BadToken => StatusCode::UNAUTHORIZED,
-        scalar::db::AuthenticationError::BadCredentials => StatusCode::UNAUTHORIZED,
-        scalar::db::AuthenticationError::DatabaseError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+        scalar_cms::db::AuthenticationError::BadToken => StatusCode::UNAUTHORIZED,
+        scalar_cms::db::AuthenticationError::BadCredentials => StatusCode::UNAUTHORIZED,
+        scalar_cms::db::AuthenticationError::DatabaseError(_) => StatusCode::INTERNAL_SERVER_ERROR,
     })?;
 
     req.extensions_mut().insert(connection);
@@ -185,9 +185,9 @@ pub async fn signin<F: DatabaseFactory + Clone>(
     println!("connection");
 
     let token = connection.signin(credentials).await.map_err(|e| match e {
-        scalar::db::AuthenticationError::BadToken => StatusCode::UNAUTHORIZED,
-        scalar::db::AuthenticationError::BadCredentials => StatusCode::UNAUTHORIZED,
-        scalar::db::AuthenticationError::DatabaseError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+        scalar_cms::db::AuthenticationError::BadToken => StatusCode::UNAUTHORIZED,
+        scalar_cms::db::AuthenticationError::BadCredentials => StatusCode::UNAUTHORIZED,
+        scalar_cms::db::AuthenticationError::DatabaseError(_) => StatusCode::INTERNAL_SERVER_ERROR,
     })?;
 
     Ok(token)

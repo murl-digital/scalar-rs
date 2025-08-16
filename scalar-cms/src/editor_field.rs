@@ -17,7 +17,7 @@ pub struct EditorField {
     pub field_type: EditorType,
 }
 
-/// Convert an input type into a `scalar::EditorField`
+/// Convert an input type into a `scalar_cms::EditorField`
 pub trait ToEditorField {
     fn to_editor_field(
         default: Option<impl Into<Self>>,

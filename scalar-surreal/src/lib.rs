@@ -1,6 +1,6 @@
 use std::{borrow::Cow, fmt::Debug, ops::Deref};
 
-use scalar::{
+use scalar_cms::{
     db::{AuthenticationError, Credentials, DatabaseFactory, User},
     validations::Valid,
     DateTime, Document, Item, Utc,
@@ -135,7 +135,7 @@ impl<C: Connection + Clone + Debug> DatabaseFactory for SurrealStore<C> {
     }
 }
 
-impl<C: Connection + Debug> scalar::DatabaseConnection for SurrealConnection<C> {
+impl<C: Connection + Debug> scalar_cms::DatabaseConnection for SurrealConnection<C> {
     type Error = surrealdb::Error;
 
     #[tracing::instrument(level = "debug", err)]

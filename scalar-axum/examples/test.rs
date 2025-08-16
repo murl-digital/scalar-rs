@@ -4,13 +4,13 @@ use axum::Router;
 use axum_macros::FromRef;
 use rgb::{RGB8, RGBA8};
 use s3::{creds::Credentials, Bucket, Region};
-use scalar::{
+use scalar_axum::generate_routes;
+use scalar_cms::{
     db::DatabaseFactory,
     doc_enum,
     validations::{Validate, ValidationError},
     DateTime, Document, EditorField, Markdown, MultiLine, Utc,
 };
-use scalar_axum::generate_routes;
 use scalar_img::{ImageData, WrappedBucket};
 use scalar_surreal::{init, SurrealStore};
 use serde::{Deserialize, Serialize};
@@ -84,7 +84,7 @@ enum TestEnum {
 }
 
 impl Validate for TestEnum {
-    fn validate(&self) -> Result<(), scalar::validations::ValidationError> {
+    fn validate(&self) -> Result<(), scalar_cms::validations::ValidationError> {
         match self {
             TestEnum::Struct { eeee } if eeee.is_empty() => Err(ValidationError::Single(
                 "eeee must have something in it".into(),

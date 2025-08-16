@@ -1,5 +1,5 @@
 [package]
-name = "scalar"
+name = "scalar-cms"
 license = "MIT OR Apache-2.0"
 description = "a data oriented, [I'M NOT GOING TO SAY IT], ergonomic cms system"
 authors = ["Joe \"drac\" Sorensen <hello@murl.digital>"]

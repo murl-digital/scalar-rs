@@ -4003,7 +4003,32 @@ dependencies = [
 ]
 
 [[package]]
-name = "scalar"
+name = "scalar-axum"
+version = "0.1.1"
+dependencies = [
+ "anyhow",
+ "axum",
+ "axum-macros",
+ "dotenvy",
+ "rgb",
+ "rust-s3",
+ "scalar-axum",
+ "scalar-cms",
+ "scalar-img",
+ "scalar-surreal",
+ "serde",
+ "serde_json",
+ "surrealdb",
+ "thiserror 2.0.14",
+ "tokio",
+ "tokio-stream",
+ "tokio-util",
+ "tower-http",
+ "url",
+]
+
+[[package]]
+name = "scalar-cms"
 version = "0.1.1"
 dependencies = [
  "chrono",
@@ -4016,31 +4041,6 @@ dependencies = [
  "tracing",
  "trait-variant",
  "ts-rs",
- "url",
-]
-
-[[package]]
-name = "scalar-axum"
-version = "0.1.1"
-dependencies = [
- "anyhow",
- "axum",
- "axum-macros",
- "dotenvy",
- "rgb",
- "rust-s3",
- "scalar",
- "scalar-axum",
- "scalar-img",
- "scalar-surreal",
- "serde",
- "serde_json",
- "surrealdb",
- "thiserror 2.0.14",
- "tokio",
- "tokio-stream",
- "tokio-util",
- "tower-http",
  "url",
 ]
 
@@ -4065,7 +4065,7 @@ dependencies = [
  "image",
  "image_hasher",
  "rust-s3",
- "scalar",
+ "scalar-cms",
  "serde",
  "thiserror 2.0.14",
  "tokio",
@@ -4077,7 +4077,7 @@ dependencies = [
 name = "scalar-surreal"
 version = "0.1.1"
 dependencies = [
- "scalar",
+ "scalar-cms",
  "serde",
  "serde_json",
  "surrealdb",
@@ -5886,7 +5886,7 @@ dependencies = [
  "anyhow",
  "clap",
  "ctrlc",
- "scalar",
+ "scalar-cms",
  "ts-rs",
  "xshell",
 ]

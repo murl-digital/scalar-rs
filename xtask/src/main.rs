@@ -50,9 +50,9 @@ fn main() -> Result<(), anyhow::Error> {
 fn export_ts_types() -> Result<(), anyhow::Error> {
     println!("Exporting typescript types...");
     let typescript_directory = format!("{PACKAGE_DIR}/../typescript_bindings");
-    scalar::Item::<()>::export_all_to(&typescript_directory)?;
-    scalar::Schema::export_all_to(&typescript_directory)?;
-    scalar::DocInfo::export_all_to(&typescript_directory)?;
+    scalar_cms::Item::<()>::export_all_to(&typescript_directory)?;
+    scalar_cms::Schema::export_all_to(&typescript_directory)?;
+    scalar_cms::DocInfo::export_all_to(&typescript_directory)?;
 
     Ok(())
 }

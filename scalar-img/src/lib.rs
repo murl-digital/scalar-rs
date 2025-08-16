@@ -5,7 +5,7 @@ use bytes::Bytes;
 use image::ImageFormat;
 use image_hasher::HasherConfig;
 use s3::Bucket;
-use scalar::{editor_field::ToEditorField, EditorField};
+use scalar_cms::{editor_field::ToEditorField, EditorField};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tokio::io::AsyncRead;

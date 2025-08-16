@@ -60,7 +60,7 @@ struct ValidateInfo {
 pub fn doc_enum(_metadata: TokenStream, input: TokenStream) -> TokenStream {
     let input: proc_macro2::TokenStream = input.into();
     let output = quote! {
-        #[derive(::serde::Serialize, ::serde::Deserialize, ::scalar::Enum)]
+        #[derive(::serde::Serialize, ::serde::Deserialize, ::scalar_cms::Enum)]
         #[serde(tag = "type")]
         #input
     };
@@ -89,7 +89,7 @@ pub fn struct_to_editor_field(input: TokenStream) -> TokenStream {
                 .expect("there should always be at least one field");
             let field_ty = &field.ty;
             quote! {
-                impl ::scalar::editor_field::ToEditorField for #ident  {
+                impl ::scalar_cms::editor_field::ToEditorField for #ident  {
                     fn to_editor_field(
                         default: Option<impl Into<#ident>>,
                         name: &'static str,
@@ -97,11 +97,11 @@ pub fn struct_to_editor_field(input: TokenStream) -> TokenStream {
                         placeholder: Option<&'static str>,
                         validator: Option<&'static str>,
                         component_key: Option<&'static str>
-                    ) -> ::scalar::EditorField
+                    ) -> ::scalar_cms::EditorField
                     where
                         Self: std::marker::Sized,
                     {
-                        use ::scalar::editor_field::ToEditorField;
+                        use ::scalar_cms::editor_field::ToEditorField;
                         <#field_ty>::to_editor_field(default.map(Into::into), name, title, placeholder, validator, component_key)
                     }
                 }
@@ -129,7 +129,7 @@ pub fn struct_to_editor_field(input: TokenStream) -> TokenStream {
             };
 
             quote! {
-                impl #impl_generics ::scalar::editor_field::ToEditorField for #ty where #ty: ::serde::Serialize #where_clause {
+                impl #impl_generics ::scalar_cms::editor_field::ToEditorField for #ty where #ty: ::serde::Serialize #where_clause {
                     fn to_editor_field(
                         default: Option<impl Into<#ty>>,
                         name: &'static str,
@@ -137,18 +137,18 @@ pub fn struct_to_editor_field(input: TokenStream) -> TokenStream {
                         placeholder: Option<&'static str>,
                         validator: Option<&'static str>,
                         component_key: Option<&'static str>
-                    ) -> ::scalar::EditorField
+                    ) -> ::scalar_cms::EditorField
                     where
                         Self: std::marker::Sized,
                     {
-                        ::scalar::EditorField {
+                        ::scalar_cms::EditorField {
                             name,
                             title,
                             placeholder,
                             required: true,
                             validator,
-                            field_type: ::scalar::EditorType::Struct {
-                                default: default.map(Into::into).as_ref().map(::scalar::convert),
+                            field_type: ::scalar_cms::EditorType::Struct {
+                                default: default.map(Into::into).as_ref().map(::scalar_cms::convert),
                                 component_key: component_key.map(Into::into).or(#component_key),
                                 fields: vec![#(#fields),*]
                             }
@@ -188,7 +188,7 @@ pub fn derive_enum(input: TokenStream) -> TokenStream {
                 };
 
                 quote! {
-                    ::scalar::editor_type::EnumVariant {
+                    ::scalar_cms::editor_type::EnumVariant {
                         variant_name: #ident,
                         fields: #fields_tokens
                     }
@@ -199,10 +199,10 @@ pub fn derive_enum(input: TokenStream) -> TokenStream {
     };
 
     let output = quote! {
-        impl ::scalar::editor_field::ToEditorField for #ident where Self: ::serde::Serialize {
-            fn to_editor_field(default: Option<impl Into<Self>>, name: &'static str, title: &'static str, placeholder: Option<&'static str>, validator: Option<&'static str>, component_key: Option<&'static str>) -> ::scalar::EditorField where Self: std::marker::Sized {
-                ::scalar::EditorField { name, title, placeholder, required: true, validator, field_type: ::scalar::EditorType::Enum {
-                    default: default.map(Into::into).map(::scalar::convert),
+        impl ::scalar_cms::editor_field::ToEditorField for #ident where Self: ::serde::Serialize {
+            fn to_editor_field(default: Option<impl Into<Self>>, name: &'static str, title: &'static str, placeholder: Option<&'static str>, validator: Option<&'static str>, component_key: Option<&'static str>) -> ::scalar_cms::EditorField where Self: std::marker::Sized {
+                ::scalar_cms::EditorField { name, title, placeholder, required: true, validator, field_type: ::scalar_cms::EditorType::Enum {
+                    default: default.map(Into::into).map(::scalar_cms::convert),
                     component_key: component_key.map(Into::into),
                     variants: vec![#(#variants),*]
                 } }
@@ -295,7 +295,7 @@ pub fn derive_document(input: TokenStream) -> TokenStream {
                 }
             } else {
                 quote! {
-                    (#ident_str.into(), ::scalar::validations::Validate::validate(&self.#ident))
+                    (#ident_str.into(), ::scalar_cms::validations::Validate::validate(&self.#ident))
                 }
             }
         })
@@ -310,27 +310,27 @@ pub fn derive_document(input: TokenStream) -> TokenStream {
 
             #doc_title
 
-            fn fields() -> Vec<::scalar::EditorField> {
-                use ::scalar::editor_field::ToEditorField;
+            fn fields() -> Vec<::scalar_cms::EditorField> {
+                use ::scalar_cms::editor_field::ToEditorField;
                 vec![
                     #(#fields),*
                 ]
             }
         }
 
-        impl ::scalar::validations::Validate for #ident {
-            fn validate(&self) -> Result<(), ::scalar::validations::ValidationError> {
-                let results: [(::scalar::validations::Field, Result<(), ::scalar::validations::ValidationError>); #validators_count] = [#(#validators),*];
+        impl ::scalar_cms::validations::Validate for #ident {
+            fn validate(&self) -> Result<(), ::scalar_cms::validations::ValidationError> {
+                let results: [(::scalar_cms::validations::Field, Result<(), ::scalar_cms::validations::ValidationError>); #validators_count] = [#(#validators),*];
 
-                let errors: Vec<::scalar::validations::ErroredField> = results
+                let errors: Vec<::scalar_cms::validations::ErroredField> = results
                     .into_iter()
-                    .filter_map(|(f, r)| r.err().map(|e| ::scalar::validations::ErroredField { field: f, error: e}))
+                    .filter_map(|(f, r)| r.err().map(|e| ::scalar_cms::validations::ErroredField { field: f, error: e}))
                     .collect();
 
                 errors
                     .is_empty()
                     .then_some(())
-                    .ok_or(::scalar::validations::ValidationError::Composite(errors))
+                    .ok_or(::scalar_cms::validations::ValidationError::Composite(errors))
             }
         }
     };
@@ -368,6 +368,6 @@ fn field_to_info_call(field: FieldInfo) -> proc_macro2::TokenStream {
         }
     };
     quote! {
-        <#ty as ::scalar::editor_field::ToEditorField>::to_editor_field(#default, #ident, #title, #placeholder, None, #component_key)
+        <#ty as ::scalar_cms::editor_field::ToEditorField>::to_editor_field(#default, #ident, #title, #placeholder, None, #component_key)
     }
 }

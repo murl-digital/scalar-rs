@@ -12,7 +12,7 @@ img = ["dep:scalar-img"]
 [dependencies]
 axum = "0.8"
 rgb = { version = "0.8", features = ["serde"] }
-scalar = { version = "0.1.0", path = "../scalar", features = ["rgb"] }
+scalar-cms = { version = "0.1.0", path = "../scalar-cms", features = ["rgb"] }
 scalar-img = { version = "0.1.0", path = "../scalar-img", optional = true }
 thiserror = "2"
 serde = "1"
