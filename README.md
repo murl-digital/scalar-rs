@@ -1,4 +1,4 @@
-# 🐲 scalar-rs
+# 🐲 scalar-cms
 *a data oriented, [I'M NOT GOING TO SAY IT], ergonomic cms system*
 
 scalar is a cms that follows in the footsteps of [sanity's work on data-driven content](https://sanity.io), written in rust for stronger type guarantees and just to prove that i can.
