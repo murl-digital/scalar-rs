@@ -24,13 +24,27 @@ use tower_http::{
 };
 use url::Url;
 
+pub fn int_test(int: &i32) -> Result<(), ValidationError> {
+    (*int > 3)
+        .then_some(())
+        .ok_or(ValidationError::Single("int must be less than 3!".into()))
+}
+
+pub fn float_test(float: &f32) -> Result<(), ValidationError> {
+    (float.sqrt().fract() == 0.0)
+        .then_some(())
+        .ok_or(ValidationError::Single(
+            "sqrt of float must be an int!".into(),
+        ))
+}
+
 #[derive(Document, Serialize, Deserialize)]
 struct AllTypes {
     #[validate(skip)]
     bool: bool,
-    #[validate(skip)]
+    #[validate(with = int_test)]
     integer: i32,
-    #[validate(skip)]
+    #[validate(with = float_test)]
     float: f32,
     #[validate(skip)]
     single_line: String,

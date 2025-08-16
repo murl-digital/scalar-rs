@@ -7,9 +7,15 @@
 
     let {
         fields,
+        errors,
         formData = $bindable(),
         ready,
-    }: { fields: EditorField[]; formData: any; ready: () => void } = $props();
+    }: {
+        fields: EditorField[];
+        errors: [{ field: string; error: string }] | [];
+        formData: any;
+        ready: () => void;
+    } = $props();
 
     for (let field of fields) {
         if (formData[field.name] === undefined) {
@@ -30,6 +36,7 @@
     {#each fields as field}
         <Field
             bind:data={formData[field.name]}
+            error={errors.find((f) => f.field === field.name)?.error}
             {field}
             ready={() => {
                 ready_ids.add(field.name);

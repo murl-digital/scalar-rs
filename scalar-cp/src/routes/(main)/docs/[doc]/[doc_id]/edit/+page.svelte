@@ -17,6 +17,7 @@
     let updatingPromise = $state();
     let ready = $state(false);
     let valid = $state(false);
+    let validationErrors: [{ field: string; error: string }] | [] = $state([]);
     let timeout: number | undefined = $state();
 
     $effect.pre(() => {
@@ -55,7 +56,17 @@
                         },
                         body: JSON.stringify(formData),
                     },
-                ).then((response) => (valid = response.ok));
+                ).then((response) => {
+                    if (response.ok) {
+                        valid = true;
+                        validationErrors = [];
+                    } else {
+                        response.json().then((json) => {
+                            valid = false;
+                            validationErrors = json;
+                        });
+                    }
+                });
             }, 500);
         }
     });
@@ -79,6 +90,7 @@
         <div class="mx-auto w-1/3">
             <Form
                 fields={data.schema.fields}
+                errors={validationErrors}
                 bind:formData
                 ready={() => {
                     ready = true;

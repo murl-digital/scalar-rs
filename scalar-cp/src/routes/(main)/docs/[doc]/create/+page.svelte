@@ -1,9 +1,9 @@
 <script lang="ts">
+    import Form from "$lib/components/Form.svelte";
     import { apiFetch } from "$lib/api";
     import { goto, invalidateAll } from "$app/navigation";
     import { page } from "$app/state";
     import { untrack } from "svelte";
-    import Form from "$lib/components/Form.svelte";
     import { base } from "$app/paths";
     import { nanoid } from "nanoid";
 
@@ -53,6 +53,7 @@
         <div class="w-1/3 mx-auto py-16">
             <Form
                 fields={data.schema.fields}
+                errors={[]}
                 bind:formData
                 ready={() => {
                     ready = true;

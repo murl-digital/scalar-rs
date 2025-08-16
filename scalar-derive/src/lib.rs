@@ -322,16 +322,15 @@ pub fn derive_document(input: TokenStream) -> TokenStream {
             fn validate(&self) -> Result<(), ::scalar::validations::ValidationError> {
                 let results: [(::scalar::validations::Field, Result<(), ::scalar::validations::ValidationError>); #validators_count] = [#(#validators),*];
 
-                let errors: Vec<(::scalar::validations::Field, ::scalar::validations::ValidationError)> = results
+                let errors: Vec<::scalar::validations::ErroredField> = results
                     .into_iter()
-                    .filter_map(|(f, r)| r.err().map(|e| (f, e)))
+                    .filter_map(|(f, r)| r.err().map(|e| ::scalar::validations::ErroredField { field: f, error: e}))
                     .collect();
 
-                if errors.is_empty() {
-                    Ok(())
-                } else {
-                    Err(::scalar::validations::ValidationError::Composite(errors))
-                }
+                errors
+                    .is_empty()
+                    .then_some(())
+                    .ok_or(::scalar::validations::ValidationError::Composite(errors))
             }
         }
     };

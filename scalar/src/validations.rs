@@ -39,11 +39,18 @@ wrapped_string!(Field);
 
 /// validatoin error
 #[derive(Debug, Serialize)]
+#[serde(untagged)]
 pub enum ValidationError {
     /// a single type is invalid (e.g NonZeroI32 is 0, email is invalid, etc.)
     Single(Reason),
     /// a struct/document of validated types is invalid for one or more reasons
-    Composite(Vec<(Field, ValidationError)>),
+    Composite(Vec<ErroredField>),
+}
+
+#[derive(Debug, Serialize)]
+pub struct ErroredField {
+    pub field: Field,
+    pub error: ValidationError,
 }
 
 #[diagnostic::on_unimplemented(

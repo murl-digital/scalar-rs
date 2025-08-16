@@ -5,10 +5,12 @@
 
     let {
         field,
+        error,
         data = $bindable(),
         ready,
     }: {
         field: EditorField;
+        error: string | undefined;
         data: any;
         ready: () => void;
     } = $props();
@@ -41,14 +43,19 @@
 {#await meta}
     <div class="i-svg-spinners-90-ring"></div>
 {:then meta}
-    {#if meta}
-        <meta.component {field} bind:data ready={() => ready()} />
-    {:else}
-        <div>
-            !! WARNING !! component for {field.field_type.component_key ??
-                field.field_type.type} not found
-        </div>
-    {/if}
+    <div class={[error && "border-2 border-red", "p-2"]}>
+        {#if error}
+            <span class="text-red">{error}</span>
+        {/if}
+        {#if meta}
+            <meta.component {field} bind:data ready={() => ready()} />
+        {:else}
+            <div>
+                !! WARNING !! component for {field.field_type.component_key ??
+                    field.field_type.type} not found
+            </div>
+        {/if}
+    </div>
 {:catch ex}
     <span>{JSON.stringify(ex)}</span>
 {/await}

@@ -10,7 +10,7 @@ img = ["dep:scalar-img"]
 axum = "0.8"
 rgb = { version = "0.8", features = ["serde"] }
 scalar = { version = "0.1.0", path = "../scalar", features = ["rgb"] }
-scalar-img = { path = "../scalar-img", optional = true }
+scalar-img = { version = "0.1.0", path = "../scalar-img", optional = true }
 thiserror = "2"
 serde = "1"
 serde_json = "1"
