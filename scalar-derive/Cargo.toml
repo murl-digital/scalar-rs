@@ -1,6 +1,7 @@
 [package]
 name = "scalar-derive"
-version = "0.1.0"
+description = "derive macros for scalar, a data oriented, [I'M NOT GOING TO SAY IT], ergonomic cms system"
+version = "0.1.1-0.1.0-alpha0.0"
 edition = "2021"
 
 [lib]

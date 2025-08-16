@@ -1,7 +1,10 @@
 # 🐲 scalar-rs
-*the data oriented, [I'M NOT GOING TO SAY IT], ergomic cms system*
+*a data oriented, [I'M NOT GOING TO SAY IT], ergonomic cms system*
 
-scalar is a cms that follows in the footsteps of [sanity's work on data-driven content](https://sanity.io), written in rust for stronger type guaruntees and just to prove that i can.
+scalar is a cms that follows in the footsteps of [sanity's work on data-driven content](https://sanity.io), written in rust for stronger type guarantees and just to prove that i can.
+
+## project status
+here be dragons. the api is not stable, everything is subject to change. consider this a pre-alpha.
 
 ## try a demo
 

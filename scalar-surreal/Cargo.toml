@@ -1,10 +1,11 @@
 [package]
 name = "scalar-surreal"
-version = "0.1.0"
+description = "surrealdb driver for scalar, a data oriented, [I'M NOT GOING TO SAY IT], ergonomic cms system"
+version = "0.1.1-0.1.0-alpha0.0"
 edition = "2021"
 
 [dependencies]
-scalar = { version = "0.1.0", path = "../scalar" }
+scalar = { version = "0.1.1-0.1.0-alpha0.0", path = "../scalar" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 surrealdb = { version = "2", default-features = false }
