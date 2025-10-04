@@ -21,7 +21,6 @@ tokio-util = { version = "0.7.14", features = ["io"] }
 tokio-stream = "0.1.17"
 
 [dev-dependencies]
-scalar-axum = { version = "*", features = ["img"], path = "." }
 surrealdb = { version = "2.1", default-features = false, features = [
     "kv-rocksdb",
 ] }

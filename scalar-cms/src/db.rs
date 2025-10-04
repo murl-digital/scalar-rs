@@ -23,6 +23,16 @@ pub struct Credentials {
     password: String,
 }
 
+impl Credentials {
+    pub fn email(&self) -> &str {
+        &self.email
+    }
+
+    pub fn password(&self) -> &str {
+        &self.password
+    }
+}
+
 impl Debug for Credentials {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Credentials")
@@ -38,6 +48,29 @@ pub struct User {
     name: String,
     gravatar_hash: String,
     admin: bool,
+}
+
+impl User {
+    pub fn new(email: String, name: String, gravatar_hash: String, admin: bool) -> Self {
+        Self {
+            email,
+            name,
+            gravatar_hash,
+            admin,
+        }
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn gravatar_hash(&self) -> &str {
+        &self.gravatar_hash
+    }
+
+    pub fn admin(&self) -> bool {
+        self.admin
+    }
 }
 
 #[trait_variant::make(Send + Sized)]

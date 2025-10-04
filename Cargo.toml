@@ -7,4 +7,5 @@ members = [
     "scalar-img",
     "xtask",
     "scalar-surreal",
+    "scalar-sqlx",
 ]
