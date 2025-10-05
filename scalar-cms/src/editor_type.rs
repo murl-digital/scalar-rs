@@ -37,7 +37,7 @@ pub enum EditorType {
         component_key: Option<String>,
         #[ts(type = "any[] | null")]
         default: Option<serde_json::Value>,
-        of: Rc<EditorType>,
+        of: Box<EditorType>,
     },
     SingleLine {
         component_key: Option<String>,

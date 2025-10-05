@@ -58,7 +58,7 @@ pub fn add_image_routes__<S: Clone + Send + Sync + 'static>(router: Router<S>) -
 #[doc(hidden)]
 macro_rules! crud_routes__ {
     ($router:ident, $db:ty, $doc:ty) => {
-        let path = format!("/docs/{}", <$doc>::identifier());
+        let path = format!("/docs/{}", <$doc>::IDENTIFIER);
         let drafts_path = format!("{path}/drafts/{{id}}");
         $router = $router
             .route(&path, ::axum::routing::get(::scalar_axum::get_all_docs::<$doc, $db>))
@@ -76,7 +76,7 @@ macro_rules! crud_routes__ {
 #[doc(hidden)]
 macro_rules! publish_routes__ {
     ($router:ident, $db:ty, $doc:ty) => {
-        let path = format!("/docs/{}", <$doc>::identifier());
+        let path = format!("/docs/{}", <$doc>::IDENTIFIER);
         $router = $router
             .route(&format!("{path}/{{id}}/publish"), ::axum::routing::post(::scalar_axum::publish_doc::<$doc, $db>));
     };
@@ -91,7 +91,7 @@ macro_rules! publish_routes__ {
 macro_rules! validate_routes__ {
     ($router:ident, $doc:ty) => {
         $router = $router
-            .route(&format!("/docs/{}/validate", <$doc>::identifier()), ::axum::routing::post(::scalar_axum::validate::<$doc>));
+            .route(&format!("/docs/{}/validate", <$doc>::IDENTIFIER), ::axum::routing::post(::scalar_axum::validate::<$doc>));
     };
 
     ($router:ident, $($doc:ty),+) => {
@@ -109,8 +109,8 @@ macro_rules! generate_routes {
             async fn get_docs() -> ::axum::Json<Vec<::scalar_cms::DocInfo>> {
                 ::axum::Json(vec![
                     $(::scalar_cms::DocInfo {
-                        identifier: <$doc>::identifier(),
-                        title: <$doc>::title()
+                        identifier: <$doc>::IDENTIFIER,
+                        title: <$doc>::TITLE
                     }),+
                 ])
             }

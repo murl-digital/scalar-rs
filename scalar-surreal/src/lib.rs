@@ -215,7 +215,7 @@ impl<C: Connection + Debug> scalar_cms::DatabaseConnection for SurrealConnection
             FETCH draft, published",
             )
             .bind(Bindings {
-                doc: D::identifier().into(),
+                doc: D::IDENTIFIER.into(),
                 id: id.to_owned().into(),
                 inner: data,
             })
@@ -249,7 +249,7 @@ impl<C: Connection + Debug> scalar_cms::DatabaseConnection for SurrealConnection
             .query("DELETE $draft_id")
             .query("DELETE $meta_id WHERE published IS NONE")
             .bind(Bindings {
-                doc: D::identifier().into(),
+                doc: D::IDENTIFIER.into(),
                 id: id.to_owned().into(),
             })
             .await?;
@@ -288,7 +288,7 @@ impl<C: Connection + Debug> scalar_cms::DatabaseConnection for SurrealConnection
             FROM $meta_id
             FETCH draft, published",
             ).bind(Bindings::<D> {
-                doc: D::identifier().into(),
+                doc: D::IDENTIFIER.into(),
                 id: id.to_owned().into(),
                 publish_at,
                 inner: data.inner()
@@ -307,7 +307,7 @@ impl<C: Connection + Debug> scalar_cms::DatabaseConnection for SurrealConnection
         item: Item<D>,
     ) -> Result<Item<D>, Self::Error> {
         let updated_thingy: Option<SurrealItem<D>> = self
-            .upsert((D::identifier(), item.id.to_owned()))
+            .upsert((D::IDENTIFIER, item.id.to_owned()))
             .content(SurrealItem::<D>::from(item))
             .await?;
 
@@ -336,7 +336,7 @@ impl<C: Connection + Debug> scalar_cms::DatabaseConnection for SurrealConnection
             FROM type::table(string::concat($doc, '_meta'))
             FETCH draft, published",
             )
-            .bind(("doc", D::identifier()))
+            .bind(("doc", D::IDENTIFIER))
             .await?
             .take::<Vec<SurrealItem<serde_json::Value>>>(0)?;
 
@@ -367,7 +367,7 @@ impl<C: Connection + Debug> scalar_cms::DatabaseConnection for SurrealConnection
             FETCH draft, published",
             )
             .bind(Bindings {
-                doc: D::identifier().into(),
+                doc: D::IDENTIFIER.into(),
                 id: id.to_owned().into(),
             })
             .await?
@@ -378,7 +378,7 @@ impl<C: Connection + Debug> scalar_cms::DatabaseConnection for SurrealConnection
 
 impl<C: Connection + Debug> SurrealConnection<C> {
     pub async fn init_doc<D: Document>(&self) {
-        let published_table = D::identifier();
+        let published_table = D::IDENTIFIER;
         let draft_table = format!("{published_table}_draft");
         let meta_table = format!("{published_table}_meta");
         self

@@ -298,7 +298,7 @@ where
                 default: default
                     .map(|v| serde_json::to_value(v.into()).expect("this should never fail")),
                 component_key: component_key.map(Into::into),
-                of: Rc::new(field_type),
+                of: Box::new(field_type),
             },
         }
     }

@@ -64,7 +64,7 @@ impl DerefMut for Markdown {
 pub struct Schema {
     identifier: &'static str,
     title: &'static str,
-    fields: Vec<EditorField>,
+    fields: &'static [EditorField],
 }
 
 #[derive(Serialize, TS)]
@@ -74,14 +74,14 @@ pub struct DocInfo {
 }
 
 pub trait Document: Validate {
-    fn identifier() -> &'static str;
-    fn title() -> &'static str;
+    const IDENTIFIER: &'static str;
+    const TITLE: &'static str;
 
-    fn fields() -> Vec<EditorField>;
+    fn fields() -> &'static [EditorField];
     fn schema() -> Schema {
         Schema {
-            identifier: Self::identifier(),
-            title: Self::title(),
+            identifier: Self::IDENTIFIER,
+            title: Self::TITLE,
             fields: Self::fields(),
         }
     }

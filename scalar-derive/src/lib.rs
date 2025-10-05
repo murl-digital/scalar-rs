@@ -227,36 +227,21 @@ pub fn derive_document(input: TokenStream) -> TokenStream {
     };
     let ident = input.ident;
 
-    let doc_identifier = match document.identifier {
-        Some(ident) => quote! {
-            fn identifier() -> &'static str {
-                #ident
-            }
-        },
-        None => {
-            let ident = ident.to_string().to_case(convert_case::Case::Snake);
-            quote! {
-                fn identifier() -> &'static str {
-                    #ident
-                }
-            }
-        }
+    let doc_identifier = document
+        .identifier
+        .unwrap_or_else(|| ident.to_string().to_case(convert_case::Case::Snake));
+
+    let doc_identifier_ts = quote! {
+        const IDENTIFIER: &'static str = #doc_identifier;
     };
 
-    let doc_title = match document.title {
-        Some(title) => quote! {
-            fn title() -> &'static str {
-                #title
-            }
-        },
-        None => {
-            let title = ident.to_string().to_case(convert_case::Case::Title);
-            quote! {
-                fn title() -> &'static str {
-                    #title
-                }
-            }
-        }
+    let doc_title = document
+        .title
+        .unwrap_or_else(|| ident.to_string().to_case(convert_case::Case::Title));
+
+    let doc_title_ts = quote! {
+        const TITLE: &'static str = #doc_title;
+
     };
 
     let struct_field_infos = match struct_fields
@@ -306,15 +291,18 @@ pub fn derive_document(input: TokenStream) -> TokenStream {
     let output = quote! {
         #[automatically_derived]
         impl Document for #ident {
-            #doc_identifier
+            #doc_identifier_ts
 
-            #doc_title
+            #doc_title_ts
 
-            fn fields() -> Vec<::scalar_cms::EditorField> {
+            fn fields() -> &'static [::scalar_cms::EditorField] {
                 use ::scalar_cms::editor_field::ToEditorField;
-                vec![
-                    #(#fields),*
-                ]
+                static FIELDS: ::std::sync::LazyLock<Box<[EditorField]>> =
+                    ::std::sync::LazyLock::new(|| vec![
+                        #(#fields),*
+                    ].into_boxed_slice());
+
+                &FIELDS
             }
         }
 

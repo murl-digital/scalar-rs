@@ -152,7 +152,7 @@ async fn main() -> anyhow::Result<()> {
         .nest("/api", api_router)
         .fallback_service(
             ServeDir::new("../scalar-cp/build")
-                .not_found_service(ServeFile::new("../scalar-cp/build/index.html")),
+                .fallback(ServeFile::new("../scalar-cp/build/index.html")),
         )
         .layer(CorsLayer::permissive());
 
