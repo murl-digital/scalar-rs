@@ -1,5 +1,5 @@
 use axum::{
-    body::Bytes,
+    body::{Body, Bytes},
     extract::{multipart::MultipartError, Multipart, State},
     http::StatusCode,
     response::{IntoResponse, Response},
@@ -60,9 +60,10 @@ impl IntoResponse for UploadFileError {
     fn into_response(self) -> Response {
         match self {
             Self::Multipart(multipart) => multipart.into_response(),
-            Self::NoField | Self::NoFileName | Self::NoFileType => {
-                StatusCode::UNPROCESSABLE_ENTITY.into_response()
-            }
+            Self::NoField | Self::NoFileName | Self::NoFileType => Response::builder()
+                .status(StatusCode::UNPROCESSABLE_ENTITY)
+                .body(self.to_string().into())
+                .expect("invalid response???"),
             Self::Upload(error) => error.into_response(),
         }
     }
