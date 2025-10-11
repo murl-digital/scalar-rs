@@ -3,11 +3,11 @@ use std::fmt::Debug;
 use argon2::{Argon2, PasswordHash, PasswordVerifier, password_hash};
 use rusty_paseto::{
     core::{Local, PasetoSymmetricKey, V4},
-    prelude::{CustomClaim, PasetoBuilder},
+    prelude::{CustomClaim, GenericParserError, PasetoBuilder, PasetoParser},
 };
 use scalar_cms::{
     DatabaseConnection, DateTime, Document, Item, Utc,
-    db::{AuthenticationError, Credentials, User},
+    db::{Authenticated, AuthenticationError, Credentials, User},
     validations::Valid,
 };
 use sqlx::{Database, Pool, query};
@@ -25,7 +25,7 @@ pub(crate) trait DatabaseInner {
     fn get_user(&self, email: &str) -> impl Future<Output = Result<User, sqlx::Error>> + Send;
 }
 
-pub struct Connection<DB: DatabaseInner> {
+pub struct Connection<DB> {
     paseto_key: PasetoSymmetricKey<V4, Local>,
     inner: DB,
 }
@@ -51,19 +51,18 @@ impl<DB: DatabaseInner + Debug + Send + Sync> DatabaseConnection for Connection<
     type Error = Error;
 
     #[tracing::instrument(level = "debug", err)]
-    async fn authenticate(&mut self, jwt: &str) -> Result<(), AuthenticationError<Self::Error>> {
-        // self.inner.authenticate(jwt).await.map_err(|e| {
-        //     println!("{e:?}");
-        //     match e {
-        //         Error::Api(Api::Query(_)) => AuthenticationError::BadToken,
-        //         Error::Db(Db::InvalidAuth | Db::ExpiredToken | Db::ExpiredSession) => {
-        //             AuthenticationError::BadToken
-        //         }
-        //         _ => e.into(),
-        //     }
-        // })?;
+    async fn authenticate(&self, jwt: &str) -> Result<User, AuthenticationError<Self::Error>> {
+        let claims = PasetoParser::<V4, Local>::default()
+            .parse(jwt, &self.paseto_key)
+            .map_err(|_| AuthenticationError::BadToken)?;
 
-        Ok(())
+        serde_json::from_value(
+            claims
+                .get("user")
+                .ok_or(AuthenticationError::BadToken)?
+                .to_owned(),
+        )
+        .map_err(|_| AuthenticationError::BadToken)
     }
 
     #[tracing::instrument(level = "debug", err)]
@@ -93,9 +92,7 @@ impl<DB: DatabaseInner + Debug + Send + Sync> DatabaseConnection for Connection<
             .map_err(Error::from)?;
 
         let token = PasetoBuilder::<_, Local>::default()
-            .set_claim(CustomClaim::try_from(("email", credentials.email())).unwrap())
-            .set_claim(CustomClaim::try_from(("name", user.name())).unwrap())
-            .set_claim(CustomClaim::try_from(("admin", user.admin())).unwrap())
+            .set_claim(CustomClaim::try_from(("user", user)).unwrap())
             .build(&self.paseto_key)
             .unwrap();
 
@@ -114,7 +111,7 @@ impl<DB: DatabaseInner + Debug + Send + Sync> DatabaseConnection for Connection<
 
     #[tracing::instrument(level = "debug", err)]
     async fn draft<D: Document + Send>(
-        &self,
+        conn: &Authenticated<Self>,
         id: &str,
         data: serde_json::Value,
     ) -> Result<Item<serde_json::Value>, Self::Error> {
@@ -158,7 +155,7 @@ impl<DB: DatabaseInner + Debug + Send + Sync> DatabaseConnection for Connection<
 
     #[tracing::instrument(level = "debug", err)]
     async fn delete_draft<D: Document + Send>(
-        &self,
+        conn: &Authenticated<Self>,
         id: &str,
     ) -> Result<Item<serde_json::Value>, Self::Error> {
         todo!();
@@ -186,7 +183,7 @@ impl<DB: DatabaseInner + Debug + Send + Sync> DatabaseConnection for Connection<
     }
 
     async fn publish<D: Document + Send + 'static>(
-        &self,
+        conn: &Authenticated<Self>,
         id: &str,
         publish_at: Option<DateTime<Utc>>,
         data: Valid<D>,
@@ -232,7 +229,7 @@ impl<DB: DatabaseInner + Debug + Send + Sync> DatabaseConnection for Connection<
 
     #[tracing::instrument(level = "debug", err)]
     async fn put<D: Document + Send + Debug + 'static>(
-        &self,
+        conn: &Authenticated<Self>,
         item: Item<D>,
     ) -> Result<Item<D>, Self::Error> {
         todo!()
@@ -247,7 +244,10 @@ impl<DB: DatabaseInner + Debug + Send + Sync> DatabaseConnection for Connection<
     }
 
     #[tracing::instrument(level = "debug", err)]
-    async fn delete<D: Document + Send + Debug>(&self, id: &str) -> Result<Item<D>, Self::Error> {
+    async fn delete<D: Document + Send + Debug>(
+        conn: &Authenticated<Self>,
+        id: &str,
+    ) -> Result<Item<D>, Self::Error> {
         todo!()
     }
 

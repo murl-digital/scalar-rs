@@ -1,7 +1,7 @@
 use std::{borrow::Cow, fmt::Debug, ops::Deref};
 
 use scalar_cms::{
-    db::{AuthenticationError, Credentials, DatabaseFactory, User},
+    db::{Authenticated, AuthenticationError, Credentials, DatabaseFactory, User},
     validations::Valid,
     DateTime, Document, Item, Utc,
 };
@@ -139,7 +139,7 @@ impl<C: Connection + Debug> scalar_cms::DatabaseConnection for SurrealConnection
     type Error = surrealdb::Error;
 
     #[tracing::instrument(level = "debug", err)]
-    async fn authenticate(&mut self, jwt: &str) -> Result<(), AuthenticationError<Self::Error>> {
+    async fn authenticate(&self, jwt: &str) -> Result<User, AuthenticationError<Self::Error>> {
         self.inner.authenticate(jwt).await.map_err(|e| {
             println!("{e:?}");
             match e {
@@ -151,7 +151,12 @@ impl<C: Connection + Debug> scalar_cms::DatabaseConnection for SurrealConnection
             }
         })?;
 
-        Ok(())
+        let user: Option<User> = self
+            .query("SELECT *, crypto::sha256(email) as gravatar_hash OMIT id, password FROM $auth")
+            .await?
+            .take(0)?;
+
+        Ok(user.expect("user should be authenticated when this is called"))
     }
 
     #[tracing::instrument(level = "debug", err)]
@@ -188,7 +193,7 @@ impl<C: Connection + Debug> scalar_cms::DatabaseConnection for SurrealConnection
 
     #[tracing::instrument(level = "debug", err)]
     async fn draft<D: Document + Send>(
-        &self,
+        conn: &Authenticated<Self>,
         id: &str,
         data: serde_json::Value,
     ) -> Result<Item<serde_json::Value>, Self::Error> {
@@ -199,7 +204,8 @@ impl<C: Connection + Debug> scalar_cms::DatabaseConnection for SurrealConnection
             inner: serde_json::Value,
         }
 
-        let mut result = self
+        let mut result = conn
+            .inner()
             .query("LET $draft_id = type::thing(string::concat($doc, '_draft'), $id)")
             .query("LET $meta_id = type::thing(string::concat($doc, '_meta'), $id)")
             .query("UPSERT $draft_id SET inner = $inner")
@@ -231,7 +237,7 @@ impl<C: Connection + Debug> scalar_cms::DatabaseConnection for SurrealConnection
 
     #[tracing::instrument(level = "debug", err)]
     async fn delete_draft<D: Document + Send + DeserializeOwned>(
-        &self,
+        conn: &Authenticated<Self>,
         id: &str,
     ) -> Result<Item<serde_json::Value>, Self::Error> {
         #[derive(Serialize)]
@@ -241,9 +247,10 @@ impl<C: Connection + Debug> scalar_cms::DatabaseConnection for SurrealConnection
         }
 
         //TODO: VERY BAD!!!!
-        let pre_delete = self.get_by_id::<D>(id).await?.unwrap();
+        let pre_delete = conn.inner().get_by_id::<D>(id).await?.unwrap();
 
-        let _ = self
+        let _ = conn
+            .inner()
             .query("LET $draft_id = type::thing(string::concat($doc, '_draft'), $id)")
             .query("LET $meta_id = type::thing(string::concat($doc, '_meta'), $id)")
             .query("DELETE $draft_id")
@@ -258,7 +265,7 @@ impl<C: Connection + Debug> scalar_cms::DatabaseConnection for SurrealConnection
     }
 
     async fn publish<D: Document + Send + Serialize + DeserializeOwned + 'static>(
-        &self,
+        conn: &Authenticated<Self>,
         id: &str,
         publish_at: Option<DateTime<Utc>>,
         data: Valid<D>,
@@ -271,7 +278,7 @@ impl<C: Connection + Debug> scalar_cms::DatabaseConnection for SurrealConnection
             inner: D,
         }
 
-        let mut result = self
+        let mut result = conn.inner()
             .query("LET $published_id = type::thing($doc, $id)")
             .query("LET $draft_id = type::thing(string::concat($doc, '_draft'), $id)")
             .query("LET $meta_id = type::thing(string::concat($doc, '_meta'), $id)")
@@ -303,10 +310,11 @@ impl<C: Connection + Debug> scalar_cms::DatabaseConnection for SurrealConnection
 
     #[tracing::instrument(level = "debug", err)]
     async fn put<D: Document + Serialize + DeserializeOwned + Send + Debug + 'static>(
-        &self,
+        conn: &Authenticated<Self>,
         item: Item<D>,
     ) -> Result<Item<D>, Self::Error> {
-        let updated_thingy: Option<SurrealItem<D>> = self
+        let updated_thingy: Option<SurrealItem<D>> = conn
+            .inner()
             .upsert((D::IDENTIFIER, item.id.to_owned()))
             .content(SurrealItem::<D>::from(item))
             .await?;
@@ -317,7 +325,10 @@ impl<C: Connection + Debug> scalar_cms::DatabaseConnection for SurrealConnection
     }
 
     #[tracing::instrument(level = "debug", err)]
-    async fn delete<D: Document + Send + Debug>(&self, id: &str) -> Result<Item<D>, Self::Error> {
+    async fn delete<D: Document + Send + Debug>(
+        conn: &Authenticated<Self>,
+        id: &str,
+    ) -> Result<Item<D>, Self::Error> {
         todo!()
     }
 

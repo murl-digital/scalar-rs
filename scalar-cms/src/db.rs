@@ -1,5 +1,5 @@
-use std::error::Error;
 use std::fmt::Debug;
+use std::{error::Error, sync::Arc};
 
 use chrono::{DateTime, Utc};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
@@ -42,20 +42,20 @@ impl Debug for Credentials {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct User {
-    email: String,
-    name: String,
-    gravatar_hash: String,
+    email: Arc<str>,
+    name: Arc<str>,
+    gravatar_hash: Arc<str>,
     admin: bool,
 }
 
 impl User {
     pub fn new(email: String, name: String, gravatar_hash: String, admin: bool) -> Self {
         Self {
-            email,
-            name,
-            gravatar_hash,
+            email: email.into(),
+            name: name.into(),
+            gravatar_hash: gravatar_hash.into(),
             admin,
         }
     }
@@ -82,11 +82,37 @@ pub trait DatabaseFactory {
     async fn init_system(&self) -> Result<Self::Connection, Self::Error>;
 }
 
+#[derive(Debug)]
+pub struct Authenticated<DB: DatabaseConnection> {
+    conn: DB,
+    user: User,
+}
+
+impl<DB: DatabaseConnection> Authenticated<DB> {
+    pub async fn authenticate(
+        conn: DB,
+        token: &str,
+    ) -> Result<Self, AuthenticationError<DB::Error>> {
+        Ok(Self {
+            user: conn.authenticate(token).await?,
+            conn,
+        })
+    }
+
+    pub fn me(&self) -> User {
+        self.user.clone()
+    }
+
+    pub fn inner(&self) -> &DB {
+        &self.conn
+    }
+}
+
 #[trait_variant::make(Send + Sized)]
 pub trait DatabaseConnection {
     type Error: Error;
 
-    async fn authenticate(&mut self, jwt: &str) -> Result<(), AuthenticationError<Self::Error>>;
+    async fn authenticate(&self, jwt: &str) -> Result<User, AuthenticationError<Self::Error>>;
     async fn signin(
         &self,
         credentials: Credentials,
@@ -94,27 +120,30 @@ pub trait DatabaseConnection {
     async fn me(&self) -> Result<User, Self::Error>;
 
     async fn draft<D: Document + Send>(
-        &self,
+        conn: &Authenticated<Self>,
         id: &str,
         data: serde_json::Value,
     ) -> Result<Item<serde_json::Value>, Self::Error>;
     async fn delete_draft<D: Document + Send + DeserializeOwned>(
-        &self,
+        conn: &Authenticated<Self>,
         id: &str,
     ) -> Result<Item<serde_json::Value>, Self::Error>;
 
     async fn publish<D: Document + Send + Serialize + DeserializeOwned + 'static>(
-        &self,
+        conn: &Authenticated<Self>,
         id: &str,
         publish_at: Option<DateTime<Utc>>,
         data: Valid<D>,
     ) -> Result<Item<D>, Self::Error>;
 
     async fn put<D: Document + Serialize + DeserializeOwned + Send + Debug + 'static>(
-        &self,
+        conn: &Authenticated<Self>,
         item: Item<D>,
     ) -> Result<Item<D>, Self::Error>;
-    async fn delete<D: Document + Send + Debug>(&self, id: &str) -> Result<Item<D>, Self::Error>;
+    async fn delete<D: Document + Send + Debug>(
+        conn: &Authenticated<Self>,
+        id: &str,
+    ) -> Result<Item<D>, Self::Error>;
     async fn get_all<D: Document + DeserializeOwned + Send>(
         &self,
     ) -> Result<Vec<Item<serde_json::Value>>, Self::Error>;

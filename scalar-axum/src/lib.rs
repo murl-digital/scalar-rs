@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use axum::{
     extract::{FromRef, Path, Request, State},
     http::{self, StatusCode},
@@ -6,7 +8,7 @@ use axum::{
     Extension, Json, Router,
 };
 use scalar_cms::{
-    db::{Credentials, DatabaseFactory, User},
+    db::{Authenticated, Credentials, DatabaseFactory, User},
     validations::{Valid, ValidationError},
     DatabaseConnection, Document, Item, Schema,
 };
@@ -161,13 +163,17 @@ where
         })
         .ok_or(StatusCode::UNAUTHORIZED)??;
 
-    connection.authenticate(token).await.map_err(|e| match e {
-        scalar_cms::db::AuthenticationError::BadToken => StatusCode::UNAUTHORIZED,
-        scalar_cms::db::AuthenticationError::BadCredentials => StatusCode::UNAUTHORIZED,
-        scalar_cms::db::AuthenticationError::DatabaseError(_) => StatusCode::INTERNAL_SERVER_ERROR,
-    })?;
+    let connection = Authenticated::authenticate(connection, token)
+        .await
+        .map_err(|e| match e {
+            scalar_cms::db::AuthenticationError::BadToken => StatusCode::UNAUTHORIZED,
+            scalar_cms::db::AuthenticationError::BadCredentials => StatusCode::UNAUTHORIZED,
+            scalar_cms::db::AuthenticationError::DatabaseError(_) => {
+                StatusCode::INTERNAL_SERVER_ERROR
+            }
+        })?;
 
-    req.extensions_mut().insert(connection);
+    req.extensions_mut().insert(Arc::new(connection));
 
     Ok(next.run(req).await)
 }
@@ -205,22 +211,18 @@ pub async fn validate<D: Document>(
 }
 
 pub async fn me<F: DatabaseFactory>(
-    state: Extension<<F as DatabaseFactory>::Connection>,
-) -> Result<Json<User>, StatusCode> {
-    Ok(Json(state.me().await.map_err(|e| {
-        println!("{e}");
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?))
+    state: Extension<Arc<Authenticated<<F as DatabaseFactory>::Connection>>>,
+) -> Json<User> {
+    Json(state.me())
 }
 
 pub async fn update_draft<T: Document + Serialize + DeserializeOwned + Send, F: DatabaseFactory>(
-    state: Extension<<F as DatabaseFactory>::Connection>,
+    state: Extension<Arc<Authenticated<<F as DatabaseFactory>::Connection>>>,
     Path(id): Path<String>,
     Json(data): Json<serde_json::Value>,
 ) -> Result<Json<Item<serde_json::Value>>, StatusCode> {
     Ok(Json(
-        state
-            .draft::<T>(&id, data)
+        DatabaseConnection::draft::<T>(&state, &id, data)
             .await
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?,
     ))
@@ -231,25 +233,26 @@ pub async fn publish_doc<
     F: DatabaseFactory,
 >(
     Path(id): Path<String>,
-    state: Extension<<F as DatabaseFactory>::Connection>,
+    state: Extension<Arc<Authenticated<<F as DatabaseFactory>::Connection>>>,
     doc: Json<D>,
 ) -> Result<(), StatusCode> {
-    state
-        .publish(
-            &id,
-            None,
-            Valid::new(doc.0).map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?,
-        )
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    DatabaseConnection::publish(
+        &state,
+        &id,
+        None,
+        Valid::new(doc.0).map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?,
+    )
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     Ok(())
 }
 
 pub async fn get_all_docs<T: Document + Serialize + DeserializeOwned + Send, F: DatabaseFactory>(
-    state: Extension<<F as DatabaseFactory>::Connection>,
+    state: Extension<Arc<Authenticated<<F as DatabaseFactory>::Connection>>>,
 ) -> Result<Json<Vec<Item<serde_json::Value>>>, StatusCode> {
     let items = state
+        .inner()
         .get_all::<T>()
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
@@ -261,10 +264,11 @@ pub async fn get_doc_by_id<
     T: Document + Serialize + DeserializeOwned + Send,
     F: DatabaseFactory,
 >(
-    state: Extension<<F as DatabaseFactory>::Connection>,
+    state: Extension<Arc<Authenticated<<F as DatabaseFactory>::Connection>>>,
     id: Path<String>,
 ) -> Result<Json<Item<serde_json::Value>>, StatusCode> {
     state
+        .inner()
         .get_by_id::<T>(id.as_str())
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
