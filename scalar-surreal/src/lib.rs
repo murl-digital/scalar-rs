@@ -182,15 +182,6 @@ impl<C: Connection + Debug> scalar_cms::DatabaseConnection for SurrealConnection
         Ok(result.into_insecure_token())
     }
 
-    async fn me(&self) -> Result<User, Self::Error> {
-        let user: Option<User> = self
-            .query("SELECT *, crypto::sha256(email) as gravatar_hash OMIT id, password FROM $auth")
-            .await?
-            .take(0)?;
-
-        Ok(user.expect("user should be authenticated when this is called"))
-    }
-
     #[tracing::instrument(level = "debug", err)]
     async fn draft<D: Document + Send>(
         conn: &Authenticated<Self>,

@@ -5,6 +5,11 @@ use scalar_cms::{
 use sqlx::{SqlitePool, query, query_as};
 
 use crate::DatabaseInner;
+pub type Pool = SqlitePool;
+
+pub async fn migrate(pool: &Pool) -> Result<(), sqlx::migrate::MigrateError> {
+    sqlx::migrate!().run(pool).await
+}
 
 impl DatabaseInner for SqlitePool {
     async fn get_password_hash(&self, email: &str) -> Result<Option<String>, sqlx::Error> {

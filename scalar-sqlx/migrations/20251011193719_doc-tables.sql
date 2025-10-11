@@ -17,7 +17,7 @@ CREATE TABLE "sc__meta" (
 	"created_at"	TEXT NOT NULL,
 	"modified_at"	TEXT NOT NULL,
 	"published_at"	TEXT,
-	PRIMARY KEY("id"),
+	PRIMARY KEY("id")
 );
 
 CREATE INDEX "doc" ON "sc__meta" (

@@ -76,7 +76,7 @@ impl User {
 #[trait_variant::make(Send + Sized)]
 pub trait DatabaseFactory {
     type Error: Error;
-    type Connection: DatabaseConnection + Sync + Clone;
+    type Connection: DatabaseConnection + Sync;
 
     async fn init(&self) -> Result<Self::Connection, Self::Error>;
     async fn init_system(&self) -> Result<Self::Connection, Self::Error>;
@@ -117,7 +117,6 @@ pub trait DatabaseConnection {
         &self,
         credentials: Credentials,
     ) -> Result<String, AuthenticationError<Self::Error>>;
-    async fn me(&self) -> Result<User, Self::Error>;
 
     async fn draft<D: Document + Send>(
         conn: &Authenticated<Self>,

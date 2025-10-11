@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use axum::{
-    extract::{FromRef, Path, Request, State},
+    extract::{FromRef, FromRequestParts, Path, Request, State},
     http::{self, StatusCode},
     middleware::Next,
     response::{IntoResponse, Response},
@@ -120,7 +120,6 @@ macro_rules! generate_routes {
 
             router = router.route("/me", ::axum::routing::get(::scalar_axum::me::<$db>));
             router = ::scalar_axum::add_image_routes__(router);
-            router = router.layer(::axum::middleware::from_fn_with_state($db_instance.clone(), ::scalar_axum::authenticated_connection_middleware::<$db>));
             router = router.route("/signin", ::axum::routing::post(::scalar_axum::signin::<$db>));
 
             ::scalar_axum::validate_routes__!(router, $($doc),+);
@@ -130,52 +129,57 @@ macro_rules! generate_routes {
     };
 }
 
-pub async fn authenticated_connection_middleware<F: DatabaseFactory + Clone>(
-    State(db_factory): State<F>,
-    mut req: Request,
-    next: Next,
-) -> Result<Response, StatusCode>
+pub struct AuthenticatedConnection<F: DatabaseFactory>(Authenticated<F::Connection>);
+
+impl<F: DatabaseFactory, S> FromRequestParts<S> for AuthenticatedConnection<F>
 where
-    <F as DatabaseFactory>::Connection: 'static,
+    F: FromRef<S>,
+    S: Send + Sync,
 {
-    let auth_header = req
-        .headers()
-        .get(http::header::AUTHORIZATION)
-        .map(|header| {
-            header
-                .to_str()
-                .map(str::trim)
-                .map_err(|_| StatusCode::BAD_REQUEST)
-        })
-        .ok_or(StatusCode::UNAUTHORIZED)??;
+    type Rejection = StatusCode;
 
-    let connection = db_factory.init().await.map_err(|e| {
-        println!("{e}");
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
+    async fn from_request_parts(
+        parts: &mut http::request::Parts,
+        state: &S,
+    ) -> Result<Self, Self::Rejection> {
+        let db_factory = F::from_ref(state);
+        let auth_header = parts
+            .headers
+            .get(http::header::AUTHORIZATION)
+            .map(|header| {
+                header
+                    .to_str()
+                    .map(str::trim)
+                    .map_err(|_| StatusCode::BAD_REQUEST)
+            })
+            .ok_or(StatusCode::UNAUTHORIZED)??;
 
-    let (_, token) = auth_header
-        .starts_with("Bearer ")
-        .then(|| {
-            auth_header
-                .split_at_checked(7)
-                .ok_or(StatusCode::UNAUTHORIZED)
-        })
-        .ok_or(StatusCode::UNAUTHORIZED)??;
-
-    let connection = Authenticated::authenticate(connection, token)
-        .await
-        .map_err(|e| match e {
-            scalar_cms::db::AuthenticationError::BadToken => StatusCode::UNAUTHORIZED,
-            scalar_cms::db::AuthenticationError::BadCredentials => StatusCode::UNAUTHORIZED,
-            scalar_cms::db::AuthenticationError::DatabaseError(_) => {
-                StatusCode::INTERNAL_SERVER_ERROR
-            }
+        let connection = db_factory.init().await.map_err(|e| {
+            println!("{e}");
+            StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
-    req.extensions_mut().insert(Arc::new(connection));
+        let (_, token) = auth_header
+            .starts_with("Bearer ")
+            .then(|| {
+                auth_header
+                    .split_at_checked(7)
+                    .ok_or(StatusCode::UNAUTHORIZED)
+            })
+            .ok_or(StatusCode::UNAUTHORIZED)??;
 
-    Ok(next.run(req).await)
+        let connection = Authenticated::authenticate(connection, token)
+            .await
+            .map_err(|e| match e {
+                scalar_cms::db::AuthenticationError::BadToken => StatusCode::UNAUTHORIZED,
+                scalar_cms::db::AuthenticationError::BadCredentials => StatusCode::UNAUTHORIZED,
+                scalar_cms::db::AuthenticationError::DatabaseError(_) => {
+                    StatusCode::INTERNAL_SERVER_ERROR
+                }
+            })?;
+
+        Ok(Self(connection))
+    }
 }
 
 //#[axum_macros::debug_handler]
@@ -211,13 +215,13 @@ pub async fn validate<D: Document>(
 }
 
 pub async fn me<F: DatabaseFactory>(
-    state: Extension<Arc<Authenticated<<F as DatabaseFactory>::Connection>>>,
+    AuthenticatedConnection(state): AuthenticatedConnection<F>,
 ) -> Json<User> {
     Json(state.me())
 }
 
 pub async fn update_draft<T: Document + Serialize + DeserializeOwned + Send, F: DatabaseFactory>(
-    state: Extension<Arc<Authenticated<<F as DatabaseFactory>::Connection>>>,
+    AuthenticatedConnection(state): AuthenticatedConnection<F>,
     Path(id): Path<String>,
     Json(data): Json<serde_json::Value>,
 ) -> Result<Json<Item<serde_json::Value>>, StatusCode> {
@@ -233,7 +237,7 @@ pub async fn publish_doc<
     F: DatabaseFactory,
 >(
     Path(id): Path<String>,
-    state: Extension<Arc<Authenticated<<F as DatabaseFactory>::Connection>>>,
+    AuthenticatedConnection(state): AuthenticatedConnection<F>,
     doc: Json<D>,
 ) -> Result<(), StatusCode> {
     DatabaseConnection::publish(
@@ -249,7 +253,7 @@ pub async fn publish_doc<
 }
 
 pub async fn get_all_docs<T: Document + Serialize + DeserializeOwned + Send, F: DatabaseFactory>(
-    state: Extension<Arc<Authenticated<<F as DatabaseFactory>::Connection>>>,
+    AuthenticatedConnection(state): AuthenticatedConnection<F>,
 ) -> Result<Json<Vec<Item<serde_json::Value>>>, StatusCode> {
     let items = state
         .inner()
@@ -264,7 +268,7 @@ pub async fn get_doc_by_id<
     T: Document + Serialize + DeserializeOwned + Send,
     F: DatabaseFactory,
 >(
-    state: Extension<Arc<Authenticated<<F as DatabaseFactory>::Connection>>>,
+    AuthenticatedConnection(state): AuthenticatedConnection<F>,
     id: Path<String>,
 ) -> Result<Json<Item<serde_json::Value>>, StatusCode> {
     state

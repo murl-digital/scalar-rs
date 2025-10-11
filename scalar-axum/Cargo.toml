@@ -19,19 +19,19 @@ serde = "1"
 serde_json = "1"
 tokio-util = { version = "0.7.14", features = ["io"] }
 tokio-stream = "0.1.17"
+tower = "0.5.2"
 
 [dev-dependencies]
-surrealdb = { version = "2.1", default-features = false, features = [
-    "kv-rocksdb",
-] }
+argon2 = "0.5.3"
 rust-s3 = "0.35"
 axum = { version = "0.8", features = ["multipart", "http2"] }
 axum-macros = "0.5"
 scalar-img = { path = "../scalar-img" }
-scalar-surreal = { path = "../scalar-surreal" }
+scalar-sqlx = { path = "../scalar-sqlx", features = ["sqlite"] }
 tokio = { version = "1", features = ["rt-multi-thread", "fs"] }
 tower-http = { version = "0.5", features = ["cors", "fs"] }
 thiserror = "2"
 dotenvy = "0.15.7"
 anyhow = { version = "1.0.98", features = ["backtrace"] }
 url = "2.5.4"
+sqlx = { version = "0.8.6", features = ["runtime-tokio"] }

@@ -1,16 +1,16 @@
-use std::fmt::Debug;
+use std::{convert::Infallible, fmt::Debug};
 
 use argon2::{Argon2, PasswordHash, PasswordVerifier, password_hash};
 use rusty_paseto::{
-    core::{Local, PasetoSymmetricKey, V4},
-    prelude::{CustomClaim, GenericParserError, PasetoBuilder, PasetoParser},
+    core::{Key, Local, PasetoSymmetricKey, V4},
+    prelude::*,
 };
 use scalar_cms::{
     DatabaseConnection, DateTime, Document, Item, Utc,
-    db::{Authenticated, AuthenticationError, Credentials, User},
+    db::{Authenticated, AuthenticationError, Credentials, DatabaseFactory, User},
     validations::Valid,
 };
-use sqlx::{Database, Pool, query};
+use sqlx::{Database, Pool, Sqlite};
 use thiserror::Error;
 
 #[cfg(feature = "sqlite")]
@@ -31,12 +31,68 @@ pub(crate) trait DatabaseInner {
     ) -> impl Future<Output = Result<Item<serde_json::Value>, sqlx::Error>> + Send;
 }
 
-pub struct Connection<DB> {
-    paseto_key: PasetoSymmetricKey<V4, Local>,
-    inner: DB,
+#[derive(Debug)]
+pub struct ConnectionFactory<DB: Database> {
+    pool: Pool<DB>,
+    paseto_key: Key<32>,
 }
 
-impl<DB: DatabaseInner + Debug> Debug for Connection<DB> {
+impl<DB: Database> Clone for ConnectionFactory<DB> {
+    fn clone(&self) -> Self {
+        Self {
+            pool: self.pool.clone(),
+            paseto_key: self.paseto_key.clone(),
+        }
+    }
+}
+
+impl<DB: Database> ConnectionFactory<DB> {
+    pub fn new(db: Pool<DB>) -> Self {
+        Self {
+            paseto_key: Key::try_new_random().unwrap(),
+            pool: db,
+        }
+    }
+}
+
+impl<DB: Database> DatabaseFactory for ConnectionFactory<DB>
+where
+    Pool<DB>: DatabaseInner,
+{
+    type Error = Infallible;
+
+    type Connection = Connection<DB>;
+
+    async fn init(&self) -> Result<Self::Connection, Self::Error> {
+        Ok(Connection {
+            paseto_key: self.paseto_key.clone(),
+            inner: self.pool.clone(),
+        })
+    }
+
+    async fn init_system(&self) -> Result<Self::Connection, Self::Error> {
+        Ok(Connection {
+            paseto_key: self.paseto_key.clone(),
+            inner: self.pool.clone(),
+        })
+    }
+}
+
+pub struct Connection<DB: Database> {
+    paseto_key: Key<32>,
+    inner: Pool<DB>,
+}
+
+impl<DB: Database> Clone for Connection<DB> {
+    fn clone(&self) -> Self {
+        Self {
+            paseto_key: self.paseto_key.clone(),
+            inner: self.inner.clone(),
+        }
+    }
+}
+
+impl<DB: Database + Debug> Debug for Connection<DB> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Connection")
             .field("paseto_key", &"<redacted>")
@@ -53,13 +109,17 @@ pub enum Error {
     Password(#[from] password_hash::Error),
 }
 
-impl<DB: DatabaseInner + Debug + Send + Sync> DatabaseConnection for Connection<DB> {
+impl<DB: Database> DatabaseConnection for Connection<DB>
+where
+    Pool<DB>: DatabaseInner,
+{
     type Error = Error;
 
     #[tracing::instrument(level = "debug", err)]
     async fn authenticate(&self, jwt: &str) -> Result<User, AuthenticationError<Self::Error>> {
+        let key = PasetoSymmetricKey::<V4, Local>::from(self.paseto_key.clone());
         let claims = PasetoParser::<V4, Local>::default()
-            .parse(jwt, &self.paseto_key)
+            .parse(jwt, &key)
             .map_err(|_| AuthenticationError::BadToken)?;
 
         serde_json::from_value(
@@ -76,6 +136,7 @@ impl<DB: DatabaseInner + Debug + Send + Sync> DatabaseConnection for Connection<
         &self,
         credentials: Credentials,
     ) -> Result<String, AuthenticationError<Self::Error>> {
+        let key = PasetoSymmetricKey::<V4, Local>::from(self.paseto_key.clone());
         let password_hash = self
             .inner
             .get_password_hash(credentials.email())
@@ -99,20 +160,10 @@ impl<DB: DatabaseInner + Debug + Send + Sync> DatabaseConnection for Connection<
 
         let token = PasetoBuilder::<_, Local>::default()
             .set_claim(CustomClaim::try_from(("user", user)).unwrap())
-            .build(&self.paseto_key)
+            .build(&key)
             .unwrap();
 
         Ok(token)
-    }
-
-    async fn me(&self) -> Result<User, Self::Error> {
-        todo!()
-        // let user: Option<User> = self
-        //     .query("SELECT *, crypto::sha256(email) as gravatar_hash OMIT id, password FROM $auth")
-        //     .await?
-        //     .take(0)?;
-
-        // Ok(user.expect("user should be authenticated when this is called"))
     }
 
     #[tracing::instrument(level = "debug", err)]
