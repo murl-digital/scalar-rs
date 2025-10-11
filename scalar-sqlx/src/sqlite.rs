@@ -1,4 +1,7 @@
-use scalar_cms::db::{Credentials, User};
+use scalar_cms::{
+    Document,
+    db::{Credentials, User},
+};
 use sqlx::{SqlitePool, query, query_as};
 
 use crate::DatabaseInner;
@@ -29,5 +32,15 @@ impl DatabaseInner for SqlitePool {
             String::default(),
             data.admin,
         ))
+    }
+
+    async fn draft<D: Document>(
+        &self,
+        id: &str,
+        data: serde_json::Value,
+    ) -> Result<(), sqlx::Error> {
+        let data = query!("");
+
+        Ok(())
     }
 }

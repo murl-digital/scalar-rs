@@ -23,6 +23,12 @@ pub(crate) trait DatabaseInner {
     ) -> impl Future<Output = Result<Option<String>, sqlx::Error>> + Send;
 
     fn get_user(&self, email: &str) -> impl Future<Output = Result<User, sqlx::Error>> + Send;
+
+    fn draft<D: Document>(
+        &self,
+        id: &str,
+        data: serde_json::Value,
+    ) -> impl Future<Output = Result<(), sqlx::Error>>;
 }
 
 pub struct Connection<DB> {
