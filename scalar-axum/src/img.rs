@@ -1,5 +1,5 @@
 use axum::{
-    body::{Body, Bytes},
+    body::Bytes,
     extract::{multipart::MultipartError, Multipart, State},
     http::StatusCode,
     response::{IntoResponse, Response},
@@ -86,8 +86,7 @@ pub async fn upload_file(
         .ok_or(UploadFileError::NoFileType)?
         .to_owned();
 
-    let stream = field
-        .map(|result| result.map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err)));
+    let stream = field.map(|result| result.map_err(std::io::Error::other));
 
     let mut reader = StreamReader::new(stream);
 

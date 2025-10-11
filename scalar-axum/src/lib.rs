@@ -149,7 +149,7 @@ where
         })
         .ok_or(StatusCode::UNAUTHORIZED)??;
 
-    let mut connection = db_factory.init().await.map_err(|e| {
+    let connection = db_factory.init().await.map_err(|e| {
         println!("{e}");
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
