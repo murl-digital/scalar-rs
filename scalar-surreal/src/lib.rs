@@ -139,7 +139,7 @@ impl<C: Connection + Debug> scalar_cms::DatabaseConnection for SurrealConnection
     type Error = surrealdb::Error;
 
     #[tracing::instrument(level = "debug", err)]
-    async fn authenticate(&self, jwt: &str) -> Result<(), AuthenticationError<Self::Error>> {
+    async fn authenticate(&mut self, jwt: &str) -> Result<(), AuthenticationError<Self::Error>> {
         self.inner.authenticate(jwt).await.map_err(|e| {
             println!("{e:?}");
             match e {

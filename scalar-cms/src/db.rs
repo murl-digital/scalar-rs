@@ -86,7 +86,7 @@ pub trait DatabaseFactory {
 pub trait DatabaseConnection {
     type Error: Error;
 
-    async fn authenticate(&self, jwt: &str) -> Result<(), AuthenticationError<Self::Error>>;
+    async fn authenticate(&mut self, jwt: &str) -> Result<(), AuthenticationError<Self::Error>>;
     async fn signin(
         &self,
         credentials: Credentials,

@@ -51,7 +51,7 @@ impl<DB: DatabaseInner + Debug + Send + Sync> DatabaseConnection for Connection<
     type Error = Error;
 
     #[tracing::instrument(level = "debug", err)]
-    async fn authenticate(&self, jwt: &str) -> Result<(), AuthenticationError<Self::Error>> {
+    async fn authenticate(&mut self, jwt: &str) -> Result<(), AuthenticationError<Self::Error>> {
         // self.inner.authenticate(jwt).await.map_err(|e| {
         //     println!("{e:?}");
         //     match e {
