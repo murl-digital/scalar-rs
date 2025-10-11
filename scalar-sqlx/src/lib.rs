@@ -29,6 +29,10 @@ pub(crate) trait DatabaseInner {
         id: &str,
         data: serde_json::Value,
     ) -> impl Future<Output = Result<Item<serde_json::Value>, sqlx::Error>> + Send;
+
+    fn get_all<D: Document>(
+        &self,
+    ) -> impl Future<Output = Result<Vec<Item<serde_json::Value>>, sqlx::Error>> + Send;
 }
 
 #[derive(Debug)]
@@ -277,23 +281,7 @@ where
     async fn get_all<D: Document + Send>(
         &self,
     ) -> Result<Vec<Item<serde_json::Value>>, Self::Error> {
-        todo!()
-        // let result = self
-        //     .query(
-        //         "SELECT
-        //         id,
-        //         created_at,
-        //         modified_at,
-        //         IF draft IS NOT NONE THEN draft.inner ELSE published.inner END AS inner,
-        //         published.published_at AS published_at
-        //     FROM type::table(string::concat($doc, '_meta'))
-        //     FETCH draft, published",
-        //     )
-        //     .bind(("doc", D::identifier()))
-        //     .await?
-        //     .take::<Vec<SurrealItem<serde_json::Value>>>(0)?;
-
-        // Ok(result.into_iter().map(Into::into).collect())
+        Ok(self.inner.get_all::<D>().await?)
     }
 
     #[tracing::instrument(level = "debug", err)]

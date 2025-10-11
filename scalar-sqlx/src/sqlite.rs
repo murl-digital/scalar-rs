@@ -1,3 +1,4 @@
+use futures::StreamExt;
 use scalar_cms::{
     DateTime, Document, Item, Utc,
     db::{Credentials, User},
@@ -86,5 +87,29 @@ impl DatabaseInner for SqlitePool {
             published_at,
             inner: data,
         })
+    }
+
+    async fn get_all<D: Document>(&self) -> Result<Vec<Item<serde_json::Value>>, sqlx::Error> {
+        type InnerItem = Item<serde_json::Value>;
+        query_as!(
+            InnerItem,
+            r#"SELECT
+                sc__meta.id as 'id!',
+                sc__meta.created_at as 'created_at!: DateTime<Utc>',
+                sc__meta.modified_at as 'modified_at!: DateTime<Utc>',
+                sc__meta.published_at as 'published_at: DateTime<Utc>',
+                (
+                    CASE WHEN sc__drafts.inner IS NULL
+                        THEN sc__published.inner
+                        ELSE sc__drafts.inner
+                    END
+                ) as 'inner!'
+                FROM sc__meta
+                FULL OUTER JOIN sc__drafts ON sc__meta.id = sc__drafts.id
+                FULL OUTER JOIN sc__published ON sc__meta.id = sc__published.id
+            "#
+        )
+        .fetch_all(self)
+        .await
     }
 }

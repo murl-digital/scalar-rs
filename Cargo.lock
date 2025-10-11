@@ -4315,6 +4315,7 @@ name = "scalar-sqlx"
 version = "0.0.0"
 dependencies = [
  "argon2",
+ "futures",
  "rusty_paseto",
  "scalar-cms",
  "serde_json",

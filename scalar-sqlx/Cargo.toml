@@ -8,6 +8,7 @@ sqlite = ["sqlx/sqlite"]
 
 [dependencies]
 argon2 = {version = "0.5.3", features = ["std"]}
+futures = "0.3.31"
 rusty_paseto = "0.7.2"
 scalar-cms = { version = "0.1.2", path = "../scalar-cms" }
 serde_json = "1.0.145"
