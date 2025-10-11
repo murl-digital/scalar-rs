@@ -28,7 +28,7 @@ pub(crate) trait DatabaseInner {
         &self,
         id: &str,
         data: serde_json::Value,
-    ) -> impl Future<Output = Result<(), sqlx::Error>>;
+    ) -> impl Future<Output = Result<Item<serde_json::Value>, sqlx::Error>> + Send;
 }
 
 pub struct Connection<DB> {
@@ -121,42 +121,7 @@ impl<DB: DatabaseInner + Debug + Send + Sync> DatabaseConnection for Connection<
         id: &str,
         data: serde_json::Value,
     ) -> Result<Item<serde_json::Value>, Self::Error> {
-        todo!()
-        // #[derive(Serialize)]
-        // struct Bindings<'a> {
-        //     doc: Cow<'a, str>,
-        //     id: Cow<'a, str>,
-        //     inner: serde_json::Value,
-        // }
-
-        // let mut result = self
-        //     .query("LET $draft_id = type::thing(string::concat($doc, '_draft'), $id)")
-        //     .query("LET $meta_id = type::thing(string::concat($doc, '_meta'), $id)")
-        //     .query("UPSERT $draft_id SET inner = $inner")
-        //     .query("UPSERT $meta_id SET draft = $draft_id, modified_at = time::now()")
-        //     .query(
-        //         "SELECT
-        //         id,
-        //         created_at,
-        //         modified_at,
-        //         IF draft IS NOT NONE THEN draft.inner ELSE published.inner END AS inner,
-        //         published.published_at AS published_at
-        //     FROM $meta_id
-        //     FETCH draft, published",
-        //     )
-        //     .bind(Bindings {
-        //         doc: D::identifier().into(),
-        //         id: id.to_owned().into(),
-        //         inner: data,
-        //     })
-        //     .await?;
-
-        // let thingy: Option<SurrealItem<serde_json::Value>> =
-        //     result.take(4).expect("this should always succeed");
-
-        // Ok(thingy
-        //     .expect("this option should always return something")
-        //     .into())
+        Ok(conn.inner().inner.draft::<D>(id, data).await?)
     }
 
     #[tracing::instrument(level = "debug", err)]

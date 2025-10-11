@@ -1,5 +1,5 @@
 use scalar_cms::{
-    Document,
+    DateTime, Document, Item, Utc,
     db::{Credentials, User},
 };
 use sqlx::{SqlitePool, query, query_as};
@@ -38,9 +38,48 @@ impl DatabaseInner for SqlitePool {
         &self,
         id: &str,
         data: serde_json::Value,
-    ) -> Result<(), sqlx::Error> {
-        let data = query!("");
+    ) -> Result<Item<serde_json::Value>, sqlx::Error> {
+        let mut transcation = self.begin().await?;
+        let now = Utc::now();
 
-        Ok(())
+        let published_at = query!(
+            r#"INSERT INTO sc__meta(doc, id, created_at, modified_at)
+            VALUES($1, $2, $3, $3)
+            ON CONFLICT(id)
+            DO
+               UPDATE
+               SET modified_at = $3
+            RETURNING published_at as 'published_at: DateTime<Utc>'"#,
+            D::IDENTIFIER,
+            id,
+            now
+        )
+        .fetch_one(&mut *transcation)
+        .await?
+        .published_at;
+
+        query!(
+            r#"INSERT INTO sc__drafts(doc, id, inner)
+            VALUES($1, $2, $3)
+            ON CONFLICT(id)
+            DO
+               UPDATE
+               SET inner = $3"#,
+            D::IDENTIFIER,
+            id,
+            data
+        )
+        .execute(&mut *transcation)
+        .await?;
+
+        transcation.commit().await?;
+
+        Ok(Item {
+            id: id.into(),
+            created_at: now,
+            modified_at: now,
+            published_at,
+            inner: data,
+        })
     }
 }

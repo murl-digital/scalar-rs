@@ -11,6 +11,6 @@ argon2 = "0.5.3"
 rusty_paseto = "0.7.2"
 scalar-cms = { version = "0.1.2", path = "../scalar-cms" }
 serde_json = "1.0.145"
-sqlx = { version = "0.8.6", default-features = false, features = ["macros", "migrate"] }
+sqlx = { version = "0.8.6", default-features = false, features = ["macros", "migrate", "chrono", "json"] }
 thiserror = "2.0.17"
 tracing = "0.1"
