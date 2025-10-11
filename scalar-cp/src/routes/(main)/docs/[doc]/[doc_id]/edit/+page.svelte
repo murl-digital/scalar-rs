@@ -57,9 +57,9 @@
                         body: JSON.stringify(formData),
                     },
                 ).then((response) => {
+                    validationErrors = [];
                     if (response.ok) {
                         valid = true;
-                        validationErrors = [];
                     } else {
                         response.json().then((json) => {
                             valid = false;
