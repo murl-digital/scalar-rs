@@ -1,5 +1,3 @@
-use std::sync::LazyLock;
-
 use scalar_cms::{
     doc_enum,
     validations::{NonZeroI32, Validate, ValidationError},

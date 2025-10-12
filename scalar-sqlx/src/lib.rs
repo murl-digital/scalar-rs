@@ -10,7 +10,7 @@ use scalar_cms::{
     db::{Authenticated, AuthenticationError, Credentials, DatabaseFactory, User},
     validations::Valid,
 };
-use sqlx::{Database, Pool, Sqlite};
+use sqlx::{Database, Pool};
 use thiserror::Error;
 
 #[cfg(feature = "sqlite")]

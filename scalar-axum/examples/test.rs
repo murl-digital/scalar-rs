@@ -1,32 +1,24 @@
 use argon2::PasswordHasher;
-use std::{env, sync::Arc};
-use tower::Service;
+use std::env;
 
 use argon2::{
     password_hash::{rand_core::OsRng, SaltString},
     Argon2,
 };
-use axum::{
-    extract::{FromRef, Request, State},
-    http::{self, StatusCode},
-    middleware::{from_fn_with_state, Next},
-    response::Response,
-    Router,
-};
-use axum_macros::{debug_middleware, FromRef};
+use axum::Router;
+use axum_macros::FromRef;
 use rgb::{RGB8, RGBA8};
 use s3::{creds::Credentials, Bucket, Region};
 use scalar_axum::generate_routes;
 use scalar_cms::{
-    db::{Authenticated, DatabaseFactory},
     doc_enum,
     validations::{Validate, ValidationError},
     DateTime, Document, EditorField, Markdown, MultiLine, Utc,
 };
 use scalar_img::{ImageData, WrappedBucket};
-use scalar_sqlx::{sqlite::Pool, Connection, ConnectionFactory};
+use scalar_sqlx::{sqlite::Pool, ConnectionFactory};
 use serde::{Deserialize, Serialize};
-use sqlx::{query, Sqlite, SqlitePool};
+use sqlx::{query, Sqlite};
 use tower_http::{
     cors::CorsLayer,
     services::{ServeDir, ServeFile},

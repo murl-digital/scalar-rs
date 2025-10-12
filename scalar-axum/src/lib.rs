@@ -1,11 +1,8 @@
-use std::sync::Arc;
-
 use axum::{
-    extract::{FromRef, FromRequestParts, Path, Request, State},
+    extract::{FromRef, FromRequestParts, Path, State},
     http::{self, StatusCode},
-    middleware::Next,
-    response::{IntoResponse, Response},
-    Extension, Json, Router,
+    response::IntoResponse,
+    Json, Router,
 };
 use scalar_cms::{
     db::{Authenticated, Credentials, DatabaseFactory, User},

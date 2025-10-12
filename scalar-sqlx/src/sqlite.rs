@@ -1,7 +1,4 @@
-use scalar_cms::{
-    DateTime, Document, Item, Utc,
-    db::{Credentials, User},
-};
+use scalar_cms::{DateTime, Document, Item, Utc, db::User};
 use sqlx::{SqlitePool, query, query_as};
 
 use crate::DatabaseInner;
