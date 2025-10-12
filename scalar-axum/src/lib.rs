@@ -36,7 +36,7 @@ where
     use axum::extract::DefaultBodyLimit;
     use img::{list, upload_file, upload_image};
 
-    let merge = Router::new()
+    router
         .route(
             "/images/upload",
             axum::routing::put(upload_image).layer(DefaultBodyLimit::max(25_000_000)),
@@ -45,9 +45,7 @@ where
             "/files/upload",
             axum::routing::put(upload_file).layer(DefaultBodyLimit::disable()),
         )
-        .route("/images/list", axum::routing::get(list));
-
-    router.merge(merge)
+        .route("/images/list", axum::routing::get(list))
 }
 
 #[cfg(not(feature = "img"))]

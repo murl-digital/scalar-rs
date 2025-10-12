@@ -54,7 +54,7 @@
     if (!data) {
         data = {
             url: null,
-            additionalData: null,
+            additional_data: null,
         };
     }
 

@@ -33,6 +33,11 @@ pub(crate) trait DatabaseInner {
     fn get_all<D: Document>(
         &self,
     ) -> impl Future<Output = Result<Vec<Item<serde_json::Value>>, sqlx::Error>> + Send;
+
+    fn get_by_id<D: Document>(
+        &self,
+        id: &str,
+    ) -> impl Future<Output = Result<Option<Item<serde_json::Value>>, sqlx::Error>> + Send;
 }
 
 #[derive(Debug)]
@@ -289,31 +294,6 @@ where
         &self,
         id: &str,
     ) -> Result<Option<Item<serde_json::Value>>, Self::Error> {
-        todo!()
-        // #[derive(Serialize)]
-        // struct Bindings<'a> {
-        //     doc: Cow<'a, str>,
-        //     id: Cow<'a, str>,
-        // }
-
-        // Ok(self
-        //     .query("LET $meta_id = type::thing(string::concat($doc, '_meta'), $id)")
-        //     .query(
-        //         "SELECT
-        //         id,
-        //         created_at,
-        //         modified_at,
-        //         IF draft IS NOT NONE THEN draft.inner ELSE published.inner END AS inner,
-        //         published.published_at AS published_at
-        //     FROM $meta_id
-        //     FETCH draft, published",
-        //     )
-        //     .bind(Bindings {
-        //         doc: D::identifier().into(),
-        //         id: id.to_owned().into(),
-        //     })
-        //     .await?
-        //     .take::<Option<SurrealItem<serde_json::Value>>>(1)?
-        //     .map(Into::into))
+        Ok(self.inner.get_by_id::<D>(id).await?)
     }
 }

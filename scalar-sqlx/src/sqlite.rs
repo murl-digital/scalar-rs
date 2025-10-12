@@ -103,13 +103,45 @@ impl DatabaseInner for SqlitePool {
                         THEN sc__published.inner
                         ELSE sc__drafts.inner
                     END
-                ) as 'inner!'
+                ) as 'inner!: serde_json::Value'
                 FROM sc__meta
                 FULL OUTER JOIN sc__drafts ON sc__meta.id = sc__drafts.id
                 FULL OUTER JOIN sc__published ON sc__meta.id = sc__published.id
-            "#
+                WHERE sc__meta.doc = $1
+            "#,
+            D::IDENTIFIER
         )
         .fetch_all(self)
+        .await
+    }
+
+    async fn get_by_id<D: Document>(
+        &self,
+        id: &str,
+    ) -> Result<Option<Item<serde_json::Value>>, sqlx::Error> {
+        type InnerItem = Item<serde_json::Value>;
+        query_as!(
+            InnerItem,
+            r#"SELECT
+                sc__meta.id as 'id!',
+                sc__meta.created_at as 'created_at!: DateTime<Utc>',
+                sc__meta.modified_at as 'modified_at!: DateTime<Utc>',
+                sc__meta.published_at as 'published_at: DateTime<Utc>',
+                (
+                    CASE WHEN sc__drafts.inner IS NULL
+                        THEN sc__published.inner
+                        ELSE sc__drafts.inner
+                    END
+                ) as 'inner!: serde_json::Value'
+                FROM sc__meta
+                FULL OUTER JOIN sc__drafts ON sc__meta.id = sc__drafts.id
+                FULL OUTER JOIN sc__published ON sc__meta.id = sc__published.id
+                WHERE sc__meta.doc = $1 AND sc__meta.id = $2
+            "#,
+            D::IDENTIFIER,
+            id
+        )
+        .fetch_optional(self)
         .await
     }
 }
