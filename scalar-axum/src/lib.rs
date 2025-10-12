@@ -157,14 +157,9 @@ where
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
-        let (_, token) = auth_header
-            .starts_with("Bearer ")
-            .then(|| {
-                auth_header
-                    .split_at_checked(7)
-                    .ok_or(StatusCode::UNAUTHORIZED)
-            })
-            .ok_or(StatusCode::UNAUTHORIZED)??;
+        let token = auth_header
+            .strip_prefix("Bearer ")
+            .ok_or(StatusCode::UNAUTHORIZED)?;
 
         let connection = Authenticated::authenticate(connection, token)
             .await
