@@ -34,7 +34,7 @@ use tower_http::{
 use url::Url;
 
 pub fn int_test(int: &i32) -> Result<(), ValidationError> {
-    (*int > 3)
+    (*int < 3)
         .then_some(())
         .ok_or(ValidationError::Single("int must be less than 3!".into()))
 }
@@ -101,55 +101,6 @@ impl Validate for TestEnum {
             _ => Ok(()),
         }
     }
-}
-
-pub async fn authenticated_connection_middleware<F: DatabaseFactory + FromRef<S>, S>(
-    state: S,
-    mut req: Request,
-    next: Next,
-) -> Result<Response, StatusCode>
-where
-    <F as scalar_cms::db::DatabaseFactory>::Connection: 'static,
-{
-    let db_factory = F::from_ref(&state);
-    let auth_header = req
-        .headers()
-        .get(http::header::AUTHORIZATION)
-        .map(|header| {
-            header
-                .to_str()
-                .map(str::trim)
-                .map_err(|_| StatusCode::BAD_REQUEST)
-        })
-        .ok_or(StatusCode::UNAUTHORIZED)??;
-
-    let connection = db_factory.init().await.map_err(|e| {
-        println!("{e}");
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
-
-    let (_, token) = auth_header
-        .starts_with("Bearer ")
-        .then(|| {
-            auth_header
-                .split_at_checked(7)
-                .ok_or(StatusCode::UNAUTHORIZED)
-        })
-        .ok_or(StatusCode::UNAUTHORIZED)??;
-
-    let connection = Authenticated::authenticate(connection, token)
-        .await
-        .map_err(|e| match e {
-            scalar_cms::db::AuthenticationError::BadToken => StatusCode::UNAUTHORIZED,
-            scalar_cms::db::AuthenticationError::BadCredentials => StatusCode::UNAUTHORIZED,
-            scalar_cms::db::AuthenticationError::DatabaseError(_) => {
-                StatusCode::INTERNAL_SERVER_ERROR
-            }
-        })?;
-
-    req.extensions_mut().insert(Arc::new(connection));
-
-    Ok(next.run(req).await)
 }
 
 #[tokio::main]

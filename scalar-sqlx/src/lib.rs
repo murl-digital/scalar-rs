@@ -74,31 +74,22 @@ where
 
     async fn init(&self) -> Result<Self::Connection, Self::Error> {
         Ok(Connection {
-            paseto_key: self.paseto_key.clone(),
+            paseto_key: PasetoSymmetricKey::from(self.paseto_key.clone()),
             inner: self.pool.clone(),
         })
     }
 
     async fn init_system(&self) -> Result<Self::Connection, Self::Error> {
         Ok(Connection {
-            paseto_key: self.paseto_key.clone(),
+            paseto_key: PasetoSymmetricKey::from(self.paseto_key.clone()),
             inner: self.pool.clone(),
         })
     }
 }
 
 pub struct Connection<DB: Database> {
-    paseto_key: Key<32>,
+    paseto_key: PasetoSymmetricKey<V4, Local>,
     inner: Pool<DB>,
-}
-
-impl<DB: Database> Clone for Connection<DB> {
-    fn clone(&self) -> Self {
-        Self {
-            paseto_key: self.paseto_key.clone(),
-            inner: self.inner.clone(),
-        }
-    }
 }
 
 impl<DB: Database + Debug> Debug for Connection<DB> {
@@ -126,9 +117,8 @@ where
 
     #[tracing::instrument(level = "debug", err)]
     async fn authenticate(&self, jwt: &str) -> Result<User, AuthenticationError<Self::Error>> {
-        let key = PasetoSymmetricKey::<V4, Local>::from(self.paseto_key.clone());
         let claims = PasetoParser::<V4, Local>::default()
-            .parse(jwt, &key)
+            .parse(jwt, &self.paseto_key)
             .map_err(|_| AuthenticationError::BadToken)?;
 
         serde_json::from_value(
@@ -145,7 +135,6 @@ where
         &self,
         credentials: Credentials,
     ) -> Result<String, AuthenticationError<Self::Error>> {
-        let key = PasetoSymmetricKey::<V4, Local>::from(self.paseto_key.clone());
         let password_hash = self
             .inner
             .get_password_hash(credentials.email())
@@ -169,7 +158,7 @@ where
 
         let token = PasetoBuilder::<_, Local>::default()
             .set_claim(CustomClaim::try_from(("user", user)).unwrap())
-            .build(&key)
+            .build(&self.paseto_key)
             .unwrap();
 
         Ok(token)
