@@ -1,4 +1,3 @@
-use futures::StreamExt;
 use scalar_cms::{
     DateTime, Document, Item, Utc,
     db::{Credentials, User},
