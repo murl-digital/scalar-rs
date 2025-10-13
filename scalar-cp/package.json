@@ -34,6 +34,7 @@
     "carta-md": "^4.11.1",
     "colord": "^2.9.3",
     "isomorphic-dompurify": "^2.26.0",
-    "nanoid": "^5.1.5"
+    "nanoid": "^5.1.5",
+    "svelte-sortable-items": "^1.0.1"
   }
 }

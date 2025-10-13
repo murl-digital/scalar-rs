@@ -3,16 +3,29 @@
     import { error } from "@sveltejs/kit";
     import { getComponent, type ComponentMeta } from "$lib/field-component";
     import { onMount } from "svelte";
+    import { flip } from "svelte/animate";
+    import { SortableItem } from "svelte-sortable-items";
 
     let {
         field,
         data = $bindable(),
         ready,
-    }: { field: EditorField; data: any; ready: () => void } = $props();
+    }: { field: EditorField; data: any[]; ready: () => void } = $props();
 
     if (data == null) {
         data = [];
     }
+
+    let internalArray = $state(
+        data.map((v, i) => {
+            return { id: i, v: v };
+        }),
+    );
+    let currentHovered = $state(-1);
+
+    $effect(() => {
+        data = internalArray.map((v) => v.v);
+    });
 
     if (field.field_type.type != "array") {
         error(500, "invalid field type");
@@ -36,17 +49,48 @@
     });
 </script>
 
-{#each data as elem, i}
-    {#await meta}
-        <div class="i-svg-spinners-90-ring"></div>
-    {:then meta}
-        {#if meta}
-            <meta.component field={of} bind:data={data[i]} ready={() => {}} />
-        {:else}
-            <div>
-                !! WARNING !! component for {field.field_type.type} not found
-            </div>
-        {/if}
-    {/await}
-{/each}
-<button class="input-button" onclick={() => data.push(null)}>Add</button>
+<ol>
+    {#each internalArray as elem, i (elem.id)}
+        <li animate:flip>
+            <SortableItem
+                propItemNumber={i}
+                bind:propData={internalArray}
+                class="flex items-center"
+            >
+                <div
+                    class="i-ph-dots-six-vertical-bold hover:cursor-grab"
+                ></div>
+                {#await meta}
+                    <div class="i-svg-spinners-90-ring"></div>
+                {:then meta}
+                    {#if meta}
+                        <meta.component
+                            field={of}
+                            bind:data={internalArray[i].v}
+                            ready={() => {}}
+                        />
+                    {:else}
+                        <div>
+                            !! WARNING !! component for {field.field_type.type} not
+                            found
+                        </div>
+                    {/if}
+                {/await}
+                <button
+                    class="input-button"
+                    onclick={() => internalArray.splice(i, 1)}>Remove</button
+                >
+            </SortableItem>
+        </li>
+    {/each}
+</ol>
+<button
+    class="input-button"
+    onclick={() =>
+        internalArray.push({
+            id:
+                internalArray.reduce((a, b) => Math.max(a, b.id), -Infinity) +
+                1,
+            v: null,
+        })}>Add</button
+>
