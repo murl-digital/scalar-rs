@@ -2,8 +2,40 @@
     import type { EditorField } from "$ts/EditorField";
     import { createDatePicker, melt } from "@melt-ui/svelte";
     import { onMount, type Snippet } from "svelte";
-    import { now, getLocalTimeZone, toZoned } from "@internationalized/date";
+    import {
+        now,
+        getLocalTimeZone,
+        toZoned,
+        parseDate,
+        parseDateTime,
+        parseZonedDateTime,
+        parseAbsoluteToLocal,
+    } from "@internationalized/date";
     import { fly } from "svelte/transition";
+    import { error } from "@sveltejs/kit";
+    import { parseStringToDateValue } from "@melt-ui/svelte/internal/helpers/date";
+
+    let {
+        field,
+        data = $bindable(),
+        ready,
+    }: { field: EditorField; data: any; ready: () => void } = $props();
+
+    if (
+        field.field_type.type != "date" &&
+        field.field_type.type != "date-time"
+    ) {
+        error(500, "invalid type");
+    }
+
+    let initial;
+
+    if (data && field.field_type.type == "date") {
+        initial = parseDate(data);
+    }
+    if (data && field.field_type.type == "date-time") {
+        initial = parseAbsoluteToLocal(data);
+    }
 
     const {
         elements: {
@@ -30,20 +62,22 @@
         helpers: { isDateDisabled, isDateUnavailable },
     } = createDatePicker({
         defaultPlaceholder: now(getLocalTimeZone()),
-        granularity: "day",
+        defaultValue: initial,
+        granularity: field.field_type.type == "date" ? "day" : "second",
         forceVisible: true,
     });
-
-    let {
-        field,
-        data = $bindable(),
-        ready,
-    }: { field: EditorField; data: any; ready: () => void } = $props();
 
     $inspect($value);
     $effect(() => {
         if ($value) {
-            data = toZoned($value, getLocalTimeZone()).toAbsoluteString();
+            if (field.field_type.type == "date-time") {
+                data = toZoned($value, getLocalTimeZone()).toAbsoluteString();
+            }
+            if (field.field_type.type == "date") {
+                data = toZoned($value, getLocalTimeZone())
+                    .toAbsoluteString()
+                    .split("T", 1)[0];
+            }
         }
     });
 

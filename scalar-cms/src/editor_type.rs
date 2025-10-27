@@ -7,6 +7,12 @@ use crate::EditorField;
 #[derive(Serialize, TS)]
 #[serde(tag = "type", rename_all = "kebab-case")]
 pub enum EditorType {
+    Toggle {
+        component_key: Option<String>,
+        #[ts(type = "any | null")]
+        default: Option<serde_json::Value>,
+        value: Box<EditorType>,
+    },
     Bool {
         component_key: Option<String>,
         default: Option<bool>,

@@ -1,8 +1,11 @@
-use chrono::{DateTime, TimeZone};
+use chrono::{DateTime, NaiveDate, TimeZone, Utc};
 use serde::Serialize;
 use ts_rs::TS;
 
-use crate::{EditorType, Markdown, MultiLine};
+use crate::{
+    types::{Markdown, MultiLine, Slug, Toggle},
+    EditorType,
+};
 
 #[derive(Serialize, TS)]
 #[ts(export)]
@@ -158,6 +161,32 @@ impl ToEditorField for String {
     }
 }
 
+impl ToEditorField for Slug {
+    fn to_editor_field(
+        default: Option<impl Into<Self>>,
+        name: &'static str,
+        title: &'static str,
+        placeholder: Option<&'static str>,
+        validator: Option<&'static str>,
+        component_key: Option<&'static str>,
+    ) -> EditorField
+    where
+        Self: std::marker::Sized,
+    {
+        EditorField {
+            name,
+            title,
+            placeholder,
+            required: true,
+            validator,
+            field_type: crate::EditorType::SingleLine {
+                default: default.map(Into::into).map(|v| v.0),
+                component_key: component_key.map(Into::into),
+            },
+        }
+    }
+}
+
 impl ToEditorField for MultiLine {
     fn to_editor_field(
         default: Option<impl Into<Self>>,
@@ -231,6 +260,74 @@ impl<Z: TimeZone> ToEditorField for DateTime<Z> {
             field_type: EditorType::DateTime {
                 default: default.map(Into::into).as_ref().map(DateTime::to_utc),
                 component_key: component_key.map(Into::into),
+            },
+        }
+    }
+}
+
+impl ToEditorField for NaiveDate {
+    fn to_editor_field(
+        default: Option<impl Into<NaiveDate>>,
+        name: &'static str,
+        title: &'static str,
+        placeholder: Option<&'static str>,
+        validator: Option<&'static str>,
+        component_key: Option<&'static str>,
+    ) -> EditorField
+    where
+        Self: std::marker::Sized,
+    {
+        EditorField {
+            name,
+            title,
+            placeholder,
+            validator,
+            required: true,
+            field_type: EditorType::Date {
+                default: default.map(Into::into).as_ref().map(|d| {
+                    d.and_hms_opt(0, 0, 0)
+                        .expect("should always be valid")
+                        .and_utc()
+                }),
+                component_key: component_key.map(Into::into),
+            },
+        }
+    }
+}
+
+impl<T: ToEditorField + Serialize> ToEditorField for Toggle<T> {
+    fn to_editor_field(
+        default: Option<impl Into<Self>>,
+        name: &'static str,
+        title: &'static str,
+        placeholder: Option<&'static str>,
+        validator: Option<&'static str>,
+        component_key: Option<&'static str>,
+    ) -> EditorField
+    where
+        Self: std::marker::Sized,
+    {
+        let dummy_field = T::to_editor_field(
+            None::<T>,
+            name,
+            title,
+            placeholder,
+            validator,
+            component_key,
+        );
+        let field_type = dummy_field.field_type;
+
+        EditorField {
+            name,
+            title,
+            placeholder,
+            validator,
+            required: true,
+            field_type: EditorType::Toggle {
+                component_key: component_key.map(Into::into),
+                default: default
+                    .map(|v| serde_json::to_value(v.into()).expect("this should never fail")),
+                value: Box::new(field_type),
             },
         }
     }

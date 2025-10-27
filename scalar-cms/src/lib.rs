@@ -7,8 +7,12 @@ pub use scalar_derive::{doc_enum, Document, EditorField, Enum};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-pub use chrono::{DateTime, Utc};
+pub use chrono::{DateTime, NaiveDate, Utc};
 pub use nanoid::nanoid;
+#[cfg(feature = "rgb")]
+pub use rgb::RGBA8;
+#[cfg(feature = "url")]
+pub use url::Url;
 
 pub use db::DatabaseConnection;
 
@@ -16,6 +20,7 @@ pub mod db;
 pub mod editor_field;
 pub mod editor_type;
 pub mod internals;
+pub mod types;
 pub mod validations;
 
 pub use serde_json::Value;
@@ -27,38 +32,6 @@ pub fn convert<T: Serialize>(value: T) -> Value {
 pub use editor_field::EditorField;
 pub use editor_type::EditorType;
 use validations::Validate;
-
-#[derive(Serialize, Deserialize)]
-pub struct MultiLine(String);
-#[derive(Serialize, Deserialize, Debug)]
-#[serde(transparent)]
-pub struct Markdown(String);
-
-impl Deref for MultiLine {
-    type Target = String;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-impl DerefMut for MultiLine {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
-impl Deref for Markdown {
-    type Target = String;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-impl DerefMut for Markdown {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
 
 #[derive(Serialize, TS)]
 pub struct Schema {

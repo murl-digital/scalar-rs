@@ -14,6 +14,15 @@ export type ComponentMeta = {
 
 const components: Map<string, () => Promise<ComponentMeta>> = new Map([
   [
+    "toggle",
+    async () => {
+      return {
+        component: (await import("./components/types/ToggleInput.svelte"))
+          .default,
+      };
+    },
+  ],
+  [
     "enum",
     async () => {
       return {
@@ -72,6 +81,15 @@ const components: Map<string, () => Promise<ComponentMeta>> = new Map([
     async () => {
       return {
         component: (await import("./components/types/MarkdownInput.svelte"))
+          .default,
+      };
+    },
+  ],
+  [
+    "date",
+    async () => {
+      return {
+        component: (await import("./components/types/DateTimeInput.svelte"))
           .default,
       };
     },

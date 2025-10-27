@@ -5,7 +5,7 @@ use bytes::Bytes;
 use image::ImageFormat;
 use image_hasher::HasherConfig;
 use s3::Bucket;
-use scalar_cms::{editor_field::ToEditorField, EditorField};
+use scalar_cms::{editor_field::ToEditorField, validations::Validate, EditorField};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tokio::io::AsyncRead;
@@ -18,11 +18,23 @@ pub struct ImageData<D: ToEditorField> {
     additional_data: D,
 }
 
+impl<D: ToEditorField + Validate> Validate for ImageData<D> {
+    fn validate(&self) -> Result<(), scalar_cms::validations::ValidationError> {
+        self.additional_data.validate()
+    }
+}
+
 #[derive(EditorField, Serialize, Deserialize)]
 #[field(editor_component = "file")]
 pub struct FileData<D: ToEditorField> {
     url: Url,
     additional_data: D,
+}
+
+impl<D: ToEditorField + Validate> Validate for FileData<D> {
+    fn validate(&self) -> Result<(), scalar_cms::validations::ValidationError> {
+        self.additional_data.validate()
+    }
 }
 
 #[derive(Clone)]

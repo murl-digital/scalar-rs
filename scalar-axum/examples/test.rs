@@ -12,8 +12,9 @@ use s3::{creds::Credentials, Bucket, Region};
 use scalar_axum::generate_routes;
 use scalar_cms::{
     doc_enum,
-    validations::{Validate, ValidationError},
-    DateTime, Document, EditorField, Markdown, MultiLine, Utc,
+    types::{Markdown, MultiLine, Toggle},
+    validations::{ErroredField, Field, Validate, ValidationError},
+    DateTime, Document, EditorField, NaiveDate, Utc,
 };
 use scalar_img::{ImageData, WrappedBucket};
 use scalar_sqlx::{sqlite::Pool, ConnectionFactory};
@@ -56,6 +57,10 @@ struct AllTypes {
     #[validate(skip)]
     array: Vec<String>,
     #[validate(skip)]
+    toggle: Toggle<i32>,
+    #[validate(skip)]
+    date: NaiveDate,
+    #[validate(skip)]
     date_time: DateTime<Utc>,
     #[validate(skip)]
     color: RGB8,
@@ -64,6 +69,25 @@ struct AllTypes {
     #[validate(skip)]
     image: ImageData<ImageInner>,
     enum_select: TestEnum,
+    struct_test: StructTest,
+}
+
+#[derive(EditorField, Serialize, Deserialize)]
+struct StructTest {
+    info: String,
+}
+
+impl Validate for StructTest {
+    fn validate(&self) -> Result<(), ValidationError> {
+        if self.info.len() < 3 {
+            Err(ValidationError::Composite(vec![ErroredField {
+                field: Field("info".into()),
+                error: ValidationError::Single("must be longer than 3 characters!".into()),
+            }]))
+        } else {
+            Ok(())
+        }
+    }
 }
 
 #[derive(EditorField, Serialize, Deserialize)]
