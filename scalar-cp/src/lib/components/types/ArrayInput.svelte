@@ -49,13 +49,17 @@
     });
 </script>
 
-<ol>
+<ol class="flex flex-col gap-2">
     {#each internalArray as elem, i (elem.id)}
         <li animate:flip>
             <SortableItem
                 propItemNumber={i}
+                bind:propHoveredItemNumber={currentHovered}
                 bind:propData={internalArray}
-                class="flex items-center"
+                class={[
+                    "flex items-center border-base transition-all p-2",
+                    i == currentHovered && "border-active",
+                ]}
             >
                 <div
                     class="i-ph-dots-six-vertical-bold hover:cursor-grab"

@@ -17,7 +17,7 @@ export default defineConfig({
       "text-white",
       "transition-all",
     ],
-    "input-border": [
+    "border-base": [
       "border-none",
       "outline",
       "outline-1",
@@ -25,12 +25,16 @@ export default defineConfig({
       "rounded-sm",
       "ring",
       "ring-transparent",
-      "hover:ring-purple",
-      "focus:ring-purple",
-      "focus-visible:ring-purple",
       "ring-offset-2",
       "ring-offset-dark",
       "ring-2",
+    ],
+    "border-active": ["ring-purple"],
+    "input-border": [
+      "border-base",
+      "hover:border-active",
+      "focus:border-active",
+      "focus-visible:border-active",
     ],
     "input-button": [
       "input-base",
