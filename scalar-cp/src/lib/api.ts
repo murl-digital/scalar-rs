@@ -14,7 +14,7 @@ export function wire(xhr: XMLHttpRequest) {
   xhr.addEventListener("loadend", (event) => {
     if (xhr.readyState == 4 && xhr.status == 401) {
       state.authenticated = false;
-      if (page.route?.id !== "/login") {
+      if (page.route?.id !== "/(auth)/login") {
         goto("/login");
       }
     }

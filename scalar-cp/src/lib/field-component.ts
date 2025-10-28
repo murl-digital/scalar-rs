@@ -1,9 +1,15 @@
 import type { EditorField } from "$ts/EditorField";
 import type { EditorType } from "$ts/EditorType";
 import type { Component } from "svelte";
+import type { Errors } from "./types";
 
 export type FieldComponent = Component<
-  { field: EditorField; data: any; ready: () => void },
+  {
+    field: EditorField;
+    data: any;
+    ready: () => void;
+    errors?: Errors;
+  },
   {},
   "data"
 >;

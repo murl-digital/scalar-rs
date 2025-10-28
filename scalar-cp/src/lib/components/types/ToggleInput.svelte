@@ -3,6 +3,7 @@
     import { createCheckbox, melt } from "@melt-ui/svelte";
     import { onMount } from "svelte";
     import Field from "../Field.svelte";
+    import { error } from "@sveltejs/kit";
 
     let {
         field,

@@ -2,6 +2,7 @@
     import type { EditorField } from "$ts/EditorField";
     import { SvelteSet } from "svelte/reactivity";
     import Field from "./Field.svelte";
+    import type { Errors } from "$lib/types";
 
     let ready_ids = $state(new SvelteSet());
 
@@ -12,7 +13,7 @@
         ready,
     }: {
         fields: EditorField[];
-        errors: [{ field: string; error: string }] | [];
+        errors: Errors;
         formData: any;
         ready: () => void;
     } = $props();
@@ -36,7 +37,7 @@
     {#each fields as field}
         <Field
             bind:data={formData[field.name]}
-            error={errors.find((f) => f.field === field.name)?.error}
+            errors={errors.find((f) => f.field === field.name)?.error}
             {field}
             ready={() => {
                 ready_ids.add(field.name);

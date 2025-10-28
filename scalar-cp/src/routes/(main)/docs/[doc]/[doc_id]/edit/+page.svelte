@@ -9,6 +9,7 @@
     import { page } from "$app/state";
     import { createPopover, melt } from "@melt-ui/svelte";
     import DateTimeInput from "$lib/components/types/DateTimeInput.svelte";
+    import type { Errors } from "$lib/types";
 
     const { data }: { data: PageData } = $props();
 
@@ -17,7 +18,7 @@
     let updatingPromise = $state();
     let ready = $state(false);
     let valid = $state(false);
-    let validationErrors: [{ field: string; error: string }] | [] = $state([]);
+    let validationErrors: Errors = $state([]);
     let timeout: number | undefined = $state();
 
     $effect.pre(() => {

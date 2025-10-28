@@ -7,13 +7,10 @@
         getLocalTimeZone,
         toZoned,
         parseDate,
-        parseDateTime,
-        parseZonedDateTime,
         parseAbsoluteToLocal,
     } from "@internationalized/date";
     import { fly } from "svelte/transition";
     import { error } from "@sveltejs/kit";
-    import { parseStringToDateValue } from "@melt-ui/svelte/internal/helpers/date";
 
     let {
         field,
@@ -67,7 +64,6 @@
         forceVisible: true,
     });
 
-    $inspect($value);
     $effect(() => {
         if ($value) {
             if (field.field_type.type == "date-time") {
