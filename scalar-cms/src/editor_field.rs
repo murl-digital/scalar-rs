@@ -1,4 +1,4 @@
-use chrono::{DateTime, NaiveDate, TimeZone, Utc};
+use chrono::{DateTime, NaiveDate, TimeZone};
 use serde::Serialize;
 use ts_rs::TS;
 

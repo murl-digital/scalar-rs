@@ -1,6 +1,7 @@
 use std::{convert::Infallible, fmt::Debug};
 
 use argon2::{Argon2, PasswordHash, PasswordVerifier, password_hash};
+use openidconnect::{AdditionalClaims, GenderClaim, IdTokenClaims};
 use rusty_paseto::{
     core::{Key, Local, PasetoSymmetricKey, V4},
     prelude::*,
@@ -155,6 +156,26 @@ where
             .get_user(credentials.email())
             .await
             .map_err(Error::from)?;
+
+        let token = PasetoBuilder::<_, Local>::default()
+            .set_claim(CustomClaim::try_from(("user", user)).unwrap())
+            .build(&self.paseto_key)
+            .unwrap();
+
+        Ok(token)
+    }
+
+    #[tracing::instrument(level = "debug", err)]
+    async fn signin_oidc<AC: AdditionalClaims + Send, GC: GenderClaim + Send>(
+        &self,
+        claims: IdTokenClaims<AC, GC>,
+    ) -> Result<String, AuthenticationError<Self::Error>> {
+        let user = User::new(
+            claims.email().unwrap().to_string(),
+            claims.given_name().unwrap().get(None).unwrap().to_string(),
+            "".into(),
+            true,
+        );
 
         let token = PasetoBuilder::<_, Local>::default()
             .set_claim(CustomClaim::try_from(("user", user)).unwrap())

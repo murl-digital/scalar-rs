@@ -1,7 +1,4 @@
-use std::{
-    fmt::Debug,
-    ops::{Deref, DerefMut},
-};
+use std::fmt::Debug;
 
 pub use scalar_derive::{doc_enum, Document, EditorField, Enum};
 use serde::{Deserialize, Serialize};
