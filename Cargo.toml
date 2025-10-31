@@ -9,3 +9,6 @@ members = [
     "scalar-surreal",
     "scalar-sqlx",
 ]
+
+[workspace.lints.clippy]
+pedantic = "warn"

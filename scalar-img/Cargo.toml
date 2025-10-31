@@ -22,3 +22,6 @@ url = { version = "2", features = ["serde"] }
 [dev-dependencies]
 axum = "0.8.3"
 tokio = { version = "1", features = ["rt-multi-thread"] }
+
+[lints]
+workspace = true

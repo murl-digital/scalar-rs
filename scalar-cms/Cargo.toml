@@ -28,3 +28,6 @@ rgb = ["dep:rgb"]
 [[example]]
 name = "hello_world"
 required-features = ["rgb"]
+
+[lints]
+workspace = true

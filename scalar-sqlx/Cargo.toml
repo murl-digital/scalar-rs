@@ -15,3 +15,6 @@ sqlx = { version = "0.8.6", default-features = false, features = ["macros", "mig
 openidconnect = "4"
 thiserror = "2.0.17"
 tracing = "0.1"
+
+[lints]
+workspace = true

@@ -38,3 +38,6 @@ dotenvy = "0.15.7"
 anyhow = { version = "1.0.98", features = ["backtrace"] }
 url = "2.5.4"
 sqlx = { version = "0.8.6", features = ["runtime-tokio"] }
+
+[lints]
+workspace = true
