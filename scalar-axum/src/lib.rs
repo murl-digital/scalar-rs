@@ -11,8 +11,10 @@ use scalar_cms::{
 };
 use serde::{de::DeserializeOwned, Serialize};
 
+pub mod expire_map;
 #[cfg(feature = "img")]
 pub mod img;
+pub mod oidc;
 
 pub struct ValidationFailiure(pub ValidationError);
 
@@ -98,9 +100,9 @@ macro_rules! validate_routes__ {
 
 #[macro_export]
 macro_rules! generate_routes {
-    ({$app_state:ty}, $db_instance:ident: $db:ty, [$($doc:ty),+]) => {
+    ({ db: $db:ty }, [$($doc:ty),+]) => {
         {
-            let mut router = ::axum::Router::<$app_state>::new();
+            let mut router = ::axum::Router::new();
             ::scalar_axum::crud_routes__!(router, $db, $($doc),+);
             ::scalar_axum::publish_routes__!(router, $db, $($doc),+);
             async fn get_docs() -> ::axum::Json<Vec<::scalar_cms::DocInfo>> {
@@ -119,6 +121,21 @@ macro_rules! generate_routes {
 
             ::scalar_axum::validate_routes__!(router, $($doc),+);
 
+            router
+        }
+    };
+
+    ({ db: $db:ty, oidc: { state: $oidc:ty, response_type: $response_type:ty, oidc_only: $only:expr } }, [$($doc:ty),+]) => {
+        {
+            let mut router = ::scalar_axum::generate_routes!({db: $db}, [$($doc),+]);
+
+            async fn is_auto() -> String {
+                bool::to_string(&$only)
+            }
+
+            router = router.route("/signin/oidc", ::axum::routing::get(::scalar_axum::oidc::begin_oidc_auth::<_, _, _, _, _, _, _, _, _, _, _, _, _, _, $oidc, $response_type>));
+            router = router.route("/signin/oidc/is_auto", ::axum::routing::get(is_auto));
+            router = router.route("/signin/oidc/complete", ::axum::routing::get(::scalar_axum::oidc::complete_oidc_auth::<_, _, _, _, _, _, _, _, _, _, _, _, _, _, $oidc, $response_type, $db>));
             router
         }
     };

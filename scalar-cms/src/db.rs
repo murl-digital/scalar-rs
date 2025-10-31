@@ -123,9 +123,9 @@ pub trait DatabaseConnection {
         &self,
         credentials: Credentials,
     ) -> Result<String, AuthenticationError<Self::Error>>;
-    async fn signin_oidc<AC: AdditionalClaims + Send, GC: GenderClaim + Send>(
+    async fn signin_oidc<AC: AdditionalClaims + Send + Sync, GC: GenderClaim + Send + Sync>(
         &self,
-        user_info: IdTokenClaims<AC, GC>,
+        user_info: &IdTokenClaims<AC, GC>,
     ) -> Result<String, AuthenticationError<Self::Error>>;
 
     async fn draft<D: Document + Send>(

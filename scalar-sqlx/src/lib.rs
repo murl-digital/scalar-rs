@@ -166,9 +166,9 @@ where
     }
 
     #[tracing::instrument(level = "debug", err)]
-    async fn signin_oidc<AC: AdditionalClaims + Send, GC: GenderClaim + Send>(
+    async fn signin_oidc<AC: AdditionalClaims + Send + Sync, GC: GenderClaim + Send + Sync>(
         &self,
-        claims: IdTokenClaims<AC, GC>,
+        claims: &IdTokenClaims<AC, GC>,
     ) -> Result<String, AuthenticationError<Self::Error>> {
         let user = User::new(
             claims.email().unwrap().to_string(),

@@ -1,42 +1,23 @@
 use argon2::PasswordHasher;
 use openidconnect::{
-    core::{
-        CoreAuthDisplay, CoreAuthPrompt, CoreErrorResponseType, CoreGenderClaim, CoreJsonWebKey,
-        CoreJweContentEncryptionAlgorithm, CoreJwsSigningAlgorithm, CoreResponseType,
-        CoreRevocableToken, CoreRevocationErrorResponse, CoreTokenIntrospectionResponse,
-        CoreTokenResponse, CoreUserInfoClaims,
-    },
-    AccessTokenHash, AuthorizationCode, CsrfToken, EmptyExtraTokenFields, EndpointMaybeSet,
-    EndpointNotSet, EndpointSet, IdTokenFields, Nonce, OAuth2TokenResponse, PkceCodeChallenge,
-    PkceCodeVerifier, RevocationErrorResponseType, Scope, StandardErrorResponse,
-    StandardTokenIntrospectionResponse, StandardTokenResponse, TokenResponse,
+    core::{CoreClient, CoreProviderMetadata, CoreResponseType},
+    ClientId, ClientSecret, IssuerUrl, RedirectUrl,
 };
-use openidconnect::{
-    core::{CoreClient, CoreProviderMetadata},
-    Client, ClientId, ClientSecret, EmptyAdditionalClaims, IssuerUrl, RedirectUrl,
-};
-use reqwest::{ClientBuilder, StatusCode};
-use scalar_cms::db::DatabaseFactory;
-use scalar_cms::DatabaseConnection;
-use std::{collections::HashMap, env, sync::Arc};
-use tokio::sync::Mutex;
-use tower::util::error::optional::None;
+use reqwest::ClientBuilder;
+use std::env;
 
 use argon2::{
     password_hash::{rand_core::OsRng, SaltString},
     Argon2,
 };
-use axum::{
-    extract::{Query, State},
-    http::Response,
-    response::{IntoResponse, Redirect},
-    routing::get,
-    Router,
-};
+use axum::Router;
 use axum_macros::FromRef;
 use rgb::{RGB8, RGBA8};
 use s3::{creds::Credentials, Bucket, Region};
-use scalar_axum::generate_routes;
+use scalar_axum::{
+    generate_routes,
+    oidc::{CoreOidcState, OidcState},
+};
 use scalar_cms::{
     doc_enum,
     types::{Markdown, MultiLine, Toggle},
@@ -146,26 +127,6 @@ impl Validate for TestEnum {
     }
 }
 
-type FunnyClient = Client<
-    EmptyAdditionalClaims,
-    CoreAuthDisplay,
-    CoreGenderClaim,
-    CoreJweContentEncryptionAlgorithm,
-    CoreJsonWebKey,
-    CoreAuthPrompt,
-    StandardErrorResponse<CoreErrorResponseType>,
-    CoreTokenResponse,
-    CoreTokenIntrospectionResponse,
-    CoreRevocableToken,
-    CoreRevocationErrorResponse,
-    EndpointSet,
-    EndpointNotSet,
-    EndpointNotSet,
-    EndpointNotSet,
-    EndpointMaybeSet,
-    EndpointMaybeSet,
->;
-
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     dotenvy::dotenv()?;
@@ -189,7 +150,7 @@ async fn main() -> anyhow::Result<()> {
     )
     // Set the URL the user will be redirected to after the authorization process.
     .set_redirect_uri(RedirectUrl::new(
-        "http://localhost:5173/login/oidc".to_string(),
+        "http://localhost:3000/login/oidc".to_string(),
     )?);
 
     let region = Region::R2 {
@@ -217,31 +178,32 @@ async fn main() -> anyhow::Result<()> {
     #[derive(FromRef, Clone)]
     struct AppState {
         pool: ConnectionFactory<Sqlite>,
-        client: FunnyClient,
-        http_client: reqwest::Client,
-        active_auths: Arc<Mutex<HashMap<String, (PkceCodeVerifier, Nonce)>>>,
+        oidc_state: CoreOidcState,
         wrapped_bucket: WrappedBucket,
     }
 
     let state = AppState {
         pool: ConnectionFactory::new(pool),
-        active_auths: Default::default(),
-        http_client,
-        client,
+        oidc_state: OidcState::new(client, http_client),
         wrapped_bucket,
     };
 
-    let api_router =
-        generate_routes!({AppState}, factory: ConnectionFactory<Sqlite>, [AllTypes, Test2]);
+    let api_router = generate_routes!({
+        db: ConnectionFactory<Sqlite>,
+        oidc: {
+            state: CoreOidcState,
+            response_type: CoreResponseType,
+            oidc_only: true
+        }
+    },
+    [AllTypes, Test2]
+    );
 
     let app = Router::new()
         .nest("/api", api_router)
-        .route("/api/login/oidc", get(begin_oidc_auth))
-        .route("/api/login/oidc/complete", get(complete_oidc_auth))
         .with_state(state)
         .fallback_service(
-            ServeDir::new("../scalar-cp/build")
-                .fallback(ServeFile::new("../scalar-cp/build/index.html")),
+            ServeDir::new("scalar-cp/build").fallback(ServeFile::new("scalar-cp/build/index.html")),
         )
         .layer(CorsLayer::permissive());
 
@@ -249,98 +211,4 @@ async fn main() -> anyhow::Result<()> {
 
     axum::serve(listener, app).await?;
     Ok(())
-}
-
-async fn begin_oidc_auth(
-    State(client): State<FunnyClient>,
-    State(active_auths): State<Arc<Mutex<HashMap<String, (PkceCodeVerifier, Nonce)>>>>,
-) -> impl IntoResponse {
-    let (challenge, verifier) = PkceCodeChallenge::new_random_sha256();
-    let (authorize_url, csrf_state, nonce) = client
-        .authorize_url(
-            openidconnect::AuthenticationFlow::<CoreResponseType>::AuthorizationCode,
-            CsrfToken::new_random,
-            Nonce::new_random,
-        )
-        .add_scopes([
-            Scope::new("openid".into()),
-            Scope::new("profile".into()),
-            Scope::new("email".into()),
-        ])
-        .set_pkce_challenge(challenge)
-        .url();
-
-    active_auths
-        .lock()
-        .await
-        .insert(csrf_state.into_secret(), (verifier, nonce));
-
-    Redirect::to(authorize_url.as_str())
-}
-
-#[derive(Deserialize)]
-struct RedirectParams {
-    code: String,
-    state: String,
-}
-
-async fn complete_oidc_auth(
-    State(client): State<FunnyClient>,
-    State(http_client): State<reqwest::Client>,
-    State(connection): State<ConnectionFactory<Sqlite>>,
-    State(active_auths): State<Arc<Mutex<HashMap<String, (PkceCodeVerifier, Nonce)>>>>,
-    Query(params): Query<RedirectParams>,
-) -> Result<impl IntoResponse, axum::http::StatusCode> {
-    let (verifier, nonce) = active_auths
-        .lock()
-        .await
-        .remove(&params.state)
-        .ok_or(StatusCode::UNAUTHORIZED)?;
-
-    let exchange = client
-        .exchange_code(AuthorizationCode::new(params.code))
-        .expect("proper config")
-        .set_pkce_verifier(verifier)
-        .request_async(&http_client)
-        .await
-        .map_err(|e| match e {
-            openidconnect::RequestTokenError::ServerResponse(e) => match e.error() {
-                CoreErrorResponseType::InvalidClient
-                | CoreErrorResponseType::InvalidGrant
-                | CoreErrorResponseType::InvalidRequest
-                | CoreErrorResponseType::InvalidScope => StatusCode::BAD_REQUEST,
-                CoreErrorResponseType::UnauthorizedClient
-                | CoreErrorResponseType::UnsupportedGrantType => StatusCode::UNAUTHORIZED,
-                CoreErrorResponseType::Extension(_) => todo!(),
-            },
-            openidconnect::RequestTokenError::Request(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            openidconnect::RequestTokenError::Parse(error, items) => StatusCode::BAD_REQUEST,
-            openidconnect::RequestTokenError::Other(_) => StatusCode::INTERNAL_SERVER_ERROR,
-        })?;
-
-    let id_token = exchange.id_token().ok_or(StatusCode::BAD_REQUEST)?;
-    let id_token_verifier = client.id_token_verifier();
-    let claims = id_token
-        .claims(&id_token_verifier, &nonce)
-        .map_err(|_| StatusCode::UNAUTHORIZED)?;
-
-    if let Some(expected_access_token_hash) = claims.access_token_hash() {
-        let actual_access_token_hash = AccessTokenHash::from_token(
-            exchange.access_token(),
-            id_token.signing_alg().unwrap(),
-            id_token.signing_key(&id_token_verifier).unwrap(),
-        )
-        .unwrap();
-        if actual_access_token_hash != *expected_access_token_hash {
-            panic!("invalid access token");
-        }
-    }
-
-    Ok(connection
-        .init()
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
-        .signin_oidc(claims.to_owned())
-        .await
-        .unwrap())
 }
