@@ -20,11 +20,7 @@ pub mod internals;
 pub mod types;
 pub mod validations;
 
-pub use serde_json::Value;
-
-pub fn convert<T: Serialize>(value: T) -> Value {
-    serde_json::to_value(value).expect("this should never fail")
-}
+pub use serde_json;
 
 pub use editor_field::EditorField;
 pub use editor_type::EditorType;
@@ -48,6 +44,7 @@ pub trait Document: Validate {
     const TITLE: &'static str;
 
     fn fields() -> &'static [EditorField];
+    #[must_use]
     fn schema() -> Schema {
         Schema {
             identifier: Self::IDENTIFIER,

@@ -35,6 +35,11 @@ impl IntoResponse for UploadImageError {
     }
 }
 
+/// Endpoint that uploads an image.
+///
+/// # Errors
+///
+/// This function will return an error if uploading the image fails.
 pub async fn upload_image(
     State(client): State<WrappedBucket>,
     bytes: Bytes,
@@ -69,6 +74,11 @@ impl IntoResponse for UploadFileError {
     }
 }
 
+/// Endpoint that uploads a file.
+///
+/// # Errors
+///
+/// This function will return an error if multipart processing or file uploading fails.
 pub async fn upload_file(
     State(client): State<WrappedBucket>,
     mut multipart: Multipart,
@@ -96,6 +106,11 @@ pub async fn upload_file(
         .map_err(ClientError)?)
 }
 
+/// Endpoint that lists images.
+///
+/// # Errors
+///
+/// This function will return an error if listing images fails.
 pub async fn list(State(client): State<WrappedBucket>) -> Result<Json<Vec<String>>, ClientError> {
     Ok(Json(client.list_images().await?))
 }

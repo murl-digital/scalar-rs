@@ -33,6 +33,7 @@ pub struct ExpiringHashMap<K, V> {
 }
 
 impl<K: Eq + Hash + Clone, V> ExpiringHashMap<K, V> {
+    #[must_use]
     pub fn new(duration: Duration) -> Self {
         Self {
             hash_map: HashMap::new(),
@@ -44,27 +45,34 @@ impl<K: Eq + Hash + Clone, V> ExpiringHashMap<K, V> {
     pub fn insert(&mut self, key: K, v: V) -> Option<V> {
         self.cleanup();
         let now = Instant::now();
-        match self.hash_map.insert(key.clone(), (now, v)) {
-            Some(prev) => Some(prev.1),
-            None => {
-                self.heap.push(HeapValue { instant: now, key });
-                None
-            }
+        if let Some(prev) = self.hash_map.insert(key.clone(), (now, v)) {
+            Some(prev.1)
+        } else {
+            self.heap.push(HeapValue { instant: now, key });
+            None
         }
     }
 
-    pub fn remove(&mut self, key: K) -> Option<V> {
-        self.heap.retain(|k| k.key != key);
-        let result = self.hash_map.remove(&key);
+    pub fn remove(&mut self, key: &K) -> Option<V> {
+        self.heap.retain(|k| k.key != *key);
+        let result = self.hash_map.remove(key);
         self.cleanup();
         result.map(|(_, v)| v)
     }
 
+    /// Cleans up expired entries in this [`ExpiringHashMap<K, V>`].
+    ///
+    /// # Panics
+    ///
+    /// This should never panic, but it may if `BinaryHeap::peek` returns `Some` and `BinaryHeap::pop` returns `None`.
     pub fn cleanup(&mut self) {
-        let deadline = Instant::now() - self.duration;
+        let now = Instant::now();
 
         while let Some(HeapValue { instant, .. }) = self.heap.peek() {
-            if *instant > deadline {
+            if now
+                .checked_duration_since(*instant)
+                .is_none_or(|d| d < self.duration)
+            {
                 return;
             }
 
@@ -72,7 +80,10 @@ impl<K: Eq + Hash + Clone, V> ExpiringHashMap<K, V> {
 
             let real_instant = self.hash_map[&key].0;
 
-            if real_instant > deadline {
+            if now
+                .checked_duration_since(real_instant)
+                .is_none_or(|d| d < self.duration)
+            {
                 self.heap.push(HeapValue {
                     instant: real_instant,
                     key,

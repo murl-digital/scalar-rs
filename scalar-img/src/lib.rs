@@ -1,4 +1,4 @@
-use std::io::{BufWriter, Cursor};
+use std::io::Cursor;
 
 use base64_url::escape_in_place;
 use bytes::Bytes;
@@ -52,6 +52,15 @@ pub enum CreateBucketError {
 }
 
 impl WrappedBucket {
+    /// Creates a new `WrappedBucket`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the bucket's url cannot be parsed with `Url`.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if the bucket can't be reached or accessed.
     pub async fn new(bucket: Bucket) -> Result<Self, CreateBucketError> {
         if !bucket.exists().await.map_err(|e| ClientError {
             source: Box::new(e),
@@ -60,14 +69,12 @@ impl WrappedBucket {
             return Err(CreateBucketError::NoAccess(bucket.name));
         }
 
-        let public_url = Url::parse(&format!("{}/", &bucket.url()))
-            .expect("bucket url should DEFINITELY be valid...");
-
-        println!("{public_url}");
+        let public_url = Url::parse(&bucket.url()).expect("a valid bucket url");
 
         Ok(Self { bucket, public_url })
     }
 
+    #[must_use]
     pub fn with_public_url(mut self, public_url: Url) -> Self {
         self.public_url = public_url;
         self
@@ -93,28 +100,34 @@ const FILES_PREFIX: &str = "files";
 const IMAGES_PREFIX: &str = "images";
 
 impl WrappedBucket {
+    /// Uploads an image to the bucket. The file name will be the image hash, instead of the input file name. This allows for deduplication.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the public url is a cannot-be-a-base url (example: data:foo or mailto:example@example.com).
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if making a request to the bucket fails for any reason.
     pub async fn upload_image(&self, image: Bytes) -> Result<String, UploadImageError> {
         let (encoded_bytes, hash_string) = tokio::task::spawn_blocking(move || {
             let image =
                 image::load_from_memory(&image).map_err(|_| UploadImageError::MalformedImage)?;
-            let mut result = BufWriter::new(Cursor::new(Vec::new()));
+            let mut result = Cursor::new(Vec::new());
 
             image
                 .write_to(&mut result, ImageFormat::Png)
-                .expect("encoding should never fail at this point");
+                .map_err(|_| UploadImageError::MalformedImage)?;
 
             let hasher = HasherConfig::new().to_hasher();
 
             let mut hash = hasher.hash_image(&image).to_base64();
             escape_in_place(&mut hash);
 
-            Ok::<(Vec<u8>, String), UploadImageError>((
-                result.into_inner().unwrap().into_inner(),
-                hash,
-            ))
+            Ok::<(Vec<u8>, String), UploadImageError>((result.into_inner(), hash))
         })
         .await
-        .expect("something has gone very wrong")?;
+        .map_err(|_| UploadImageError::MalformedImage)??;
 
         let key = format!("{IMAGES_PREFIX}/{hash_string}.png");
 
@@ -130,6 +143,15 @@ impl WrappedBucket {
             .to_string())
     }
 
+    /// Uploads a file to the bucket. If the file is meant to be used as an image, use `WrappedBucket::upload_image` instead.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the public url is a cannot-be-a-base url (example: data:foo or mailto:example@example.com).
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if making a request to the bucket fails for any reason.
     pub async fn upload_file<R: AsyncRead + Unpin>(
         &self,
         file_name: &str,
@@ -146,10 +168,19 @@ impl WrappedBucket {
         Ok(self
             .public_url
             .join(&key)
-            .expect("url should always be valid")
+            .expect("public url must have a base")
             .to_string())
     }
 
+    /// Lists Images in this [`WrappedBucket`].
+    ///
+    /// # Panics
+    ///
+    /// Panics if the public url is a cannot-be-a-base url (example: data:foo or mailto:example@example.com).
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if making a request to the bucket fails for any reason.
     pub async fn list_images(&self) -> Result<Vec<String>, ClientError> {
         Ok(self
             .bucket
@@ -159,14 +190,24 @@ impl WrappedBucket {
             .iter()
             .flat_map(|r| &r.contents)
             .map(|o| {
-                self.public_url
-                    .join(&o.key)
-                    .expect("should always be a valid url")
-                    .to_string()
+                let mut url = self.public_url.clone();
+                url.path_segments_mut()
+                    .expect("public url must have a base")
+                    .push(&o.key);
+                url.to_string()
             })
             .collect())
     }
 
+    /// List files in this [`WrappedBucket`]. Does not include images.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the public url is a cannot-be-a-base url (example: data:foo or mailto:example@example.com).
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if making a request to the bucket fails for any reason.
     pub async fn list_files(&self) -> Result<Vec<String>, ClientError> {
         Ok(self
             .bucket
@@ -176,10 +217,11 @@ impl WrappedBucket {
             .iter()
             .flat_map(|r| &r.contents)
             .map(|o| {
-                self.public_url
-                    .join(&o.key)
-                    .expect("should always be a valid url")
-                    .to_string()
+                let mut url = self.public_url.clone();
+                url.path_segments_mut()
+                    .expect("public url must have a base")
+                    .push(&o.key);
+                url.to_string()
             })
             .collect())
     }

@@ -14,7 +14,7 @@ async fn main() {
     let mut bucket = Bucket::new(
         "dev",
         s3::Region::Custom {
-            region: "".into(),
+            region: String::new(),
             endpoint: "http://192.168.0.121:9000".into(),
         },
         Credentials {

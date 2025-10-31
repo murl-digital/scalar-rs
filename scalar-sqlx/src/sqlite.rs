@@ -4,6 +4,11 @@ use sqlx::{SqlitePool, query, query_as};
 use crate::DatabaseInner;
 pub type Pool = SqlitePool;
 
+/// Migrates the database.
+///
+/// # Errors
+///
+/// This function will return an error if the migration fails.
 pub async fn migrate(pool: &Pool) -> Result<(), sqlx::migrate::MigrateError> {
     sqlx::migrate!().run(pool).await
 }

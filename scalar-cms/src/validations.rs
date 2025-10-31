@@ -2,9 +2,15 @@ use std::{fmt::Display, sync::Arc};
 
 use serde::{Deserialize, Serialize};
 
+/// A wrapper type to indicate that the inner type is valid.
 pub struct Valid<T: Validate>(T);
 
 impl<T: Validate> Valid<T> {
+    /// Validates the input, then returns a Valid<T>.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if validation fails.
     pub fn new(val: T) -> Result<Self, ValidationError> {
         val.validate()?;
         Ok(Self(val))
@@ -41,7 +47,7 @@ wrapped_string!(Field);
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
 pub enum ValidationError {
-    /// a single type is invalid (e.g NonZeroI32 is 0, email is invalid, etc.)
+    /// a single type is invalid (e.g [`NonZeroI32`] is 0, email is invalid, etc.)
     Single(Reason),
     /// a struct/document of validated types is invalid for one or more reasons
     Composite(Vec<ErroredField>),
@@ -58,6 +64,11 @@ pub struct ErroredField {
     note = "if validation isn't necesarry, use #[validate(skip)]"
 )]
 pub trait Validate {
+    /// Validates the thing.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if validation fails.
     fn validate(&self) -> Result<(), ValidationError>;
 }
 

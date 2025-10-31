@@ -34,17 +34,29 @@ use tower_http::{
 };
 use url::Url;
 
-pub fn int_test(int: &i32) -> Result<(), ValidationError> {
+#[allow(clippy::trivially_copy_pass_by_ref)]
+// the document derive macro isn't smart enough to know when to pass a reference or the value.
+fn int_test(int: &i32) -> Result<(), ValidationError> {
     (*int < 3)
         .then_some(())
         .ok_or(ValidationError::Single("int must be less than 3!".into()))
 }
 
-pub fn float_test(float: &f32) -> Result<(), ValidationError> {
+#[allow(clippy::trivially_copy_pass_by_ref)]
+// the document derive macro isn't smart enough to know when to pass a reference or the value.
+fn float_test(float: &f32) -> Result<(), ValidationError> {
     (float.sqrt().fract() == 0.0)
         .then_some(())
         .ok_or(ValidationError::Single(
             "sqrt of float must be an int!".into(),
+        ))
+}
+
+fn string_test(string: impl AsRef<str>) -> Result<(), ValidationError> {
+    (string.as_ref().len() >= 3)
+        .then_some(())
+        .ok_or(ValidationError::Single(
+            "must be at least 3 characters long".into(),
         ))
 }
 
@@ -56,7 +68,7 @@ struct AllTypes {
     integer: i32,
     #[validate(with = float_test)]
     float: f32,
-    #[validate(skip)]
+    #[validate(with = string_test)]
     single_line: String,
     #[validate(skip)]
     multi_line: MultiLine,
@@ -127,6 +139,13 @@ impl Validate for TestEnum {
     }
 }
 
+#[derive(FromRef, Clone)]
+struct AppState {
+    pool: ConnectionFactory<Sqlite>,
+    oidc_state: CoreOidcState,
+    wrapped_bucket: WrappedBucket,
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     dotenvy::dotenv()?;
@@ -175,15 +194,8 @@ async fn main() -> anyhow::Result<()> {
         password
     ).execute(&pool).await.unwrap();
 
-    #[derive(FromRef, Clone)]
-    struct AppState {
-        pool: ConnectionFactory<Sqlite>,
-        oidc_state: CoreOidcState,
-        wrapped_bucket: WrappedBucket,
-    }
-
     let state = AppState {
-        pool: ConnectionFactory::new(pool),
+        pool: ConnectionFactory::try_new_random(pool).unwrap(),
         oidc_state: OidcState::new(client, http_client),
         wrapped_bucket,
     };

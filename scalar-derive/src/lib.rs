@@ -55,7 +55,7 @@ struct ValidateInfo {
 /// Sets up an enum for use in a Document. This macro does a couple of things:
 /// 1. It derives serde's Serialize and Deserialize traits. Make sure you have serde installed!
 /// 2. Sets up said serialization and deserialization to work the way the editor expects.
-/// 3. Derives ToEditorField for the schema
+/// 3. Derives `ToEditorField` for the schema
 #[proc_macro_attribute]
 pub fn doc_enum(_metadata: TokenStream, input: TokenStream) -> TokenStream {
     let input: proc_macro2::TokenStream = input.into();
@@ -67,6 +67,11 @@ pub fn doc_enum(_metadata: TokenStream, input: TokenStream) -> TokenStream {
     output.into()
 }
 
+/// Derives `EditorField`.
+///
+/// # Panics
+///
+/// Panics if the input isn't a struct somehow.
 #[proc_macro_derive(EditorField, attributes(field))]
 pub fn struct_to_editor_field(input: TokenStream) -> TokenStream {
     let input: DeriveInput = parse_macro_input!(input);
@@ -75,7 +80,7 @@ pub fn struct_to_editor_field(input: TokenStream) -> TokenStream {
         Err(e) => return TokenStream::from(e.write_errors()),
     };
 
-    let ident = struct_info.ident.to_owned();
+    let ident = struct_info.ident;
     let fields = struct_info
         .data
         .take_struct()
@@ -123,9 +128,10 @@ pub fn struct_to_editor_field(input: TokenStream) -> TokenStream {
             let (impl_generics, ty_generics, where_clause) = struct_info.generics.split_for_impl();
             let ty = quote! { #ident #ty_generics };
 
-            let component_key = match struct_info.editor_component {
-                Some(str) => quote! { Some(#str.into()) },
-                None => quote! { None },
+            let component_key = if let Some(str) = struct_info.editor_component {
+                quote! { Some(#str.into()) }
+            } else {
+                quote! { None }
             };
 
             quote! {
@@ -148,7 +154,7 @@ pub fn struct_to_editor_field(input: TokenStream) -> TokenStream {
                             required: true,
                             validator,
                             field_type: ::scalar_cms::EditorType::Struct {
-                                default: default.map(Into::into).as_ref().map(::scalar_cms::convert),
+                                default: default.map(Into::into).as_ref().map(::scalar_cms::serde_json::to_value).map(|v| v.expect("a struct that should serialize to json")),
                                 component_key: component_key.map(Into::into).or(#component_key),
                                 fields: vec![#(#fields),*]
                             }
@@ -182,9 +188,10 @@ pub fn derive_enum(input: TokenStream) -> TokenStream {
                     .map(|field| field_to_info_call(field.to_owned()))
                     .collect();
 
-                let fields_tokens = match fields.len() {
-                    0 => quote! { None },
-                    _ => quote! { Some(vec![#(#fields),*]) },
+                let fields_tokens = if fields.is_empty() {
+                    quote! { None }
+                } else {
+                    quote! { Some(vec![#(#fields),*]) }
                 };
 
                 quote! {
@@ -202,7 +209,7 @@ pub fn derive_enum(input: TokenStream) -> TokenStream {
         impl ::scalar_cms::editor_field::ToEditorField for #ident where Self: ::serde::Serialize {
             fn to_editor_field(default: Option<impl Into<Self>>, name: &'static str, title: &'static str, placeholder: Option<&'static str>, validator: Option<&'static str>, component_key: Option<&'static str>) -> ::scalar_cms::EditorField where Self: std::marker::Sized {
                 ::scalar_cms::EditorField { name, title, placeholder, required: true, validator, field_type: ::scalar_cms::EditorType::Enum {
-                    default: default.map(Into::into).map(::scalar_cms::convert),
+                    default: default.map(Into::into).map(::scalar_cms::serde_json::to_value).map(|v| v.expect("a struct that should serialize to json")),
                     component_key: component_key.map(Into::into),
                     variants: vec![#(#variants),*]
                 } }
@@ -212,6 +219,11 @@ pub fn derive_enum(input: TokenStream) -> TokenStream {
     output.into()
 }
 
+/// Derives the document trait.
+///
+/// # Panics
+///
+/// Panics if the input is somehow a tuple struct that isn't caught.
 #[proc_macro_derive(Document, attributes(document, field, validate))]
 pub fn derive_document(input: TokenStream) -> TokenStream {
     let input: DeriveInput = parse_macro_input!(input);
@@ -335,13 +347,15 @@ fn field_to_info_call(field: FieldInfo) -> proc_macro2::TokenStream {
     let title = field
         .title
         .unwrap_or(ident.to_case(convert_case::Case::Title));
-    let placeholder = match field.placeholder {
-        Some(str) => quote! { Some(#str) },
-        None => quote! { None },
+    let placeholder = if let Some(str) = field.placeholder {
+        quote! { Some(#str) }
+    } else {
+        quote! { None }
     };
-    let component_key = match field.editor_component {
-        Some(str) => quote! { Some(#str) },
-        None => quote! { None },
+    let component_key = if let Some(str) = field.editor_component {
+        quote! { Some(#str) }
+    } else {
+        quote! { None }
     };
 
     // let validator = match field.validate.is_present() {

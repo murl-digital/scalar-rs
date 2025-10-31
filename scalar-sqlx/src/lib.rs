@@ -1,7 +1,7 @@
 use std::{convert::Infallible, fmt::Debug};
 
 use argon2::{Argon2, PasswordHash, PasswordVerifier, password_hash};
-use openidconnect::{AdditionalClaims, EndUserPictureUrl, GenderClaim, IdTokenClaims};
+use openidconnect::{AdditionalClaims, GenderClaim, IdTokenClaims};
 use rusty_paseto::{
     core::{Key, Local, PasetoSymmetricKey, V4},
     prelude::*,
@@ -57,11 +57,16 @@ impl<DB: Database> Clone for ConnectionFactory<DB> {
 }
 
 impl<DB: Database> ConnectionFactory<DB> {
-    pub fn new(db: Pool<DB>) -> Self {
-        Self {
-            paseto_key: Key::try_new_random().unwrap(),
+    /// Creates a new `ConnectionFactory` with a random key for Paseto tokens.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if ring's RNG fails for whatever reason.
+    pub fn try_new_random(db: Pool<DB>) -> Result<Self, PasetoError> {
+        Ok(Self {
+            paseto_key: Key::try_new_random()?,
             pool: db,
-        }
+        })
     }
 }
 

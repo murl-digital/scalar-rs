@@ -449,11 +449,34 @@ impl ToEditorField for rgb::RGB8 {
             required: true,
             field_type: crate::EditorType::Struct {
                 component_key: component_key.map(Into::into).or(Some("color-input".into())),
-                default: default.map(crate::convert),
+                default: default
+                    .map(serde_json::to_value)
+                    .map(|v| v.expect("rgb values should always serialize correctly")),
                 fields: vec![
-                    i32::to_editor_field(default.map(|c| c.r as i32), "r", "", None, None, None),
-                    i32::to_editor_field(default.map(|c| c.g as i32), "g", "", None, None, None),
-                    i32::to_editor_field(default.map(|c| c.b as i32), "b", "", None, None, None),
+                    i32::to_editor_field(
+                        default.map(|c| i32::from(c.r)),
+                        "r",
+                        "",
+                        None,
+                        None,
+                        None,
+                    ),
+                    i32::to_editor_field(
+                        default.map(|c| i32::from(c.g)),
+                        "g",
+                        "",
+                        None,
+                        None,
+                        None,
+                    ),
+                    i32::to_editor_field(
+                        default.map(|c| i32::from(c.b)),
+                        "b",
+                        "",
+                        None,
+                        None,
+                        None,
+                    ),
                 ],
             },
         }
@@ -483,12 +506,42 @@ impl ToEditorField for rgb::RGBA8 {
             required: true,
             field_type: crate::EditorType::Struct {
                 component_key: component_key.map(Into::into).or(Some("color-input".into())),
-                default: default.map(crate::convert),
+                default: default
+                    .map(serde_json::to_value)
+                    .map(|v| v.expect("rgb values should always serialize correctly")),
                 fields: vec![
-                    i32::to_editor_field(default.map(|c| c.r as i32), "r", "", None, None, None),
-                    i32::to_editor_field(default.map(|c| c.g as i32), "g", "", None, None, None),
-                    i32::to_editor_field(default.map(|c| c.b as i32), "b", "", None, None, None),
-                    i32::to_editor_field(default.map(|c| c.a as i32), "a", "", None, None, None),
+                    i32::to_editor_field(
+                        default.map(|c| i32::from(c.r)),
+                        "r",
+                        "",
+                        None,
+                        None,
+                        None,
+                    ),
+                    i32::to_editor_field(
+                        default.map(|c| i32::from(c.g)),
+                        "g",
+                        "",
+                        None,
+                        None,
+                        None,
+                    ),
+                    i32::to_editor_field(
+                        default.map(|c| i32::from(c.b)),
+                        "b",
+                        "",
+                        None,
+                        None,
+                        None,
+                    ),
+                    i32::to_editor_field(
+                        default.map(|c| i32::from(c.a)),
+                        "a",
+                        "",
+                        None,
+                        None,
+                        None,
+                    ),
                 ],
             },
         }

@@ -5,6 +5,8 @@ use scalar_cms::{
 };
 use serde::{Deserialize, Serialize};
 
+#[allow(clippy::unnecessary_wraps)]
+// removing the Ok causes a mismatched types
 fn test_fnn(_field: &str) -> Result<(), ValidationError> {
     Ok(())
 }
@@ -24,7 +26,7 @@ struct Hello {
 
     #[field(default = 3)]
     #[validate(skip)]
-    pub hello: Option<i32>,
+    pub hi: Option<i32>,
 
     #[validate(skip)]
     pub oh_yes: Vec<i32>,
@@ -140,5 +142,5 @@ fn main() {
     println!(
         "schema: {}",
         serde_json::to_string_pretty(&Hello::fields()).unwrap()
-    )
+    );
 }

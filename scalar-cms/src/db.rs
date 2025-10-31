@@ -25,10 +25,12 @@ pub struct Credentials {
 }
 
 impl Credentials {
+    #[must_use]
     pub fn email(&self) -> &str {
         &self.email
     }
 
+    #[must_use]
     pub fn password(&self) -> &str {
         &self.password
     }
@@ -66,14 +68,17 @@ impl User {
         }
     }
 
+    #[must_use]
     pub fn name(&self) -> &str {
         &self.name
     }
 
+    #[must_use]
     pub fn profile_picture_url(&self) -> &str {
         &self.profile_picture_url
     }
 
+    #[must_use]
     pub fn admin(&self) -> bool {
         self.admin
     }
@@ -95,6 +100,11 @@ pub struct Authenticated<DB: DatabaseConnection> {
 }
 
 impl<DB: DatabaseConnection> Authenticated<DB> {
+    /// Creates an authenticated DB connection.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if authentication fails.
     pub async fn authenticate(
         conn: DB,
         token: &str,

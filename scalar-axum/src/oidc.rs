@@ -32,8 +32,8 @@ impl ToStatusCode for StandardErrorResponse<CoreErrorResponseType> {
             | CoreErrorResponseType::InvalidRequest
             | CoreErrorResponseType::InvalidScope => axum::http::StatusCode::BAD_REQUEST,
             CoreErrorResponseType::UnauthorizedClient
-            | CoreErrorResponseType::UnsupportedGrantType => axum::http::StatusCode::UNAUTHORIZED,
-            CoreErrorResponseType::Extension(_) => axum::http::StatusCode::UNAUTHORIZED,
+            | CoreErrorResponseType::UnsupportedGrantType
+            | CoreErrorResponseType::Extension(_) => axum::http::StatusCode::UNAUTHORIZED,
         }
     }
 }
@@ -96,7 +96,7 @@ impl<
 {
 }
 
-#[allow(private_bounds)]
+#[allow(private_bounds, clippy::type_complexity)]
 pub trait OidcStateGetter<
     AC: openidconnect::AdditionalClaims,
     AD: openidconnect::AuthDisplay,
@@ -144,6 +144,7 @@ pub trait OidcStateGetter<
 }
 
 #[derive(Clone)]
+#[allow(clippy::type_complexity)]
 pub struct OidcState<
     AC: openidconnect::AdditionalClaims,
     AD: openidconnect::AuthDisplay,
@@ -220,6 +221,8 @@ impl<
         HasRevocationUrl,
     >
 {
+    #[allow(clippy::type_complexity)]
+    #[must_use]
     pub fn new(
         oidc_client: Client<
             AC,
@@ -404,6 +407,15 @@ pub struct RedirectParams {
     state: String,
 }
 
+/// Complete OIDC auth.
+///
+/// # Panics
+///
+/// Panics if provider metadata hasn't been configured on [`OidcState::oidc_client`].
+///
+/// # Errors
+///
+/// This function will return an error if authentication failed for any reason.
 pub async fn complete_oidc_auth<
     AC: openidconnect::AdditionalClaims + Send + Sync,
     AD: openidconnect::AuthDisplay,
@@ -448,7 +460,7 @@ pub async fn complete_oidc_auth<
         .auth_states()
         .lock()
         .await
-        .remove(params.state)
+        .remove(&params.state)
         .ok_or(axum::http::StatusCode::UNAUTHORIZED)?;
 
     let exchange = oidc_state
@@ -460,14 +472,12 @@ pub async fn complete_oidc_auth<
         .await
         .map_err(|e| match e {
             openidconnect::RequestTokenError::ServerResponse(e) => e.to_status_code(),
-            openidconnect::RequestTokenError::Request(_) => {
+            openidconnect::RequestTokenError::Request(_)
+            | openidconnect::RequestTokenError::Other(_) => {
                 axum::http::StatusCode::INTERNAL_SERVER_ERROR
             }
             openidconnect::RequestTokenError::Parse(error, items) => {
                 axum::http::StatusCode::BAD_REQUEST
-            }
-            openidconnect::RequestTokenError::Other(_) => {
-                axum::http::StatusCode::INTERNAL_SERVER_ERROR
             }
         })?;
 
@@ -487,7 +497,7 @@ pub async fn complete_oidc_auth<
         )
         .unwrap();
         if actual_access_token_hash != *expected_access_token_hash {
-            panic!("invalid access token");
+            return Err(axum::http::StatusCode::UNAUTHORIZED);
         }
     }
 

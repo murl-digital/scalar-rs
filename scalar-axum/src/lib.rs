@@ -178,8 +178,8 @@ where
         let connection = Authenticated::authenticate(connection, token)
             .await
             .map_err(|e| match e {
-                scalar_cms::db::AuthenticationError::BadToken => StatusCode::UNAUTHORIZED,
-                scalar_cms::db::AuthenticationError::BadCredentials => StatusCode::UNAUTHORIZED,
+                scalar_cms::db::AuthenticationError::BadToken
+                | scalar_cms::db::AuthenticationError::BadCredentials => StatusCode::UNAUTHORIZED,
                 scalar_cms::db::AuthenticationError::DatabaseError(_) => {
                     StatusCode::INTERNAL_SERVER_ERROR
                 }
@@ -189,7 +189,11 @@ where
     }
 }
 
-//#[axum_macros::debug_handler]
+/// Endpoint that signs a user in with a username and password.
+///
+/// # Errors
+///
+/// This function will return an error if authentication fails.
 pub async fn signin<F: DatabaseFactory + Clone>(
     State(factory): State<F>,
     Json(credentials): Json<Credentials>,
@@ -202,18 +206,27 @@ pub async fn signin<F: DatabaseFactory + Clone>(
     println!("connection");
 
     let token = connection.signin(credentials).await.map_err(|e| match e {
-        scalar_cms::db::AuthenticationError::BadToken => StatusCode::UNAUTHORIZED,
-        scalar_cms::db::AuthenticationError::BadCredentials => StatusCode::UNAUTHORIZED,
+        scalar_cms::db::AuthenticationError::BadToken
+        | scalar_cms::db::AuthenticationError::BadCredentials => StatusCode::UNAUTHORIZED,
         scalar_cms::db::AuthenticationError::DatabaseError(_) => StatusCode::INTERNAL_SERVER_ERROR,
     })?;
 
     Ok(token)
 }
 
-pub async fn get_schema<T: Document>() -> Json<Schema> {
-    Json(T::schema())
+#[allow(clippy::unused_async)]
+// this has to be async for axum
+pub async fn get_schema<D: Document>() -> Json<Schema> {
+    Json(D::schema())
 }
 
+/// Endpoint to validate a document.
+///
+/// # Errors
+///
+/// This function will return an error if [`Document::validate`] returns an error.
+#[allow(clippy::unused_async)]
+// this has to be async for axum
 pub async fn validate<D: Document>(
     Json(doc): Json<D>,
 ) -> Result<(), (StatusCode, Json<ValidationError>)> {
@@ -221,24 +234,36 @@ pub async fn validate<D: Document>(
         .map_err(|e| (StatusCode::UNPROCESSABLE_ENTITY, Json(e)))
 }
 
+#[allow(clippy::unused_async)]
+// this has to be async for axum
 pub async fn me<F: DatabaseFactory>(
     AuthenticatedConnection(state): AuthenticatedConnection<F>,
 ) -> Json<User> {
     Json(state.me())
 }
 
-pub async fn update_draft<T: Document + Serialize + DeserializeOwned + Send, F: DatabaseFactory>(
+/// Endpoint that updates a draft.
+///
+/// # Errors
+///
+/// This function will return an error if updating the draft fails, usually by database errors.
+pub async fn update_draft<D: Document + Serialize + DeserializeOwned + Send, F: DatabaseFactory>(
     AuthenticatedConnection(state): AuthenticatedConnection<F>,
     Path(id): Path<String>,
     Json(data): Json<serde_json::Value>,
 ) -> Result<Json<Item<serde_json::Value>>, StatusCode> {
     Ok(Json(
-        DatabaseConnection::draft::<T>(&state, &id, data)
+        DatabaseConnection::draft::<D>(&state, &id, data)
             .await
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?,
     ))
 }
 
+/// Endpoint that publishes the document, if it's valid.
+///
+/// # Errors
+///
+/// This function will return an error if the document is invalid (determined by [`Document::validate`]), or if the database fails to commit the publish.
 pub async fn publish_doc<
     D: Document + Serialize + DeserializeOwned + Send + 'static,
     F: DatabaseFactory,
@@ -259,20 +284,30 @@ pub async fn publish_doc<
     Ok(())
 }
 
-pub async fn get_all_docs<T: Document + Serialize + DeserializeOwned + Send, F: DatabaseFactory>(
+/// Endpoint that gets all documents of a certain type.
+///
+/// # Errors
+///
+/// This function will return an error if the database fails to get a document for whatever reason.
+pub async fn get_all_docs<D: Document + Serialize + DeserializeOwned + Send, F: DatabaseFactory>(
     AuthenticatedConnection(state): AuthenticatedConnection<F>,
 ) -> Result<Json<Vec<Item<serde_json::Value>>>, StatusCode> {
     let items = state
         .inner()
-        .get_all::<T>()
+        .get_all::<D>()
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     Ok(Json(items))
 }
 
+/// Endpoint that gets a document by id.
+///
+/// # Errors
+///
+/// This function will return an error if the document isn't found, or some other database error occurs.
 pub async fn get_doc_by_id<
-    T: Document + Serialize + DeserializeOwned + Send,
+    D: Document + Serialize + DeserializeOwned + Send,
     F: DatabaseFactory,
 >(
     AuthenticatedConnection(state): AuthenticatedConnection<F>,
@@ -280,7 +315,7 @@ pub async fn get_doc_by_id<
 ) -> Result<Json<Item<serde_json::Value>>, StatusCode> {
     state
         .inner()
-        .get_by_id::<T>(id.as_str())
+        .get_by_id::<D>(id.as_str())
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .map(Json)
