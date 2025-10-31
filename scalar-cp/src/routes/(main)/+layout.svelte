@@ -1,28 +1,49 @@
 <script lang="ts">
-    import { createDropdownMenu, melt } from "@melt-ui/svelte";
+    import { createAvatar, createDropdownMenu, melt } from "@melt-ui/svelte";
     import type { PageData } from "./$types";
+    import { fly } from "svelte/transition";
 
     const { data, children }: { data: PageData; children: any } = $props();
 
     const {
         elements: { menu, item, trigger, arrow },
-    } = createDropdownMenu();
+        states: { open },
+    } = createDropdownMenu({ forceVisible: true });
+
+    const {
+        elements: { image, fallback },
+    } = createAvatar({
+        src: data.avatarUrl ?? "",
+    });
 </script>
 
 <div
     class="grid grid-cols-[1fr] grid-rows-[4rem_1fr_1fr] h-screen overflow-hidden bg-dark"
 >
     <div class="b-b-solid b-b-1 row-span-1 flex flex-row-reverse">
-        <button use:melt={$trigger} class="aspect-1">
-            <img src={data.avatarUrl} alt="user profile" />
+        <button
+            use:melt={$trigger}
+            class="flex h-16 w-16 items-center justify-center rounded-full hover:rounded-3xl transition-all"
+        >
+            <img
+                use:melt={$image}
+                alt="Avatar"
+                class="h-full w-full rounded-[inherit]"
+            />
+            <span
+                use:melt={$fallback}
+                class="text-3xl font-medium text-magnum-700">RH</span
+            >
         </button>
     </div>
-    <div use:melt={$menu}>
-        <div use:melt={$arrow}></div>
-        <div use:melt={$item}>
-            <a href="/profile">Profile</a>
+    {#if $open}
+        <div use:melt={$menu} transition:fly={{ duration: 150, y: -10 }}>
+            <div use:melt={$arrow} class="border-l border-t"></div>
+            <div class="p-2 border" use:melt={$item}>
+                <a href="/profile">Profile</a>
+            </div>
         </div>
-    </div>
+    {/if}
     <div class="row-start-2 row-span-2 col-span-1 overflow-scroll flex">
         <div class="p-4 b-r-solid b-r-1">
             <h1 class="text-sm">COLLECTIONS</h1>

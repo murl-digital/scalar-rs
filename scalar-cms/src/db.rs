@@ -47,16 +47,21 @@ impl Debug for Credentials {
 pub struct User {
     email: Arc<str>,
     name: Arc<str>,
-    gravatar_hash: Arc<str>,
+    profile_picture_url: Arc<str>,
     admin: bool,
 }
 
 impl User {
-    pub fn new(email: String, name: String, gravatar_hash: String, admin: bool) -> Self {
+    pub fn new(
+        email: impl Into<String>,
+        name: impl Into<String>,
+        profile_picture_url: impl Into<String>,
+        admin: bool,
+    ) -> Self {
         Self {
-            email: email.into(),
-            name: name.into(),
-            gravatar_hash: gravatar_hash.into(),
+            email: email.into().into(),
+            name: name.into().into(),
+            profile_picture_url: profile_picture_url.into().into(),
             admin,
         }
     }
@@ -65,8 +70,8 @@ impl User {
         &self.name
     }
 
-    pub fn gravatar_hash(&self) -> &str {
-        &self.gravatar_hash
+    pub fn profile_picture_url(&self) -> &str {
+        &self.profile_picture_url
     }
 
     pub fn admin(&self) -> bool {

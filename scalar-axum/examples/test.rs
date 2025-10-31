@@ -196,7 +196,6 @@ async fn main() -> anyhow::Result<()> {
         account_id: env::var("R2_ACCTID")?,
     };
     let credentials = Credentials::default()?;
-    println!("{credentials:?}");
 
     let bucket = Bucket::new("drc-prd-test", region, credentials)?.with_path_style();
 
@@ -319,9 +318,11 @@ async fn complete_oidc_auth(
             openidconnect::RequestTokenError::Other(_) => StatusCode::INTERNAL_SERVER_ERROR,
         })?;
 
-    let id_token = exchange.id_token().unwrap();
+    let id_token = exchange.id_token().ok_or(StatusCode::BAD_REQUEST)?;
     let id_token_verifier = client.id_token_verifier();
-    let claims = id_token.claims(&id_token_verifier, &nonce).unwrap();
+    let claims = id_token
+        .claims(&id_token_verifier, &nonce)
+        .map_err(|_| StatusCode::UNAUTHORIZED)?;
 
     if let Some(expected_access_token_hash) = claims.access_token_hash() {
         let actual_access_token_hash = AccessTokenHash::from_token(
@@ -335,24 +336,10 @@ async fn complete_oidc_auth(
         }
     }
 
-    println!("{:#?}", claims);
-
-    // The user_info request uses the AccessToken returned in the token response. To parse custom
-    // claims, use UserInfoClaims directly (with the desired type parameters) rather than using the
-    // CoreUserInfoClaims type alias.
-    let userinfo: CoreUserInfoClaims = client
-        .user_info(exchange.access_token().to_owned(), None)
-        .unwrap()
-        .request_async(&http_client)
-        .await
-        .unwrap();
-
-    println!("{:#?}", userinfo);
-
     Ok(connection
         .init()
         .await
-        .unwrap()
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .signin_oidc(claims.to_owned())
         .await
         .unwrap())

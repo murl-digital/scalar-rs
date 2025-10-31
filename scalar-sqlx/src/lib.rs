@@ -1,7 +1,7 @@
 use std::{convert::Infallible, fmt::Debug};
 
 use argon2::{Argon2, PasswordHash, PasswordVerifier, password_hash};
-use openidconnect::{AdditionalClaims, GenderClaim, IdTokenClaims};
+use openidconnect::{AdditionalClaims, EndUserPictureUrl, GenderClaim, IdTokenClaims};
 use rusty_paseto::{
     core::{Key, Local, PasetoSymmetricKey, V4},
     prelude::*,
@@ -173,7 +173,10 @@ where
         let user = User::new(
             claims.email().unwrap().to_string(),
             claims.given_name().unwrap().get(None).unwrap().to_string(),
-            "".into(),
+            claims
+                .picture()
+                .and_then(|l| l.get(None).map(|u| u.as_str()))
+                .unwrap_or_default(),
             true,
         );
 
