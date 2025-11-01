@@ -11,16 +11,16 @@ base64-url = "3"
 bytes = "1.10.1"
 image = { version = "0.25" }
 image_hasher = "3"
-rust-s3 = "0.35"
-scalar-cms = { version = "0.1.0", path = "../scalar-cms", features = ["url"] }
-serde = "1"
-thiserror = "2"
+rust-s3 = "0.37"
+scalar-cms = { version = "0.1", path = "../scalar-cms", features = ["url"] }
+serde = {workspace = true}
+thiserror = {workspace = true}
 tokio = { version = "1", features = ["rt"] }
 tracing = "0.1"
-url = { version = "2", features = ["serde"] }
+url = { workspace = true, features = ["serde"] }
 
 [dev-dependencies]
-axum = "0.8.3"
+axum = "0.8"
 tokio = { version = "1", features = ["rt-multi-thread"] }
 
 [lints]

@@ -16,7 +16,6 @@ pub use db::DatabaseConnection;
 pub mod db;
 pub mod editor_field;
 pub mod editor_type;
-pub mod internals;
 pub mod types;
 pub mod validations;
 
@@ -27,6 +26,7 @@ pub use editor_type::EditorType;
 use validations::Validate;
 
 #[derive(Serialize, TS)]
+#[ts(export)]
 pub struct Schema {
     identifier: &'static str,
     title: &'static str,
@@ -34,6 +34,7 @@ pub struct Schema {
 }
 
 #[derive(Serialize, TS)]
+#[ts(export)]
 pub struct DocInfo {
     pub identifier: &'static str,
     pub title: &'static str,

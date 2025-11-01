@@ -17,8 +17,8 @@ scalar-img = { version = "0.1.0", path = "../scalar-img", optional = true }
 openidconnect = "4"
 reqwest = "0.12"
 thiserror = "2"
-serde = "1"
-serde_json = "1"
+serde = {workspace = true}
+serde_json = {workspace = true}
 tokio = "1"
 tokio-util = { version = "0.7.14", features = ["io"] }
 tokio-stream = "0.1.17"
@@ -26,17 +26,17 @@ tower = "0.5.2"
 
 [dev-dependencies]
 argon2 = "0.5.3"
-rust-s3 = "0.35"
+rust-s3 = "0.37"
 axum = { version = "0.8", features = ["multipart", "http2"] }
 axum-macros = "0.5"
 scalar-img = { path = "../scalar-img" }
 scalar-sqlx = { path = "../scalar-sqlx", features = ["sqlite"] }
 tokio = { version = "1", features = ["rt-multi-thread", "fs"] }
 tower-http = { version = "0.5", features = ["cors", "fs"] }
-thiserror = "2"
+thiserror = {workspace = true}
 dotenvy = "0.15.7"
 anyhow = { version = "1.0.98", features = ["backtrace"] }
-url = "2.5.4"
+url = {workspace = true}
 sqlx = { version = "0.8.6", features = ["runtime-tokio"] }
 
 [lints]

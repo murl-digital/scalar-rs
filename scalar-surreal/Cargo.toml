@@ -6,6 +6,7 @@ version = "0.1.2"
 edition = "2021"
 
 [dependencies]
+openidconnect = { workspace = true }
 scalar-cms = { version = "0.1.0", path = "../scalar-cms" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

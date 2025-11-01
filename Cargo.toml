@@ -1,14 +1,21 @@
 [workspace]
-resolver = "2"
+resolver = "3"
 members = [
     "scalar-cms",
     "scalar-axum",
     "scalar-derive",
     "scalar-img",
-    "xtask",
     "scalar-surreal",
     "scalar-sqlx",
 ]
+
+[workspace.dependencies]
+openidconnect = "4"
+serde = "1"
+serde_json = "1"
+thiserror = "2"
+tracing = "0.1"
+url = "2.5"
 
 [workspace.lints.clippy]
 pedantic = "warn"
