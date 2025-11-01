@@ -1,5 +1,8 @@
 use std::{borrow::Cow, fmt::Debug, ops::Deref};
 
+use openidconnect::{
+    AdditionalClaims, EndUserEmail, EndUserUsername, GenderClaim, IdTokenClaims, SubjectIdentifier,
+};
 use scalar_cms::{
     db::{Authenticated, AuthenticationError, Credentials, DatabaseFactory, User},
     validations::Valid,
@@ -182,6 +185,39 @@ impl<C: Connection + Debug> scalar_cms::DatabaseConnection for SurrealConnection
         Ok(result.into_insecure_token())
     }
 
+    async fn signin_oidc<AC: AdditionalClaims + Send + Sync, GC: GenderClaim + Send + Sync>(
+        &self,
+        user_info: &IdTokenClaims<AC, GC>,
+    ) -> Result<String, AuthenticationError<Self::Error>> {
+        #[derive(Serialize)]
+        struct OidcClaim {
+            oidc_subject: SubjectIdentifier,
+            oidc_username: EndUserUsername,
+            oidc_email: EndUserEmail,
+        }
+
+        let result = self
+            .inner
+            .signin(Record {
+                namespace: &self.namespace,
+                database: &self.db,
+                access: "sc__editor",
+                params: OidcClaim {
+                    oidc_subject: user_info.subject().clone(),
+                    oidc_username: user_info.preferred_username().unwrap().clone(),
+                    oidc_email: user_info.email().unwrap().clone(),
+                },
+            })
+            .await
+            .map_err(|e| match e {
+                Error::Api(Api::Query(_)) => AuthenticationError::BadCredentials,
+                Error::Db(Db::InvalidAuth) => AuthenticationError::BadCredentials,
+                _ => e.into(),
+            })?;
+
+        Ok(result.into_insecure_token())
+    }
+
     #[tracing::instrument(level = "debug", err)]
     async fn draft<D: Document + Send>(
         conn: &Authenticated<Self>,
@@ -306,7 +342,7 @@ impl<C: Connection + Debug> scalar_cms::DatabaseConnection for SurrealConnection
     ) -> Result<Item<D>, Self::Error> {
         let updated_thingy: Option<SurrealItem<D>> = conn
             .inner()
-            .upsert((D::IDENTIFIER, item.id.to_owned()))
+            .upsert((D::IDENTIFIER, &item.id))
             .content(SurrealItem::<D>::from(item))
             .await?;
 
@@ -407,15 +443,37 @@ impl<C: Connection + Debug> SurrealConnection<C> {
             .query("DEFINE TABLE OVERWRITE sc__editor SCHEMAFULL PERMISSIONS FOR select, update, delete WHERE id = $auth.id OR $auth.admin = true FOR create WHERE $auth.admin = true")
             .query("DEFINE FIELD IF NOT EXISTS name ON sc__editor TYPE string")
             .query("DEFINE FIELD IF NOT EXISTS email ON sc__editor TYPE string ASSERT string::is::email($value)")
-            .query("DEFINE FIELD IF NOT EXISTS password ON sc__editor TYPE string")
+            .query("DEFINE FIELD IF NOT EXISTS password ON sc__editor TYPE option<string>;")
             .query("DEFINE FIELD IF NOT EXISTS admin ON sc__editor TYPE bool")
-            .query("DEFINE INDEX email ON sc__editor FIELDS email UNIQUE")
-            .query("
-            DEFINE ACCESS OVERWRITE sc__editor ON DATABASE TYPE RECORD
-            SIGNIN (
-                SELECT * FROM sc__editor WHERE email = $email AND crypto::argon2::compare(password, $password)
-            )
-        ").await.expect("auth setup failed");
+            .query("DEFINE FIELD IF NOT EXISTS oidc_subject ON sc__editor TYPE option<string>;")
+            .query("DEFINE INDEX IF NOT EXISTS email ON sc__editor FIELDS email UNIQUE;")
+            .query("DEFINE INDEX IF NOT EXISTS oidc_subject ON sc__editor FIELDS oidc_subject UNIQUE;")
+            .query("DEFINE ACCESS OVERWRITE sc__editor ON DATABASE TYPE RECORD SIGNIN (RETURN IF $oidc_subject != NONE
+	{
+
+		LET $intermediate_query = (SELECT * FROM sc__editor WHERE oidc_subject = $oidc_subject);
+
+		IF $intermediate_query = []
+			{
+				RETURN (INSERT INTO sc__editor {
+					admin: true,
+					email: $oidc_email,
+					name: $oidc_username,
+					oidc_subject: $oidc_subject
+				});
+			}
+		ELSE
+			{
+				RETURN $intermediate_query;
+			}
+		;
+
+            }
+            ELSE
+	{
+		RETURN (SELECT * FROM sc__editor WHERE email = $email AND crypto::argon2::compare(password, $password));
+	}
+            )").await.expect("auth setup failed");
     }
 }
 
