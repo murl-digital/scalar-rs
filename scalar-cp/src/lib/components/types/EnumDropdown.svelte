@@ -3,6 +3,7 @@
     import { error } from "@sveltejs/kit";
     import Field from "$lib/components/Field.svelte";
     import { onMount } from "svelte";
+    import Label from "../Label.svelte";
 
     let {
         field,
@@ -57,8 +58,7 @@
     });
 </script>
 
-<label class="flex flex-col">
-    {field.title}
+<Label {field}>
     {#if field.field_type.type === "enum"}
         <select bind:value={data.type} class="input-base">
             {#each field.field_type.variants as variant}
@@ -78,4 +78,4 @@
             ></Field>
         {/each}
     {/if}
-</label>
+</Label>

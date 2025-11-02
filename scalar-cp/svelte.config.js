@@ -1,5 +1,4 @@
 import adapter from "@sveltejs/adapter-static";
-import { preprocessMeltUI, sequence } from "@melt-ui/pp";
 import { vitePreprocess } from "@sveltejs/vite-plugin-svelte";
 import UnoCSS from "@unocss/svelte-scoped/preprocess";
 const prod = process.env.NODE_ENV !== "development";
@@ -12,7 +11,6 @@ const config = {
     UnoCSS({
       combine: prod,
     }),
-    preprocessMeltUI(),
   ],
   kit: {
     // adapter-auto only supports some environments, see https://kit.svelte.dev/docs/adapter-auto for a list.

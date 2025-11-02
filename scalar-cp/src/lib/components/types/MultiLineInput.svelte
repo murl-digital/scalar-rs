@@ -1,6 +1,7 @@
 <script lang="ts">
     import type { EditorField } from "$ts/EditorField";
     import { onMount } from "svelte";
+    import Label from "../Label.svelte";
 
     let {
         field,
@@ -11,10 +12,11 @@
     onMount(() => {
         ready();
     });
+
+    $inspect(data);
 </script>
 
-<label class="flex flex-col">
-    {field.title}
-    <textarea class="input-base p-2" id={field.name} bind:value={data}>
-    </textarea>
-</label>
+<Label {field}>
+    <textarea class="input-base p-2" id={field.name} bind:value={data}
+    ></textarea>
+</Label>

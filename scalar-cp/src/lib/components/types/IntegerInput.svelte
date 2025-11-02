@@ -1,6 +1,7 @@
 <script lang="ts">
     import type { EditorField } from "$ts/EditorField";
     import { onMount } from "svelte";
+    import Label from "../Label.svelte";
 
     let {
         field,
@@ -13,8 +14,7 @@
     });
 </script>
 
-<label class="flex flex-col">
-    {field.title}
+<Label {field}>
     <input
         class="input-base"
         id={field.name}
@@ -22,4 +22,4 @@
         step="1"
         bind:value={data}
     />
-</label>
+</Label>

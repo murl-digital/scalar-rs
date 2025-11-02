@@ -5,6 +5,7 @@
     import { onMount } from "svelte";
     import { flip } from "svelte/animate";
     import { SortableItem } from "svelte-sortable-items";
+    import Label from "../Label.svelte";
 
     let {
         field,
@@ -49,52 +50,57 @@
     });
 </script>
 
-<ol class="flex flex-col gap-2">
-    {#each internalArray as elem, i (elem.id)}
-        <li animate:flip>
-            <SortableItem
-                propItemNumber={i}
-                bind:propHoveredItemNumber={currentHovered}
-                bind:propData={internalArray}
-                class={[
-                    "flex items-center border-base transition-all p-2",
-                    i == currentHovered && "border-active",
-                ]}
-            >
-                <div
-                    class="i-ph-dots-six-vertical-bold hover:cursor-grab"
-                ></div>
-                {#await meta}
-                    <div class="i-svg-spinners-90-ring"></div>
-                {:then meta}
-                    {#if meta}
-                        <meta.component
-                            field={of}
-                            bind:data={internalArray[i].v}
-                            ready={() => {}}
-                        />
-                    {:else}
-                        <div>
-                            !! WARNING !! component for {field.field_type.type} not
-                            found
-                        </div>
-                    {/if}
-                {/await}
-                <button
-                    class="input-button"
-                    onclick={() => internalArray.splice(i, 1)}>Remove</button
+<Label {field}>
+    <ol class="flex flex-col gap-2">
+        {#each internalArray as elem, i (elem.id)}
+            <li animate:flip>
+                <SortableItem
+                    propItemNumber={i}
+                    bind:propHoveredItemNumber={currentHovered}
+                    bind:propData={internalArray}
+                    class={[
+                        "flex items-center border-base transition-all p-2",
+                        i == currentHovered && "border-active",
+                    ]}
                 >
-            </SortableItem>
-        </li>
-    {/each}
-</ol>
-<button
-    class="input-button"
-    onclick={() =>
-        internalArray.push({
-            id:
-                internalArray.reduce((a, b) => Math.max(a, b.id), -Infinity) +
-                1,
-            v: null,
-        })}>Add</button
->
+                    <div
+                        class="i-ph-dots-six-vertical-bold hover:cursor-grab"
+                    ></div>
+                    {#await meta}
+                        <div class="i-svg-spinners-90-ring"></div>
+                    {:then meta}
+                        {#if meta}
+                            <meta.component
+                                field={of}
+                                bind:data={internalArray[i].v}
+                                ready={() => {}}
+                            />
+                        {:else}
+                            <div>
+                                !! WARNING !! component for {field.field_type
+                                    .type} not found
+                            </div>
+                        {/if}
+                    {/await}
+                    <button
+                        class="input-button"
+                        onclick={() => internalArray.splice(i, 1)}
+                        >Remove</button
+                    >
+                </SortableItem>
+            </li>
+        {/each}
+    </ol>
+    <button
+        class="input-button"
+        onclick={() =>
+            internalArray.push({
+                id:
+                    internalArray.reduce(
+                        (a, b) => Math.max(a, b.id),
+                        -Infinity,
+                    ) + 1,
+                v: null,
+            })}>Add</button
+    >
+</Label>

@@ -4,6 +4,7 @@
     import DOMPurify from "isomorphic-dompurify";
     import "$lib/css/carta-theme-scalar.css";
     import { onMount } from "svelte";
+    import Label from "../Label.svelte";
 
     let {
         field,
@@ -30,10 +31,9 @@
     });
 </script>
 
-<label class="flex flex-col">
-    {field.title}
+<Label {field}>
     <MarkdownEditor theme="scalar" {carta} bind:value={internalText} />
-</label>
+</Label>
 
 <style>
     /* Set your monospace font (Required to have the editor working correctly!) */

@@ -3,6 +3,7 @@
     import { error } from "@sveltejs/kit";
     import Field from "../Field.svelte";
     import { SvelteSet } from "svelte/reactivity";
+    import Label from "../Label.svelte";
 
     let {
         field,
@@ -41,13 +42,17 @@
     });
 </script>
 
-{#if field.field_type.type === "struct"}
-    {#each field.field_type.fields as iField}
-        <Field
-            field={iField}
-            bind:data={data[iField.name]}
-            ready={() => ready_ids.add(iField.name)}
-            errors={errors?.find((f) => f.field == iField.name)?.error}
-        ></Field>
-    {/each}
-{/if}
+<Label {field}>
+    {#if field.field_type.type === "struct"}
+        <div class="border p-2">
+            {#each field.field_type.fields as iField}
+                <Field
+                    field={iField}
+                    bind:data={data[iField.name]}
+                    ready={() => ready_ids.add(iField.name)}
+                    errors={errors?.find((f) => f.field == iField.name)?.error}
+                ></Field>
+            {/each}
+        </div>
+    {/if}
+</Label>

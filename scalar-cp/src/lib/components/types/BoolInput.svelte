@@ -1,7 +1,8 @@
 <script lang="ts">
     import type { EditorField } from "$ts/EditorField";
-    import { createCheckbox, melt } from "@melt-ui/svelte";
+    import { Checkbox } from "bits-ui";
     import { onMount } from "svelte";
+    import Label from "../Label.svelte";
 
     let {
         field,
@@ -9,32 +10,33 @@
         ready,
     }: { field: EditorField; data: any; ready: () => void } = $props();
 
-    const {
-        elements: { root, input },
-        helpers: { isChecked, isIndeterminate },
-    } = createCheckbox({
-        defaultChecked: data == null ? "indeterminate" : data,
-    });
+    let indeterminate = $state(data == null);
+    let value = $state(data);
 
-    $effect(() => {
-        data = $isIndeterminate ? null : $isChecked;
-    });
+    // svelte stop throwing a temper tantrum challenge (impossible)
+    const getValue = () => value || false;
+    const setValue = (newValue: boolean) => {
+        value = newValue;
+        data = newValue;
+    };
 
     onMount(() => {
         ready();
     });
 </script>
 
-<label class="flex flex-col">
-    {field.title}
-    <button
-        use:melt={$root}
+<Label {field}>
+    <Checkbox.Root
+        bind:indeterminate
+        bind:checked={getValue, setValue}
         class="flex size-5 appearance-none items-center justify-center input-base"
     >
-        {#if $isIndeterminate}
-            <div class="i-ph-minus pointer-events-none"></div>
-        {:else if $isChecked}
-            <div class="i-ph-check pointer-events-none"></div>
-        {/if}
-    </button>
-</label>
+        {#snippet children({ checked, indeterminate })}
+            {#if indeterminate}
+                <div class="i-ph-minus pointer-events-none"></div>
+            {:else if checked}
+                <div class="i-ph-check pointer-events-none"></div>
+            {/if}
+        {/snippet}
+    </Checkbox.Root>
+</Label>

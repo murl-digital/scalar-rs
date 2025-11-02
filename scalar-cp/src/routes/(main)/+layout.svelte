@@ -1,49 +1,45 @@
 <script lang="ts">
-    import { createAvatar, createDropdownMenu, melt } from "@melt-ui/svelte";
+    import { Avatar, DropdownMenu } from "bits-ui";
     import type { PageData } from "./$types";
     import { fly } from "svelte/transition";
 
     const { data, children }: { data: PageData; children: any } = $props();
-
-    const {
-        elements: { menu, item, trigger, arrow },
-        states: { open },
-    } = createDropdownMenu({ forceVisible: true });
-
-    const {
-        elements: { image, fallback },
-    } = createAvatar({
-        src: data.avatarUrl ?? "",
-    });
 </script>
 
 <div
     class="grid grid-cols-[1fr] grid-rows-[4rem_1fr_1fr] h-screen overflow-hidden bg-dark"
 >
     <div class="b-b-solid b-b-1 row-span-1 flex flex-row-reverse">
-        <button
-            use:melt={$trigger}
-            class="flex h-16 w-16 items-center justify-center rounded-full hover:rounded-3xl transition-all"
-        >
-            <img
-                use:melt={$image}
-                alt="Avatar"
-                class="h-full w-full rounded-[inherit]"
-            />
-            <span
-                use:melt={$fallback}
-                class="text-3xl font-medium text-magnum-700">RH</span
+        <DropdownMenu.Root>
+            <DropdownMenu.Trigger
+                class="flex h-16 w-16 items-center justify-center rounded-full hover:rounded-3xl transition-all"
             >
-        </button>
+                <Avatar.Root>
+                    <Avatar.Image src={data.avatarUrl ?? ""} />
+                    <Avatar.Fallback>:3</Avatar.Fallback>
+                </Avatar.Root>
+            </DropdownMenu.Trigger>
+            <DropdownMenu.Portal>
+                <DropdownMenu.Content forceMount>
+                    {#snippet child({ wrapperProps, props, open })}
+                        {#if open}
+                            <div {...wrapperProps}>
+                                <div
+                                    {...props}
+                                    transition:fly={{ duration: 150, y: -10 }}
+                                >
+                                    <DropdownMenu.Arrow />
+                                    <DropdownMenu.Item class="p-2 border">
+                                        <a href="/profile">Profile</a>
+                                    </DropdownMenu.Item>
+                                </div>
+                            </div>
+                        {/if}
+                    {/snippet}
+                </DropdownMenu.Content>
+            </DropdownMenu.Portal>
+        </DropdownMenu.Root>
     </div>
-    {#if $open}
-        <div use:melt={$menu} transition:fly={{ duration: 150, y: -10 }}>
-            <div use:melt={$arrow} class="border-l border-t"></div>
-            <div class="p-2 border" use:melt={$item}>
-                <a href="/profile">Profile</a>
-            </div>
-        </div>
-    {/if}
     <div class="row-start-2 row-span-2 col-span-1 overflow-scroll flex">
         <div class="p-4 b-r-solid b-r-1">
             <h1 class="text-sm">COLLECTIONS</h1>

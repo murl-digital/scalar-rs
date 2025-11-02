@@ -7,9 +7,9 @@
     import Form from "$lib/components/Form.svelte";
     import { base } from "$app/paths";
     import { page } from "$app/state";
-    import { createPopover, melt } from "@melt-ui/svelte";
     import DateTimeInput from "$lib/components/types/DateTimeInput.svelte";
     import type { Errors } from "$lib/types";
+    import { Popover } from "bits-ui";
 
     const { data }: { data: PageData } = $props();
 
@@ -74,16 +74,6 @@
 
     $inspect(formData);
     $inspect(ready);
-
-    const {
-        elements: { content, trigger, overlay, close, arrow },
-        states: { open },
-    } = createPopover({
-        positioning: {
-            gutter: 20,
-        },
-        forceVisible: true,
-    });
 </script>
 
 <div class="flex flex-col flex-initial w-full h-full">
@@ -97,7 +87,7 @@
                     ready = true;
                     console.log("ready!");
                 }}
-            ></Form>
+            />
         </div>
     </div>
 
@@ -121,41 +111,38 @@
             >
                 Publish
             </button>
-            <button
-                use:melt={$trigger}
-                aria-label="More publish options"
-                class="px-1 py-1 bg-neutral-700 hover:bg-neutral-600 transition-all"
-            >
-                <div class="i-ph-caret-up"></div>
-            </button>
-            {#if $open}
-                <div
-                    class="bg-dark rounded-sm shadow border-1 p-2 my-2"
-                    transition:fly={{ y: 10, duration: 100 }}
-                    use:melt={$content}
+            <Popover.Root>
+                <Popover.Trigger
+                    aria-label="More publish options"
+                    class="px-1 py-1 bg-neutral-700 hover:bg-neutral-600 transition-all"
                 >
-                    <div use:melt={$arrow}></div>
-                    <div>
-                        <DateTimeInput
-                            field={{
-                                name: "publish-at",
-                                title: "Publish At",
-                                validator: null,
-                                required: false,
-                                placeholder: null,
-                                field_type: {
-                                    type: "date-time",
-                                    component_key: null,
-                                    default: null,
-                                },
-                            }}
-                            bind:data={publishAt}
-                            ready={() => {}}
-                        ></DateTimeInput>
-                    </div>
-                    <button use:melt={$close}> Close </button>
-                </div>
-            {/if}
+                    <div class="i-ph-caret-up"></div>
+                </Popover.Trigger>
+                <Popover.Portal>
+                    <Popover.Content class="border">
+                        <Popover.Arrow />
+                        <div>
+                            <DateTimeInput
+                                field={{
+                                    name: "publish-at",
+                                    title: "Publish At",
+                                    validator: null,
+                                    required: false,
+                                    placeholder: null,
+                                    field_type: {
+                                        type: "date-time",
+                                        component_key: null,
+                                        default: null,
+                                    },
+                                }}
+                                bind:data={publishAt}
+                                ready={() => {}}
+                            ></DateTimeInput>
+                        </div>
+                        <Popover.Close>Close</Popover.Close>
+                    </Popover.Content>
+                </Popover.Portal>
+            </Popover.Root>
         </span>
     </div>
 </div>

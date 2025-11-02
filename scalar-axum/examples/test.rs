@@ -165,7 +165,7 @@ async fn main() -> anyhow::Result<()> {
     )
     // Set the URL the user will be redirected to after the authorization process.
     .set_redirect_uri(RedirectUrl::new(
-        "http://localhost:3000/login/oidc".to_string(),
+        "http://localhost:5173/login/oidc".to_string(),
     )?);
 
     let region = Region::R2 {

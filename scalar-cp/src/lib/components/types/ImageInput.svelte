@@ -1,32 +1,14 @@
 <script lang="ts">
     import type { EditorField } from "$ts/EditorField";
     import { error } from "@sveltejs/kit";
-    import { createDialog, createTabs, melt } from "@melt-ui/svelte";
     import { filedrop } from "filedrop-svelte";
     import { fade } from "svelte/transition";
     import { flyAndScale } from "$lib/utils";
     import { base } from "$app/paths";
     import { apiFetch, wire } from "$lib/api";
-    import { addHighlight } from "@melt-ui/svelte/internal/helpers";
     import Field from "../Field.svelte";
-
-    const {
-        elements: {
-            trigger,
-            portalled,
-            overlay,
-            content,
-            title,
-            description,
-            close,
-        },
-        states: { open },
-    } = createDialog();
-
-    const {
-        elements: { root, list, content: tab_content, trigger: tab_trigger },
-        states: { value },
-    } = createTabs({ defaultValue: "upload" });
+    import { Dialog, Tabs } from "bits-ui";
+    import Label from "../Label.svelte";
 
     let {
         field,
@@ -70,6 +52,8 @@
     });
 
     let uploadProgress = $state(0);
+    let tab: "upload" | "select" = $state("upload");
+    let open = $state(false);
 
     async function uploadFile(f: Blob) {
         const xhr = new XMLHttpRequest();
@@ -94,84 +78,84 @@
     }
 </script>
 
-{#if data.url}
-    <!-- svelte-ignore a11y_missing_attribute -->
-    <img src={data.url} />
-{/if}
-<div class="flex flex-row gap-2">
-    <button
-        class="input-button"
-        use:melt={$trigger}
-        use:melt={$tab_trigger("upload")}>Upload</button
-    >
-    <button
-        class="input-button"
-        use:melt={$trigger}
-        use:melt={$tab_trigger("select")}>Select Existing</button
-    >
-</div>
-{#if additionalData.field_type.type !== "null"}
-    <Field
-        field={additionalData}
-        bind:data={data["additional_data"]}
-        ready={() => (innerReady = true)}
-    ></Field>
-{/if}
-{#if $open}
-    <div use:melt={$portalled}>
-        <div
-            use:melt={$overlay}
-            class="fixed inset-0 z-50 backdrop-blur-sm backdrop-brightness-50"
-            transition:fade={{ duration: 150 }}
-        ></div>
-        <div
-            use:melt={$content}
-            class="fixed z-50 left-1/2 top-1/2 max-h-[85vh] max-w-[90vw] flex
-                        min-w-min -translate-x-1/2 -translate-y-1/2 p-8 bg-dark text-gray border-1 rounded-sm shadow-lg shadow-black transition-all"
-            transition:flyAndScale={{
-                duration: 150,
-                y: 8,
-                start: 0.96,
-            }}
-        >
-            <div class="flex flex-col flex-initial" use:melt={$root}>
-                <div use:melt={$list}>
-                    <button use:melt={$tab_trigger("upload")}>Upload</button>
-                    <button use:melt={$tab_trigger("select")}>Select</button>
-                </div>
-                <div use:melt={$tab_content("upload")}>
-                    <div
-                        use:filedrop={{ fileLimit: 1 }}
-                        onfiledrop={(e) =>
-                            uploadFile(e.detail.files.accepted[0])}
-                        class="input-base w-sm h-16"
-                    ></div>
-                    <progress value={uploadProgress}> </progress>
-                </div>
-                <div
-                    use:melt={$tab_content("select")}
-                    class="flex-auto overflow-scroll"
+<Label {field}>
+    {#if data.url}
+        <!-- svelte-ignore a11y_missing_attribute -->
+        <img src={data.url} />
+    {/if}
+    <Dialog.Root bind:open>
+        <div class="flex flex-row gap-2">
+            <Dialog.Trigger
+                onclick={() => (tab = "upload")}
+                class="input-button"
+            >
+                Upload
+            </Dialog.Trigger>
+            <Dialog.Trigger
+                onclick={() => (tab = "select")}
+                class="input-button"
+            >
+                Select Existing
+            </Dialog.Trigger>
+            <Dialog.Portal>
+                <Dialog.Overlay
+                    class="fixed inset-0 z-50 backdrop-blur-sm backdrop-brightness-50"
+                />
+                <Dialog.Content
+                    class="fixed z-50 left-1/2 top-1/2 max-h-[85vh] max-w-[90vw] flex
+                            min-w-min -translate-x-1/2 -translate-y-1/2 p-8 bg-dark text-gray border-1 rounded-sm shadow-lg shadow-black transition-all"
                 >
-                    {#await apiFetch(fetch, `${base}/api/images/list`).then( (r) => r.json(), )}
-                        ...
-                    {:then obj}
-                        <div class="grid grid-cols-3">
-                            {#each obj as url}
-                                <button
-                                    onclick={() => {
-                                        data.url = url;
-                                        $open = false;
-                                    }}
-                                    aria-label="select image"
-                                >
-                                    <!-- svelte-ignore a11y_missing_attribute -->
-                                    <img src={url} />
-                                </button>
-                            {/each}
-                        </div>
-                    {/await}
-                </div>
-            </div>
+                    <Tabs.Root bind:value={tab}>
+                        <Tabs.List>
+                            <Tabs.Trigger value="upload">Upload</Tabs.Trigger>
+                            <Tabs.Trigger value="select">
+                                Select Existing
+                            </Tabs.Trigger>
+                        </Tabs.List>
+                        <Tabs.Content value="upload">
+                            <div
+                                use:filedrop={{ fileLimit: 1 }}
+                                onfiledrop={(e) =>
+                                    uploadFile(e.detail.files.accepted[0])}
+                                class="input-base w-sm h-16"
+                            ></div>
+                            <progress value={uploadProgress}> </progress>
+                        </Tabs.Content>
+                        <Tabs.Content
+                            value="select"
+                            class="flex-auto overflow-scroll"
+                        >
+                            {#await apiFetch(fetch, `${base}/api/images/list`).then( (r) => r.json(), )}
+                                ...
+                            {:then obj}
+                                <div class="grid grid-cols-3">
+                                    {#each obj as url}
+                                        <button
+                                            onclick={() => {
+                                                data.url = url;
+                                                open = false;
+                                            }}
+                                            aria-label="select image"
+                                        >
+                                            <!-- svelte-ignore a11y_missing_attribute -->
+                                            <img src={url} />
+                                        </button>
+                                    {/each}
+                                </div>
+                            {/await}
+                        </Tabs.Content>
+                    </Tabs.Root>
+                </Dialog.Content>
+            </Dialog.Portal>
         </div>
+    </Dialog.Root>
+    <div class="border">
+        {#if additionalData.field_type.type !== "null"}
+            <Field
+                field={additionalData}
+                bind:data={data["additional_data"]}
+                ready={() => (innerReady = true)}
+            ></Field>
+        {/if}
     </div>
-{/if}
+</Label>

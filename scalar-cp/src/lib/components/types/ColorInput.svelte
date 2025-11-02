@@ -1,8 +1,8 @@
 <script lang="ts">
     import type { EditorField } from "$ts/EditorField";
     import { error } from "@sveltejs/kit";
-    import { colord } from "colord";
-    import type { Colord } from "colord";
+    import Label from "../Label.svelte";
+    import { colord, type Colord } from "colord";
     import { Spring } from "svelte/motion";
 
     let {
@@ -295,28 +295,30 @@
     }}
 />
 
-<div class="flex gap-3">
-    <canvas
-        width="256"
-        height="256"
-        onmousedown={colorBlockMouseDown}
-        bind:this={colorBlock}
-    ></canvas>
-    <canvas
-        onmousedown={colorStripMouseDown}
-        bind:this={colorStrip}
-        width="20"
-        height="256"
-    >
-    </canvas>
-    {#if isAlpha}
+<Label {field}>
+    <div class="flex gap-3">
         <canvas
-            onmousedown={alphaStripMouseDown}
-            bind:this={alphaStrip}
+            width="256"
+            height="256"
+            onmousedown={colorBlockMouseDown}
+            bind:this={colorBlock}
+        ></canvas>
+        <canvas
+            onmousedown={colorStripMouseDown}
+            bind:this={colorStrip}
             width="20"
             height="256"
         >
         </canvas>
-    {/if}
-    <div class="w-12 h-6" style:background={color.toRgbString()}></div>
-</div>
+        {#if isAlpha}
+            <canvas
+                onmousedown={alphaStripMouseDown}
+                bind:this={alphaStrip}
+                width="20"
+                height="256"
+            >
+            </canvas>
+        {/if}
+        <div class="w-12 h-6" style:background={color.toRgbString()}></div>
+    </div>
+</Label>
