@@ -2152,7 +2152,7 @@ dependencies = [
  "tokio",
  "tokio-rustls",
  "tower-service",
- "webpki-roots",
+ "webpki-roots 1.0.3",
 ]
 
 [[package]]
@@ -4007,6 +4007,7 @@ dependencies = [
  "js-sys",
  "log",
  "mime",
+ "mime_guess",
  "native-tls",
  "percent-encoding",
  "pin-project-lite",
@@ -4029,7 +4030,7 @@ dependencies = [
  "wasm-bindgen-futures",
  "wasm-streams",
  "web-sys",
- "webpki-roots",
+ "webpki-roots 1.0.3",
 ]
 
 [[package]]
@@ -4333,6 +4334,7 @@ version = "0.23.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6a9586e9ee2b4f8fab52a0048ca7334d7024eef48e2cb9407e3497bb7cab7fa7"
 dependencies = [
+ "log",
  "once_cell",
  "ring",
  "rustls-pki-types",
@@ -4449,10 +4451,10 @@ dependencies = [
  "rust-s3",
  "scalar-cms",
  "scalar-img",
- "scalar-sqlx",
+ "scalar-surreal",
  "serde",
  "serde_json",
- "sqlx",
+ "surrealdb",
  "thiserror 2.0.17",
  "tokio",
  "tokio-stream",
@@ -4971,8 +4973,6 @@ dependencies = [
  "sha2",
  "smallvec",
  "thiserror 2.0.17",
- "tokio",
- "tokio-stream",
  "tracing",
  "url",
 ]
@@ -5011,7 +5011,6 @@ dependencies = [
  "sqlx-postgres",
  "sqlx-sqlite",
  "syn 2.0.108",
- "tokio",
  "url",
 ]
 
@@ -5258,9 +5257,11 @@ dependencies = [
  "path-clean",
  "pharos",
  "reblessive",
+ "reqwest",
  "revision",
  "ring",
  "rust_decimal",
+ "rustls",
  "rustls-pki-types",
  "semver",
  "serde",
@@ -5721,8 +5722,12 @@ checksum = "c6989540ced10490aaf14e6bad2e3d33728a2813310a0c71d1574304c49631cd"
 dependencies = [
  "futures-util",
  "log",
+ "rustls",
+ "rustls-pki-types",
  "tokio",
+ "tokio-rustls",
  "tungstenite",
+ "webpki-roots 0.26.11",
 ]
 
 [[package]]
@@ -5980,6 +5985,8 @@ dependencies = [
  "httparse",
  "log",
  "rand 0.8.5",
+ "rustls",
+ "rustls-pki-types",
  "sha1",
  "thiserror 1.0.69",
  "url",
@@ -6319,6 +6326,15 @@ dependencies = [
  "phf_codegen",
  "string_cache",
  "string_cache_codegen",
+]
+
+[[package]]
+name = "webpki-roots"
+version = "0.26.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "521bc38abb08001b01866da9f51eb7c5d647a19260e00054a8c7fd5f9e57f7a9"
+dependencies = [
+ "webpki-roots 1.0.3",
 ]
 
 [[package]]

@@ -1,15 +1,13 @@
-use argon2::PasswordHasher;
 use openidconnect::{
     core::{CoreClient, CoreProviderMetadata, CoreResponseType},
     ClientId, ClientSecret, IssuerUrl, RedirectUrl,
 };
 use reqwest::ClientBuilder;
+use scalar_cms::db::DatabaseFactory;
+use scalar_surreal::{init, SurrealStore};
 use std::env;
+use surrealdb::engine::remote::ws::{Client, Ws};
 
-use argon2::{
-    password_hash::{rand_core::OsRng, SaltString},
-    Argon2,
-};
 use axum::Router;
 use axum_macros::FromRef;
 use rgb::{RGB8, RGBA8};
@@ -25,9 +23,7 @@ use scalar_cms::{
     DateTime, Document, EditorField, NaiveDate, Utc,
 };
 use scalar_img::{ImageData, WrappedBucket};
-use scalar_sqlx::{sqlite::Pool, ConnectionFactory};
 use serde::{Deserialize, Serialize};
-use sqlx::{query, Sqlite};
 use tower_http::{
     cors::CorsLayer,
     services::{ServeDir, ServeFile},
@@ -141,7 +137,7 @@ impl Validate for TestEnum {
 
 #[derive(FromRef, Clone)]
 struct AppState {
-    pool: ConnectionFactory<Sqlite>,
+    pool: SurrealStore<Client>,
     oidc_state: CoreOidcState,
     wrapped_bucket: WrappedBucket,
 }
@@ -183,25 +179,23 @@ async fn main() -> anyhow::Result<()> {
         Url::parse("https://super-secret-media-testing.draconium.music/").unwrap(),
     );
 
-    let pool = Pool::connect_lazy("sqlite://scalar-sqlx.db").unwrap();
-    scalar_sqlx::sqlite::migrate(&pool).await.unwrap();
-    let password = Argon2::default()
-        .hash_password(b"password", &SaltString::generate(&mut OsRng))
-        .unwrap()
-        .to_string();
-    query!(
-        "INSERT OR IGNORE INTO sc__users(name, email, password_hash, admin) VALUES ('example user', 'example@example.com', $1, true)",
-        password
-    ).execute(&pool).await.unwrap();
+    let store = SurrealStore::new::<Ws, _>("localhost:8000", "test".into(), "test".into())
+        .await
+        .unwrap();
+
+    let connection = store.init_system().await.unwrap();
+
+    init!(connection, AllTypes, Test2);
+    drop(connection);
 
     let state = AppState {
-        pool: ConnectionFactory::try_new_random(pool).unwrap(),
+        pool: store,
         oidc_state: OidcState::new(client, http_client),
         wrapped_bucket,
     };
 
     let api_router = generate_routes!({
-        db: ConnectionFactory<Sqlite>,
+        db: SurrealStore<Client>,
         oidc: {
             state: CoreOidcState,
             response_type: CoreResponseType,

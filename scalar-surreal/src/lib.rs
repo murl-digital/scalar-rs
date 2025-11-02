@@ -143,19 +143,16 @@ impl<C: Connection + Debug> scalar_cms::DatabaseConnection for SurrealConnection
 
     #[tracing::instrument(level = "debug", err)]
     async fn authenticate(&self, jwt: &str) -> Result<User, AuthenticationError<Self::Error>> {
-        self.inner.authenticate(jwt).await.map_err(|e| {
-            println!("{e:?}");
-            match e {
-                Error::Api(Api::Query(_)) => AuthenticationError::BadToken,
-                Error::Db(Db::InvalidAuth | Db::ExpiredToken | Db::ExpiredSession) => {
-                    AuthenticationError::BadToken
-                }
-                _ => e.into(),
+        self.inner.authenticate(jwt).await.map_err(|e| match e {
+            Error::Api(Api::Query(_)) => AuthenticationError::BadToken,
+            Error::Db(Db::InvalidAuth | Db::ExpiredToken | Db::ExpiredSession) => {
+                AuthenticationError::BadToken
             }
+            _ => e.into(),
         })?;
 
         let user: Option<User> = self
-            .query("SELECT *, crypto::sha256(email) as gravatar_hash OMIT id, password FROM $auth")
+            .query("SELECT *, crypto::sha256(email) as profile_picture_url OMIT id, password FROM $auth")
             .await?
             .take(0)?;
 
