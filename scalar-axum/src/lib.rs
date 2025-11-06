@@ -33,7 +33,7 @@ where
     scalar_img::WrappedBucket: FromRef<S>,
 {
     use axum::extract::DefaultBodyLimit;
-    use img::{list, upload_file, upload_image};
+    use img::{list_files, list_images, upload_file, upload_image};
 
     router
         .route(
@@ -44,7 +44,8 @@ where
             "/files/upload",
             axum::routing::put(upload_file).layer(DefaultBodyLimit::disable()),
         )
-        .route("/images/list", axum::routing::get(list))
+        .route("/images/list", axum::routing::get(list_images))
+        .route("/files/list", axum::routing::get(list_files))
 }
 
 #[cfg(not(feature = "img"))]

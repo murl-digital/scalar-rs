@@ -111,6 +111,19 @@ pub async fn upload_file(
 /// # Errors
 ///
 /// This function will return an error if listing images fails.
-pub async fn list(State(client): State<WrappedBucket>) -> Result<Json<Vec<String>>, ClientError> {
+pub async fn list_images(
+    State(client): State<WrappedBucket>,
+) -> Result<Json<Vec<String>>, ClientError> {
     Ok(Json(client.list_images().await?))
+}
+
+/// Endpoint that lists files.
+///
+/// # Errors
+///
+/// This function will return an error if listing files fails.
+pub async fn list_files(
+    State(client): State<WrappedBucket>,
+) -> Result<Json<Vec<String>>, ClientError> {
+    Ok(Json(client.list_files().await?))
 }
