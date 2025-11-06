@@ -84,8 +84,8 @@ pub struct SurrealStore<C: Connection> {
 }
 
 impl<C: Connection> SurrealStore<C> {
-    pub async fn new<S, P: IntoEndpoint<S, Client = C>>(
-        address: P,
+    pub async fn new<P>(
+        address: impl IntoEndpoint<P, Client = C>,
         namespace: String,
         db: String,
     ) -> Result<Self, surrealdb::Error> {

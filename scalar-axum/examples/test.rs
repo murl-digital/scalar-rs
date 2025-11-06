@@ -179,7 +179,7 @@ async fn main() -> anyhow::Result<()> {
         Url::parse("https://super-secret-media-testing.draconium.music/").unwrap(),
     );
 
-    let store = SurrealStore::new::<Ws, _>("localhost:8000", "test".into(), "test".into())
+    let store = SurrealStore::new::<Ws>("localhost:8000", "test".into(), "test".into())
         .await
         .unwrap();
 
