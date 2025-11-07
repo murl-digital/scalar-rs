@@ -137,6 +137,15 @@ const components: Map<string, () => Promise<ComponentMeta>> = new Map([
     },
   ],
   [
+    "file",
+    async () => {
+      return {
+        component: (await import("./components/types/FileInput.svelte"))
+          .default,
+      };
+    },
+  ],
+  [
     "struct",
     async () => {
       return {
