@@ -5,11 +5,14 @@ use axum::{
     response::{IntoResponse, Response},
     Json,
 };
+use scalar_cms::db::DatabaseFactory;
 use thiserror::Error;
 
 use scalar_img::WrappedBucket;
 use tokio_stream::StreamExt;
 use tokio_util::io::StreamReader;
+
+use crate::AuthenticatedConnection;
 
 #[derive(Error, Debug)]
 #[error("{0}")]
@@ -40,7 +43,8 @@ impl IntoResponse for UploadImageError {
 /// # Errors
 ///
 /// This function will return an error if uploading the image fails.
-pub async fn upload_image(
+pub async fn upload_image<F: DatabaseFactory>(
+    _: AuthenticatedConnection<F>,
     State(client): State<WrappedBucket>,
     bytes: Bytes,
 ) -> Result<String, UploadImageError> {
@@ -79,7 +83,8 @@ impl IntoResponse for UploadFileError {
 /// # Errors
 ///
 /// This function will return an error if multipart processing or file uploading fails.
-pub async fn upload_file(
+pub async fn upload_file<F: DatabaseFactory>(
+    _: AuthenticatedConnection<F>,
     State(client): State<WrappedBucket>,
     mut multipart: Multipart,
 ) -> Result<String, UploadFileError> {
@@ -111,7 +116,8 @@ pub async fn upload_file(
 /// # Errors
 ///
 /// This function will return an error if listing images fails.
-pub async fn list_images(
+pub async fn list_images<F: DatabaseFactory>(
+    _: AuthenticatedConnection<F>,
     State(client): State<WrappedBucket>,
 ) -> Result<Json<Vec<String>>, ClientError> {
     Ok(Json(client.list_images().await?))
@@ -122,7 +128,8 @@ pub async fn list_images(
 /// # Errors
 ///
 /// This function will return an error if listing files fails.
-pub async fn list_files(
+pub async fn list_files<F: DatabaseFactory>(
+    _: AuthenticatedConnection<F>,
     State(client): State<WrappedBucket>,
 ) -> Result<Json<Vec<String>>, ClientError> {
     Ok(Json(client.list_files().await?))

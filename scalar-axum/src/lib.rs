@@ -28,7 +28,12 @@ impl IntoResponse for ValidationFailiure {
 
 #[cfg(feature = "img")]
 #[doc(hidden)]
-pub fn add_image_routes__<S: Clone + Send + Sync + 'static>(router: Router<S>) -> Router<S>
+pub fn add_image_routes__<
+    S: Clone + Send + Sync + 'static,
+    F: DatabaseFactory + FromRef<S> + 'static,
+>(
+    router: Router<S>,
+) -> Router<S>
 where
     scalar_img::WrappedBucket: FromRef<S>,
 {
@@ -38,19 +43,24 @@ where
     router
         .route(
             "/images/upload",
-            axum::routing::put(upload_image).layer(DefaultBodyLimit::max(25_000_000)),
+            axum::routing::put(upload_image::<F>).layer(DefaultBodyLimit::max(25_000_000)),
         )
         .route(
             "/files/upload",
-            axum::routing::put(upload_file).layer(DefaultBodyLimit::disable()),
+            axum::routing::put(upload_file::<F>).layer(DefaultBodyLimit::disable()),
         )
-        .route("/images/list", axum::routing::get(list_images))
-        .route("/files/list", axum::routing::get(list_files))
+        .route("/images/list", axum::routing::get(list_images::<F>))
+        .route("/files/list", axum::routing::get(list_files::<F>))
 }
 
 #[cfg(not(feature = "img"))]
 #[doc(hidden)]
-pub fn add_image_routes__<S: Clone + Send + Sync + 'static>(router: Router<S>) -> Router<S> {
+pub fn add_image_routes__<
+    S: Clone + Send + Sync + 'static,
+    F: DatabaseFactory + FromRef<S> + 'static,
+>(
+    router: Router<S>,
+) -> Router<S> {
     router
 }
 
@@ -117,7 +127,7 @@ macro_rules! generate_routes {
             router = router.route("/docs", ::axum::routing::get(get_docs));
 
             router = router.route("/me", ::axum::routing::get(::scalar_axum::me::<$db>));
-            router = ::scalar_axum::add_image_routes__(router);
+            router = ::scalar_axum::add_image_routes__::<_, $db>(router);
             router = router.route("/signin", ::axum::routing::post(::scalar_axum::signin::<$db>));
 
             ::scalar_axum::validate_routes__!(router, $($doc),+);
