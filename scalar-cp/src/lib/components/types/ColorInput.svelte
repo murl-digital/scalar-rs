@@ -5,6 +5,9 @@
     import { colord, type Colord } from "colord";
     import ColorPicker, { ChromeVariant } from "svelte-awesome-color-picker";
     import { onMount } from "svelte";
+    import Wrapper from "./color/Wrapper.svelte";
+    import PickerIndicator from "./color/PickerIndicator.svelte";
+    import TextInput from "./color/TextInput.svelte";
 
     let {
         field,
@@ -24,11 +27,25 @@
         error(500, "ColorInput was not given a color field");
     }
 
+    const convert = (object: {
+        r: number;
+        g: number;
+        b: number;
+        a?: number;
+    }) => {
+        return {
+            r: object.r,
+            g: object.g,
+            b: object.b,
+            a: object.a ? object.a / 255 : undefined,
+        };
+    };
+
     let rgba = $state(
         data
-            ? colord(data).toRgb()
+            ? colord(convert(data)).toRgb()
             : field?.field_type?.default
-              ? colord(field.field_type.default).toRgb()
+              ? colord(convert(field.field_type.default)).toRgb()
               : null,
     );
 
@@ -58,8 +75,12 @@
     <ColorPicker
         bind:rgb={rgba}
         {isAlpha}
-        components={ChromeVariant}
-        sliderDirection="horizontal"
+        components={{
+            wrapper: Wrapper,
+            pickerIndicator: PickerIndicator,
+            textInput: TextInput,
+        }}
+        sliderDirection="vertical"
         isDialog={false}
     />
 </Label>

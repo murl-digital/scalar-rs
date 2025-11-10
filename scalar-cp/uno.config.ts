@@ -33,12 +33,12 @@ export default defineConfig({
     "input-border": [
       "border-base",
       "hover:border-active",
-      "focus:border-active",
       "focus-visible:border-active",
     ],
     "input-button": [
       "input-base",
       "hover:bg-neutral-600",
+      "focus-visible:border-active",
       "m-2",
       "px-2",
       "py-1",
