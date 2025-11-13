@@ -38,7 +38,7 @@
 
 <dialog
     bind:this={element}
-    class="my-auto p-8 bg-dark text-gray border-1 rounded-sm shadow-lg shadow-black backdrop:backdrop-brightness-50 backdrop:backdrop-blur-sm transition-all"
+    class="my-auto p-8 bg-dark text-gray border-1 rounded-xs shadow-lg shadow-black backdrop:backdrop-brightness-50 backdrop:backdrop-blur-xs transition-all"
 >
     <form onsubmit={login} class="flex flex-col">
         <label class="flex flex-col">

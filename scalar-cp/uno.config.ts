@@ -3,12 +3,13 @@ import {
   presetIcons,
   presetTypography,
   presetUno,
+  presetWind4,
   transformerDirectives,
 } from "unocss";
 import { presetForms } from "@julr/unocss-preset-forms";
 
 export default defineConfig({
-  presets: [presetUno(), presetForms(), presetIcons(), presetTypography()],
+  presets: [presetWind4(), presetIcons(), presetTypography()],
   transformers: [transformerDirectives()],
   shortcuts: {
     "input-base": [
@@ -22,12 +23,11 @@ export default defineConfig({
       "outline",
       "outline-1",
       "outline-gray",
-      "rounded-sm",
-      "ring",
+      "rounded-xs",
+      "ring-3",
       "ring-transparent",
       "ring-offset-2",
       "ring-offset-dark",
-      "ring-2",
     ],
     "border-active": ["ring-purple"],
     "input-border": [

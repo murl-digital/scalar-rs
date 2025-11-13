@@ -99,11 +99,11 @@
             </Dialog.Trigger>
             <Dialog.Portal>
                 <Dialog.Overlay
-                    class="fixed inset-0 z-50 backdrop-blur-sm backdrop-brightness-50"
+                    class="fixed inset-0 z-50 backdrop-blur-xs backdrop-brightness-50"
                 />
                 <Dialog.Content
                     class="fixed z-50 left-1/2 top-1/2 max-h-[85vh] max-w-[90vw] flex
-                            min-w-min -translate-x-1/2 -translate-y-1/2 p-8 bg-dark text-gray border-1 rounded-sm shadow-lg shadow-black transition-all"
+                            min-w-min -translate-x-1/2 -translate-y-1/2 p-8 bg-dark text-gray border-1 rounded-xs shadow-lg shadow-black transition-all"
                 >
                     <Tabs.Root bind:value={tab}>
                         <Tabs.List>

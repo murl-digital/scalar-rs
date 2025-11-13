@@ -13,7 +13,24 @@
         /** configure which hex, rgb and hsv inputs will be visible and in which order. If overridden, it is necessary to provide at least one value */
         textInputModes: Array<"hex" | "rgb" | "hsv">;
         /** all translation tokens used in the library; can be partially overridden; see [full object type](https://github.com/Ennoriel/svelte-awesome-color-picker/blob/master/src/lib/utils/texts.ts) */
-        texts: object;
+        texts: {
+            label: {
+                r: string;
+                g: string;
+                b: string;
+                h: string;
+                s: string;
+                v: string;
+                a: string;
+                hex: string;
+            };
+            color: {
+                rgb: string;
+                hsv: string;
+                hex: string;
+            };
+            changeTo: string;
+        };
         /** listener, dispatch an event when one of the color changes */
         onInput: (color: {
             hsv?: HsvaColor;
@@ -39,6 +56,13 @@
     let nextMode = $derived(
         textInputModes[
             (textInputModes.indexOf(mode) + 1) % textInputModes.length
+        ],
+    );
+    let prevMode = $derived(
+        textInputModes[
+            (textInputModes.indexOf(mode) - 1 == -1
+                ? textInputModes.length - 1
+                : textInputModes.indexOf(mode) - 1) % textInputModes.length
         ],
     );
 
@@ -143,7 +167,7 @@
     </div>
     {#if isAlpha}
         <input
-            class="input-base grow p-2"
+            class="input-base grow p-2 appearance-none"
             aria-label={texts.label.a}
             value={a}
             type="number"
@@ -155,21 +179,26 @@
     {/if}
 
     {#if textInputModes.length > 1}
-        <button
-            class="input-button relative group h-8 p-2"
-            type="button"
-            onclick={() => (mode = nextMode)}
-        >
-            <span
-                class="opacity-100 group-hover:opacity-0 absolute left-1/2 top-1/2 -translate-1/2"
-                aria-hidden="true">{texts.color[mode]}</span
+        <div class="flex items-center mx-auto">
+            <button
+                class="input-button"
+                onclick={() => (mode = prevMode)}
+                title={`${texts.changeTo}${texts.color[prevMode]}`}
             >
-            <span
-                class="opacity-0 group-hover:opacity-100 absolute left-1/2 top-1/2 -translate-1/2"
-                >{texts.changeTo} {texts.color[nextMode]}</span
+                <div class="i-ph-caret-left"></div>
+            </button>
+            <div class="">
+                {texts.color[mode]}
+            </div>
+            <button
+                class="input-button"
+                onclick={() => (mode = nextMode)}
+                title={`${texts.changeTo}${texts.color[nextMode]}`}
             >
-        </button>
+                <div class="i-ph-caret-right"></div>
+            </button>
+        </div>
     {:else}
-        <div class="input-button h-6 p-2">{texts.color[mode]}</div>
+        <div class="input-button">{texts.color[mode]}</div>
     {/if}
 </div>

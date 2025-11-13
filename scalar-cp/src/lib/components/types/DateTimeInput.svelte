@@ -136,7 +136,7 @@
                             transition:fly={{ y: 10, duration: 100 }}
                         >
                             <DatePicker.Calendar
-                                class="bg-dark rounded-sm shadow border-1 p-2 my-2"
+                                class="bg-dark rounded-xs shadow-sm border-1 p-2 my-2"
                             >
                                 {#snippet children({ months, weekdays })}
                                     <DatePicker.Header

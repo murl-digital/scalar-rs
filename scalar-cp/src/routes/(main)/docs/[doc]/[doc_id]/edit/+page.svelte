@@ -105,7 +105,7 @@
                 invalid!
             {/if}
         </span>
-        <span class="input-border rounded-sm flex w-fit gap-1">
+        <span class="input-border rounded-xs flex w-fit gap-1">
             <button
                 class="px-2 py-1 bg-neutral-700 hover:bg-neutral-600 transition-all"
             >

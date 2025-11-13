@@ -1,5 +1,5 @@
 <script lang="ts">
-    import "@unocss/reset/tailwind.css";
+    import "@unocss/reset/tailwind-v4.css";
     import "$lib/css/base.css";
     import "$lib/css/splash.css";
 
