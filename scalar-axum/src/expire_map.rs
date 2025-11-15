@@ -27,7 +27,7 @@ impl<K> PartialEq for HeapValue<K> {
 impl<K> Eq for HeapValue<K> {}
 
 pub struct ExpiringHashMap<K, V> {
-    hash_map: HashMap<K, (Instant, V)>,
+    hash_map: HashMap<K, V>,
     heap: BinaryHeap<HeapValue<K>>,
     duration: Duration,
 }
@@ -43,54 +43,45 @@ impl<K: Eq + Hash + Clone, V> ExpiringHashMap<K, V> {
     }
 
     pub fn insert(&mut self, key: K, v: V) -> Option<V> {
-        self.cleanup();
         let now = Instant::now();
-        if let Some(prev) = self.hash_map.insert(key.clone(), (now, v)) {
-            Some(prev.1)
-        } else {
-            self.heap.push(HeapValue { instant: now, key });
-            None
-        }
+        self.heap.retain(|k| k.key != key);
+        self.heap.push(HeapValue {
+            instant: now,
+            key: key.clone(),
+        });
+        self.cleanup();
+        self.hash_map.insert(key, v)
     }
 
     pub fn remove(&mut self, key: &K) -> Option<V> {
         self.heap.retain(|k| k.key != *key);
         let result = self.hash_map.remove(key);
         self.cleanup();
-        result.map(|(_, v)| v)
+        result
     }
 
     /// Cleans up expired entries in this [`ExpiringHashMap<K, V>`].
-    ///
-    /// # Panics
-    ///
-    /// This should never panic, but it may if `BinaryHeap::peek` returns `Some` and `BinaryHeap::pop` returns `None`.
     pub fn cleanup(&mut self) {
         let now = Instant::now();
 
-        while let Some(HeapValue { instant, .. }) = self.heap.peek() {
+        while let Some(HeapValue { instant, key }) = self.heap.pop() {
+            // when checked_duration_since returns none, that means
+            // that the instant is in the future.
+            // since the binary heap is ordering with the earliest instants first
+            // (because of the reverse ordering in heapvalue)
+            // most likely all instants after this are also in the future
+            // so we short circuit out now
+            // if this isn't the case (becase of some monotonicity bug)
+            // that just means entries won't be evicted when they're supposed to,
+            // which is most likely fine :)
             if now
-                .checked_duration_since(*instant)
+                .checked_duration_since(instant)
                 .is_none_or(|d| d < self.duration)
             {
                 return;
             }
 
-            let key = self.heap.pop().expect("We know it is not empty.").key;
-
-            let real_instant = self.hash_map[&key].0;
-
-            if now
-                .checked_duration_since(real_instant)
-                .is_none_or(|d| d < self.duration)
-            {
-                self.heap.push(HeapValue {
-                    instant: real_instant,
-                    key,
-                });
-            } else {
-                self.hash_map.remove(&key);
-            }
+            self.hash_map.remove(&key);
         }
     }
 }
