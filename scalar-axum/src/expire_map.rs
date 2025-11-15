@@ -1,4 +1,5 @@
 use std::hash::Hash;
+use std::sync::Arc;
 use std::{
     cmp::Ordering,
     collections::{BinaryHeap, HashMap},
@@ -7,7 +8,7 @@ use std::{
 
 struct HeapValue<K> {
     instant: Instant,
-    key: K,
+    key: Arc<K>,
 }
 impl<K> PartialOrd for HeapValue<K> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
@@ -27,7 +28,7 @@ impl<K> PartialEq for HeapValue<K> {
 impl<K> Eq for HeapValue<K> {}
 
 pub struct ExpiringHashMap<K, V> {
-    hash_map: HashMap<K, V>,
+    hash_map: HashMap<Arc<K>, V>,
     heap: BinaryHeap<HeapValue<K>>,
     duration: Duration,
 }
@@ -44,6 +45,7 @@ impl<K: Eq + Hash + Clone, V> ExpiringHashMap<K, V> {
 
     pub fn insert(&mut self, key: K, v: V) -> Option<V> {
         let now = Instant::now();
+        let key = Arc::new(key);
         self.heap.retain(|k| k.key != key);
         self.heap.push(HeapValue {
             instant: now,
@@ -54,7 +56,7 @@ impl<K: Eq + Hash + Clone, V> ExpiringHashMap<K, V> {
     }
 
     pub fn remove(&mut self, key: &K) -> Option<V> {
-        self.heap.retain(|k| k.key != *key);
+        self.heap.retain(|k| *k.key != *key);
         let result = self.hash_map.remove(key);
         self.cleanup();
         result

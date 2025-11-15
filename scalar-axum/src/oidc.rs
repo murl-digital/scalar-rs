@@ -1,4 +1,7 @@
-use std::{sync::Arc, time::Duration};
+use std::{
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 
 use axum::{
     extract::{Query, State},
@@ -16,7 +19,6 @@ use openidconnect::{
 };
 use scalar_cms::{db::DatabaseFactory, DatabaseConnection};
 use serde::Deserialize;
-use tokio::sync::Mutex;
 
 use crate::expire_map::ExpiringHashMap;
 
@@ -339,6 +341,13 @@ impl<
     }
 }
 
+/// Begins the OIDC auth process, returning a redirect response to send to the client.
+///
+/// # Panics
+///
+/// Panics if the CSRF state mutex was somehow poisoned.
+#[allow(clippy::unused_async)]
+// axum only allows async functions in endpoints
 pub async fn begin_oidc_auth<
     AC: openidconnect::AdditionalClaims,
     AD: openidconnect::AuthDisplay,
@@ -395,7 +404,7 @@ pub async fn begin_oidc_auth<
     oidc_state
         .auth_states()
         .lock()
-        .await
+        .expect("poisoned mutex. this should never happen!")
         .insert(csrf_state.into_secret(), AuthState(verifier, nonce));
 
     Redirect::to(authorize_url.as_str())
@@ -411,7 +420,8 @@ pub struct RedirectParams {
 ///
 /// # Panics
 ///
-/// Panics if provider metadata hasn't been configured on [`OidcState::oidc_client`].
+/// Panics if provider metadata hasn't been configured on [`OidcState::oidc_client`],
+/// or if the csrf state mutex was somehow poisoned.
 ///
 /// # Errors
 ///
@@ -459,7 +469,7 @@ pub async fn complete_oidc_auth<
     let AuthState(verifier, nonce) = oidc_state
         .auth_states()
         .lock()
-        .await
+        .expect("poisoned mutex. this should never happen!")
         .remove(&params.state)
         .ok_or(axum::http::StatusCode::UNAUTHORIZED)?;
 
