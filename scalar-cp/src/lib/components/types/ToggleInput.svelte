@@ -53,8 +53,7 @@
             {/if}
         {/snippet}
     </Checkbox.Root>
-
-    {#if checked}
-        <Field field={inner} bind:data {ready}></Field>
-    {/if}
 </Label>
+{#if checked}
+    <Field field={inner} bind:data {ready}></Field>
+{/if}

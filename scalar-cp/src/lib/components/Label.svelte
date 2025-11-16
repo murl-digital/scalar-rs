@@ -7,7 +7,7 @@
         $props();
 </script>
 
-<Label.Root class="flex flex-col">
+<Label.Root class="flex flex-col gap-2">
     <span>{field?.title}</span>
     {@render children()}
 </Label.Root>
