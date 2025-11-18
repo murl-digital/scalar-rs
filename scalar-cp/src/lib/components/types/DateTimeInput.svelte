@@ -1,5 +1,5 @@
 <script lang="ts">
-    import type { EditorField } from "$ts/EditorField";
+    import type { EditorField } from "scalar-types";
     import { onMount, type Snippet } from "svelte";
     import {
         now,

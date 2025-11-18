@@ -1,5 +1,5 @@
 <script lang="ts">
-    import type { EditorField } from "$ts/EditorField";
+    import type { EditorField } from "scalar-types";
     import { error } from "@sveltejs/kit";
     import { getComponent, type ComponentMeta } from "$lib/field-component";
     import { onMount } from "svelte";

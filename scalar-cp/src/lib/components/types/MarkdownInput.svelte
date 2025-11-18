@@ -1,5 +1,5 @@
 <script lang="ts">
-    import type { EditorField } from "$ts/EditorField";
+    import type { EditorField } from "scalar-types";
     import { Carta, MarkdownEditor } from "carta-md";
     import DOMPurify from "isomorphic-dompurify";
     import "$lib/css/carta-theme-scalar.css";

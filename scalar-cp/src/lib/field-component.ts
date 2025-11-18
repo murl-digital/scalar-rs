@@ -1,7 +1,8 @@
-import type { EditorField } from "$ts/EditorField";
-import type { EditorType } from "$ts/EditorType";
+import type { EditorField, EditorType } from "scalar-types";
 import type { Component } from "svelte";
 import type { Errors } from "./types";
+
+import userComponents from "./components/types/user";
 
 export type FieldComponent = Component<
   {
@@ -154,13 +155,13 @@ const components: Map<string, () => Promise<ComponentMeta>> = new Map([
       };
     },
   ],
+  ...userComponents,
 ]);
 
 export async function getComponent(
   type: EditorType,
 ): Promise<ComponentMeta | null> {
-  console.log(type.component_key);
   let create = components.get(type.component_key ?? type.type) ?? (() => null);
-  console.log(create);
+  console.debug("result", type, create);
   return (await create()) ?? null;
 }

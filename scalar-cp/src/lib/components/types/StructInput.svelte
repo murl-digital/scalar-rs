@@ -1,5 +1,5 @@
 <script lang="ts">
-    import type { EditorField } from "$ts/EditorField";
+    import type { EditorField } from "scalar-types";
     import { error } from "@sveltejs/kit";
     import Field from "../Field.svelte";
     import { SvelteSet } from "svelte/reactivity";

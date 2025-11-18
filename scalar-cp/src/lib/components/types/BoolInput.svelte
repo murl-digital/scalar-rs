@@ -1,5 +1,5 @@
 <script lang="ts">
-    import type { EditorField } from "$ts/EditorField";
+    import type { EditorField } from "scalar-types";
     import { Checkbox } from "bits-ui";
     import { onMount } from "svelte";
     import Label from "../Label.svelte";
