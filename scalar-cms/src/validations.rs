@@ -32,8 +32,8 @@ macro_rules! wrapped_string {
             }
         }
 
-        impl From<&str> for $ty {
-            fn from(val: &str) -> Self {
+        impl<T: Into<Arc<str>>> From<T> for $ty {
+            fn from(val: T) -> Self {
                 Self(val.into())
             }
         }
