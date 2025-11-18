@@ -22,6 +22,8 @@ pub struct ImageData<D: ToEditorField> {
     additional_data: D,
 }
 
+pub type Image = ImageData<()>;
+
 impl<D: ToEditorField + Validate> Validate for ImageData<D> {
     fn validate(&self) -> Result<(), scalar_cms::validations::ValidationError> {
         self.additional_data.validate()
@@ -38,6 +40,8 @@ pub struct CroppedImageData<D: ToEditorField, const VALIDATE: bool = true> {
     gravity_y: f32,
     additional_data: D,
 }
+
+pub type CroppedImage = CroppedImageData<(), false>;
 
 impl<const VALIDATE: bool, D: ToEditorField> CroppedImageData<D, VALIDATE> {
     #[inline]
@@ -65,7 +69,7 @@ impl<const VALIDATE: bool, D: ToEditorField> CroppedImageData<D, VALIDATE> {
                     .into_iter()
                     .filter_map(|r| {
                         r.err().map(|(field, error)| ErroredField {
-                            field: Field(field.into()),
+                            field: field.into(),
                             error,
                         })
                     })
@@ -93,6 +97,8 @@ pub struct FileData<D: ToEditorField> {
     url: Url,
     additional_data: D,
 }
+
+pub type File = FileData<()>;
 
 impl<D: ToEditorField + Validate> Validate for FileData<D> {
     fn validate(&self) -> Result<(), scalar_cms::validations::ValidationError> {
