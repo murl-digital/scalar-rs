@@ -5,7 +5,11 @@ use bytes::Bytes;
 use image::ImageFormat;
 use image_hasher::HasherConfig;
 use s3::Bucket;
-use scalar_cms::{editor_field::ToEditorField, validations::Validate, EditorField};
+use scalar_cms::{
+    editor_field::ToEditorField,
+    validations::{ErroredField, Field, Validate, ValidationError},
+    EditorField,
+};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tokio::io::AsyncRead;
@@ -21,6 +25,65 @@ pub struct ImageData<D: ToEditorField> {
 impl<D: ToEditorField + Validate> Validate for ImageData<D> {
     fn validate(&self) -> Result<(), scalar_cms::validations::ValidationError> {
         self.additional_data.validate()
+    }
+}
+
+#[derive(EditorField, Serialize, Deserialize)]
+#[field(editor_component = "cropped-image")]
+/// A cropped image with additional data.
+/// The VALIDATE flag is a workaround for implementing traits in rust.
+pub struct CroppedImageData<D: ToEditorField, const VALIDATE: bool = true> {
+    url: Url,
+    gravity_x: f32,
+    gravity_y: f32,
+    additional_data: D,
+}
+
+impl<const VALIDATE: bool, D: ToEditorField> CroppedImageData<D, VALIDATE> {
+    #[inline]
+    fn validate_inner(
+        &self,
+        additional_result: Result<(), ValidationError>,
+    ) -> Result<(), ValidationError> {
+        let results = [
+            (0.0..=1.0).contains(&self.gravity_x).then_some(()).ok_or((
+                "gravity_x",
+                ValidationError::Single("gravity_x must be between 0 and 1".into()),
+            )),
+            (0.0..=1.0).contains(&self.gravity_y).then_some(()).ok_or((
+                "gravity_y",
+                ValidationError::Single("gravity_y must be between 0 and 1".into()),
+            )),
+            additional_result.map_err(|e| ("additional_data", e)),
+        ];
+        // if all errors are ok, don't bother even allocating a vec
+        if results.iter().all(Result::is_ok) {
+            Ok(())
+        } else {
+            Err(ValidationError::Composite(
+                results
+                    .into_iter()
+                    .filter_map(|r| {
+                        r.err().map(|(field, error)| ErroredField {
+                            field: Field(field.into()),
+                            error,
+                        })
+                    })
+                    .collect(),
+            ))
+        }
+    }
+}
+
+impl<D: ToEditorField + Validate> Validate for CroppedImageData<D, true> {
+    fn validate(&self) -> Result<(), scalar_cms::validations::ValidationError> {
+        self.validate_inner(self.additional_data.validate())
+    }
+}
+
+impl<D: ToEditorField> Validate for CroppedImageData<D, false> {
+    fn validate(&self) -> Result<(), scalar_cms::validations::ValidationError> {
+        self.validate_inner(Ok(()))
     }
 }
 
