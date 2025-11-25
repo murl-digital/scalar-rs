@@ -6,9 +6,9 @@ use axum::{
     Json,
 };
 use scalar_cms::db::DatabaseFactory;
-use thiserror::Error;
-
 use scalar_img::WrappedBucket;
+use std::error::Error;
+use thiserror::Error;
 use tokio_stream::StreamExt;
 use tokio_util::io::StreamReader;
 
@@ -24,6 +24,10 @@ pub struct ClientError(#[from] scalar_img::ClientError);
 
 impl IntoResponse for ClientError {
     fn into_response(self) -> Response {
+        tracing::error!(
+            cause = &self as &dyn Error,
+            "error communicating with s3 bucket"
+        );
         StatusCode::INTERNAL_SERVER_ERROR.into_response()
     }
 }
@@ -68,12 +72,24 @@ pub enum UploadFileError {
 impl IntoResponse for UploadFileError {
     fn into_response(self) -> Response {
         match self {
-            Self::Multipart(multipart) => multipart.into_response(),
+            Self::Multipart(multipart) => {
+                tracing::error!(
+                    cause = &multipart as &dyn Error,
+                    "couldn't handle the multipart sauce"
+                );
+                multipart.into_response()
+            }
             Self::NoField | Self::NoFileName | Self::NoFileType => Response::builder()
                 .status(StatusCode::UNPROCESSABLE_ENTITY)
                 .body(self.to_string().into())
                 .expect("invalid response???"),
-            Self::Upload(error) => error.into_response(),
+            Self::Upload(error) => {
+                tracing::error!(
+                    cause = &error as &dyn Error,
+                    "couldn't communicate with the s3 server"
+                );
+                error.into_response()
+            }
         }
     }
 }

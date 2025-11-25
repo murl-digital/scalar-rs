@@ -1,3 +1,5 @@
+use std::error::Error;
+
 use axum::{
     extract::{FromRef, FromRequestParts, Path, State},
     http::{self, StatusCode},
@@ -158,6 +160,9 @@ impl<F: DatabaseFactory, S> FromRequestParts<S> for AuthenticatedConnection<F>
 where
     F: FromRef<S>,
     S: Send + Sync,
+    <F as scalar_cms::db::DatabaseFactory>::Error: 'static,
+    <<F as scalar_cms::db::DatabaseFactory>::Connection as scalar_cms::DatabaseConnection>::Error:
+        'static,
 {
     type Rejection = StatusCode;
 
@@ -178,7 +183,10 @@ where
             .ok_or(StatusCode::UNAUTHORIZED)??;
 
         let connection = db_factory.init().await.map_err(|e| {
-            println!("{e}");
+            tracing::error!(
+                cause = &e as &dyn Error,
+                "failed to init a database connection"
+            );
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
@@ -191,7 +199,11 @@ where
             .map_err(|e| match e {
                 scalar_cms::db::AuthenticationError::BadToken
                 | scalar_cms::db::AuthenticationError::BadCredentials => StatusCode::UNAUTHORIZED,
-                scalar_cms::db::AuthenticationError::DatabaseError(_) => {
+                scalar_cms::db::AuthenticationError::DatabaseError(e) => {
+                    tracing::error!(
+                        cause = &e as &dyn Error,
+                        "failed to authenticate connection"
+                    );
                     StatusCode::INTERNAL_SERVER_ERROR
                 }
             })?;
@@ -208,18 +220,29 @@ where
 pub async fn signin<F: DatabaseFactory + Clone>(
     State(factory): State<F>,
     Json(credentials): Json<Credentials>,
-) -> Result<String, StatusCode> {
+) -> Result<String, StatusCode>
+where
+    <F as scalar_cms::db::DatabaseFactory>::Error: 'static,
+    <<F as scalar_cms::db::DatabaseFactory>::Connection as scalar_cms::DatabaseConnection>::Error:
+        'static,
+{
     let connection = factory.init().await.map_err(|e| {
-        println!("{e}");
+        tracing::error!(
+            cause = &e as &dyn Error,
+            "failed to init a database connection"
+        );
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
 
-    println!("connection");
+    tracing::debug!("connection succesfully established");
 
     let token = connection.signin(credentials).await.map_err(|e| match e {
         scalar_cms::db::AuthenticationError::BadToken
         | scalar_cms::db::AuthenticationError::BadCredentials => StatusCode::UNAUTHORIZED,
-        scalar_cms::db::AuthenticationError::DatabaseError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+        scalar_cms::db::AuthenticationError::DatabaseError(e) => {
+            tracing::error!(cause = &e as &dyn Error, "failed to signin");
+            StatusCode::INTERNAL_SERVER_ERROR
+        }
     })?;
 
     Ok(token)
@@ -262,11 +285,18 @@ pub async fn update_draft<D: Document + Serialize + DeserializeOwned + Send, F: 
     AuthenticatedConnection(state): AuthenticatedConnection<F>,
     Path(id): Path<String>,
     Json(data): Json<serde_json::Value>,
-) -> Result<Json<Item<serde_json::Value>>, StatusCode> {
+) -> Result<Json<Item<serde_json::Value>>, StatusCode>
+where
+    <<F as scalar_cms::db::DatabaseFactory>::Connection as scalar_cms::DatabaseConnection>::Error:
+        'static,
+{
     Ok(Json(
         DatabaseConnection::draft::<D>(&state, &id, data)
             .await
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?,
+            .map_err(|e| {
+                tracing::error!(cause = &e as &dyn Error, "couldn't update draft");
+                StatusCode::INTERNAL_SERVER_ERROR
+            })?,
     ))
 }
 
@@ -282,7 +312,11 @@ pub async fn publish_doc<
     Path(id): Path<String>,
     AuthenticatedConnection(state): AuthenticatedConnection<F>,
     doc: Json<D>,
-) -> Result<(), StatusCode> {
+) -> Result<(), StatusCode>
+where
+    <<F as scalar_cms::db::DatabaseFactory>::Connection as scalar_cms::DatabaseConnection>::Error:
+        'static,
+{
     DatabaseConnection::publish(
         &state,
         &id,
@@ -290,7 +324,10 @@ pub async fn publish_doc<
         Valid::new(doc.0).map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?,
     )
     .await
-    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    .map_err(|e| {
+        tracing::error!(cause = &e as &dyn Error, "couldn't publish document");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
 
     Ok(())
 }
@@ -302,12 +339,15 @@ pub async fn publish_doc<
 /// This function will return an error if the database fails to get a document for whatever reason.
 pub async fn get_all_docs<D: Document + Serialize + DeserializeOwned + Send, F: DatabaseFactory>(
     AuthenticatedConnection(state): AuthenticatedConnection<F>,
-) -> Result<Json<Vec<Item<serde_json::Value>>>, StatusCode> {
-    let items = state
-        .inner()
-        .get_all::<D>()
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+) -> Result<Json<Vec<Item<serde_json::Value>>>, StatusCode>
+where
+    <<F as scalar_cms::db::DatabaseFactory>::Connection as scalar_cms::DatabaseConnection>::Error:
+        'static,
+{
+    let items = state.inner().get_all::<D>().await.map_err(|e| {
+        tracing::error!(cause = &e as &dyn Error, "couldn't get documents");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
 
     Ok(Json(items))
 }
@@ -317,18 +357,22 @@ pub async fn get_all_docs<D: Document + Serialize + DeserializeOwned + Send, F: 
 /// # Errors
 ///
 /// This function will return an error if the document isn't found, or some other database error occurs.
-pub async fn get_doc_by_id<
-    D: Document + Serialize + DeserializeOwned + Send,
-    F: DatabaseFactory,
->(
+pub async fn get_doc_by_id<D: Document + Serialize + DeserializeOwned + Send, F: DatabaseFactory>(
     AuthenticatedConnection(state): AuthenticatedConnection<F>,
     id: Path<String>,
-) -> Result<Json<Item<serde_json::Value>>, StatusCode> {
+) -> Result<Json<Item<serde_json::Value>>, StatusCode>
+where
+    <<F as scalar_cms::db::DatabaseFactory>::Connection as scalar_cms::DatabaseConnection>::Error:
+        'static,
+{
     state
         .inner()
         .get_by_id::<D>(id.as_str())
         .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .map_err(|e| {
+            tracing::error!(cause = &e as &dyn Error, "couldn't get document");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?
         .map(Json)
         .ok_or(StatusCode::NOT_FOUND)
 }

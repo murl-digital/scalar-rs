@@ -1,4 +1,5 @@
 use std::{
+    error::Error,
     sync::{Arc, Mutex},
     time::Duration,
 };
@@ -482,11 +483,23 @@ pub async fn complete_oidc_auth<
         .await
         .map_err(|e| match e {
             openidconnect::RequestTokenError::ServerResponse(e) => e.to_status_code(),
-            openidconnect::RequestTokenError::Request(_)
-            | openidconnect::RequestTokenError::Other(_) => {
+            openidconnect::RequestTokenError::Request(cause) => {
+                tracing::error!(cause = &cause as &dyn Error, "couldn't request token");
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR
+            }
+            openidconnect::RequestTokenError::Other(cause) => {
+                tracing::error!(
+                    cause = Box::<dyn Error>::from(cause),
+                    "couldn't request token"
+                );
                 axum::http::StatusCode::INTERNAL_SERVER_ERROR
             }
             openidconnect::RequestTokenError::Parse(error, items) => {
+                tracing::error!(
+                    cause = &error as &dyn Error,
+                    ?items,
+                    "couldn't parse response"
+                );
                 axum::http::StatusCode::BAD_REQUEST
             }
         })?;

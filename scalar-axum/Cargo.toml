@@ -23,6 +23,7 @@ tokio = "1"
 tokio-util = { version = "0.7.14", features = ["io"] }
 tokio-stream = "0.1.17"
 tower = "0.5.2"
+tracing = {workspace = true}
 
 [dev-dependencies]
 argon2 = "0.5.3"
