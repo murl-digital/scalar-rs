@@ -471,7 +471,7 @@ impl<C: Connection + Debug> SurrealConnection<C> {
 					admin: true,
 					email: $email,
 					name: $username,
-					oidc_subject: $subject
+					oidc_subject: $subject,
 					pfp_url: $pfp_url
 				});
 			}
