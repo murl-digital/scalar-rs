@@ -86,6 +86,12 @@ pub fn struct_to_editor_field(input: TokenStream) -> TokenStream {
         .take_struct()
         .expect("a compiler error should've been returned, this has to be a struct");
 
+    let component_key = if let Some(str) = struct_info.editor_component {
+        quote! { Some(#str.into()) }
+    } else {
+        quote! { None }
+    };
+
     match fields.style {
         darling::ast::Style::Tuple => {
             let field = fields
@@ -107,7 +113,7 @@ pub fn struct_to_editor_field(input: TokenStream) -> TokenStream {
                         Self: std::marker::Sized,
                     {
                         use ::scalar_cms::editor_field::ToEditorField;
-                        <#field_ty>::to_editor_field(default.map(Into::into), name, title, placeholder, validator, component_key)
+                        <#field_ty>::to_editor_field(default.map(Into::into), name, title, placeholder, validator, component_key.or(#component_key))
                     }
                 }
 
@@ -127,12 +133,6 @@ pub fn struct_to_editor_field(input: TokenStream) -> TokenStream {
 
             let (impl_generics, ty_generics, where_clause) = struct_info.generics.split_for_impl();
             let ty = quote! { #ident #ty_generics };
-
-            let component_key = if let Some(str) = struct_info.editor_component {
-                quote! { Some(#str.into()) }
-            } else {
-                quote! { None }
-            };
 
             quote! {
                 impl #impl_generics ::scalar_cms::editor_field::ToEditorField for #ty where #ty: ::serde::Serialize #where_clause {
