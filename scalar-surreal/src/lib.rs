@@ -212,7 +212,7 @@ impl<C: Connection + Debug> scalar_cms::DatabaseConnection for SurrealConnection
                     subject: user_info.subject(),
                     username: user_info.preferred_username().unwrap(),
                     email: user_info.email().unwrap(),
-                    pfp_url: user_info.picture().unwrap().get(None),
+                    pfp_url: user_info.picture().and_then(|p| p.get(None)),
                 },
             })
             .await
