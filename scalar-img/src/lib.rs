@@ -31,7 +31,7 @@ impl<D: ToEditorField + Validate> Validate for ImageData<D> {
     }
 }
 
-#[derive(EditorField, Serialize, Deserialize)]
+#[derive(EditorField, Debug, Serialize, Deserialize)]
 #[field(editor_component = "cropped-image")]
 /// A cropped image with additional data.
 /// The VALIDATE flag is a workaround for implementing traits in rust.
