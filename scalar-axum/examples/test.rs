@@ -56,7 +56,7 @@ fn string_test(string: impl AsRef<str>) -> Result<(), ValidationError> {
         ))
 }
 
-#[derive(Document, Serialize, Deserialize)]
+#[derive(Document, Debug, Serialize, Deserialize)]
 struct AllTypes {
     #[validate(skip)]
     bool: bool,
@@ -90,7 +90,7 @@ struct AllTypes {
     struct_test: StructTest,
 }
 
-#[derive(EditorField, Serialize, Deserialize)]
+#[derive(EditorField, Debug, Serialize, Deserialize)]
 struct StructTest {
     info: String,
 }
@@ -108,19 +108,19 @@ impl Validate for StructTest {
     }
 }
 
-#[derive(EditorField, Serialize, Deserialize)]
+#[derive(EditorField, Debug, Serialize, Deserialize)]
 struct ImageInner {
     info: String,
 }
 
-#[derive(Document, Serialize, Deserialize, Clone)]
+#[derive(Document, Debug, Serialize, Deserialize, Clone)]
 struct Test2 {
     #[validate(skip)]
     pub hello: String,
 }
 
 #[doc_enum]
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 enum TestEnum {
     Unit,
     Struct { eeee: String },

@@ -141,10 +141,13 @@ impl<C: Connection + Clone + Debug> DatabaseFactory for SurrealStore<C> {
 impl<C: Connection + Debug> scalar_cms::DatabaseConnection for SurrealConnection<C> {
     type Error = surrealdb::Error;
 
-    #[tracing::instrument(level = "debug", err)]
+    #[tracing::instrument(level = "debug", skip(jwt))]
     async fn authenticate(&self, jwt: &str) -> Result<User, AuthenticationError<Self::Error>> {
         self.inner.authenticate(jwt).await.map_err(|e| match e {
-            Error::Api(Api::Query(_)) => AuthenticationError::BadToken,
+            Error::Api(Api::Query(error)) => {
+                tracing::error!(error, "query error");
+                AuthenticationError::BadToken
+            }
             Error::Db(Db::InvalidAuth | Db::ExpiredToken | Db::ExpiredSession) => {
                 AuthenticationError::BadToken
             }
@@ -159,7 +162,7 @@ impl<C: Connection + Debug> scalar_cms::DatabaseConnection for SurrealConnection
         Ok(user.expect("user should be authenticated when this is called"))
     }
 
-    #[tracing::instrument(level = "debug", err)]
+    #[tracing::instrument(level = "debug")]
     async fn signin(
         &self,
         credentials: Credentials,
@@ -174,7 +177,10 @@ impl<C: Connection + Debug> scalar_cms::DatabaseConnection for SurrealConnection
             })
             .await
             .map_err(|e| match e {
-                Error::Api(Api::Query(_)) => AuthenticationError::BadCredentials,
+                Error::Api(Api::Query(error)) => {
+                    tracing::error!(error, "query error");
+                    AuthenticationError::BadCredentials
+                }
                 Error::Db(Db::InvalidAuth) => AuthenticationError::BadCredentials,
                 _ => e.into(),
             })?;
@@ -182,6 +188,7 @@ impl<C: Connection + Debug> scalar_cms::DatabaseConnection for SurrealConnection
         Ok(result.into_insecure_token())
     }
 
+    #[tracing::instrument(level = "debug")]
     async fn signin_oidc<AC: AdditionalClaims + Send + Sync, GC: GenderClaim + Send + Sync>(
         &self,
         user_info: &IdTokenClaims<AC, GC>,
@@ -207,7 +214,10 @@ impl<C: Connection + Debug> scalar_cms::DatabaseConnection for SurrealConnection
             })
             .await
             .map_err(|e| match e {
-                Error::Api(Api::Query(_)) => AuthenticationError::BadCredentials,
+                Error::Api(Api::Query(error)) => {
+                    tracing::error!(error, "query error");
+                    AuthenticationError::BadCredentials
+                }
                 Error::Db(Db::InvalidAuth) => AuthenticationError::BadCredentials,
                 _ => e.into(),
             })?;
@@ -215,7 +225,7 @@ impl<C: Connection + Debug> scalar_cms::DatabaseConnection for SurrealConnection
         Ok(result.into_insecure_token())
     }
 
-    #[tracing::instrument(level = "debug", err)]
+    #[tracing::instrument(level = "debug", err, skip(conn))]
     async fn draft<D: Document + Send>(
         conn: &Authenticated<Self>,
         id: &str,
@@ -259,7 +269,7 @@ impl<C: Connection + Debug> scalar_cms::DatabaseConnection for SurrealConnection
             .into())
     }
 
-    #[tracing::instrument(level = "debug", err)]
+    #[tracing::instrument(level = "debug", err, skip(conn))]
     async fn delete_draft<D: Document + Send + DeserializeOwned>(
         conn: &Authenticated<Self>,
         id: &str,
@@ -288,6 +298,7 @@ impl<C: Connection + Debug> scalar_cms::DatabaseConnection for SurrealConnection
         Ok(pre_delete)
     }
 
+    #[tracing::instrument(level = "debug", skip(conn))]
     async fn publish<D: Document + Send + Serialize + DeserializeOwned + 'static>(
         conn: &Authenticated<Self>,
         id: &str,

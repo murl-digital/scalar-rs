@@ -3,6 +3,8 @@ use std::{fmt::Display, sync::Arc};
 use serde::{Deserialize, Serialize};
 
 /// A wrapper type to indicate that the inner type is valid.
+#[derive(Debug, Serialize)]
+#[serde(transparent)]
 pub struct Valid<T: Validate>(T);
 
 impl<T: Validate> Valid<T> {
@@ -121,7 +123,7 @@ macro_rules! validator {
     };
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct NonZeroI32(pub i32);
 
 validator! {NonZeroI32, i32, {

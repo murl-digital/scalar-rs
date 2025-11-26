@@ -17,6 +17,7 @@ use url::Url;
 
 #[derive(EditorField, Serialize, Deserialize)]
 #[field(editor_component = "image")]
+#[derive(Debug)]
 pub struct ImageData<D: ToEditorField> {
     url: Url,
     additional_data: D,
@@ -91,7 +92,7 @@ impl<D: ToEditorField> Validate for CroppedImageData<D, false> {
     }
 }
 
-#[derive(EditorField, Serialize, Deserialize)]
+#[derive(EditorField, Debug, Serialize, Deserialize)]
 #[field(editor_component = "file")]
 pub struct FileData<D: ToEditorField> {
     url: Url,

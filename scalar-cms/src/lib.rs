@@ -40,7 +40,7 @@ pub struct DocInfo {
     pub title: &'static str,
 }
 
-pub trait Document: Validate {
+pub trait Document: Validate + Debug {
     const IDENTIFIER: &'static str;
     const TITLE: &'static str;
 

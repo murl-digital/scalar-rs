@@ -11,7 +11,7 @@ fn test_fnn(_field: &str) -> Result<(), ValidationError> {
     Ok(())
 }
 
-#[derive(Document, Serialize, Deserialize)]
+#[derive(Document, Debug, Serialize, Deserialize)]
 #[document(identifier = "mcdonalds sprite")]
 #[allow(dead_code)]
 struct Hello {
@@ -112,16 +112,17 @@ struct Hello {
 //     }
 // }
 
-#[derive(EditorField, Serialize, Deserialize)]
+#[derive(EditorField, Debug, Serialize, Deserialize)]
 struct Ghost(i32);
 
-#[derive(EditorField, Serialize, Deserialize)]
+#[derive(EditorField, Debug, Serialize, Deserialize)]
 struct LookAtThisStruct {
     every_time_i_do_it_makes_me_laugh: String,
     idk_how_the_rest_of_it_goes: f32,
 }
 
 #[doc_enum]
+#[derive(Debug)]
 enum Test {
     Unit,
     Struct { eeee: String },
