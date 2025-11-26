@@ -1,7 +1,8 @@
 use std::{borrow::Cow, fmt::Debug, ops::Deref};
 
 use openidconnect::{
-    AdditionalClaims, EndUserEmail, EndUserUsername, GenderClaim, IdTokenClaims, SubjectIdentifier,
+    AdditionalClaims, EndUserEmail, EndUserPictureUrl, EndUserUsername, GenderClaim, IdTokenClaims,
+    SubjectIdentifier,
 };
 use scalar_cms::{
     db::{Authenticated, AuthenticationError, Credentials, DatabaseFactory, User},
@@ -155,7 +156,7 @@ impl<C: Connection + Debug> scalar_cms::DatabaseConnection for SurrealConnection
         })?;
 
         let user: Option<User> = self
-            .query("SELECT *, string::concat(\"https://gravatar.com/avatar/\", crypto::sha256(email)) as profile_picture_url OMIT id, password FROM $auth")
+            .query("SELECT *, IF pfp_url = NONE {string::concat(\"https://gravatar.com/avatar/\", crypto::sha256(email))} ELSE {pfp_url} as profile_picture_url OMIT id, password FROM $auth")
             .await?
             .take(0)?;
 
@@ -194,10 +195,11 @@ impl<C: Connection + Debug> scalar_cms::DatabaseConnection for SurrealConnection
         user_info: &IdTokenClaims<AC, GC>,
     ) -> Result<String, AuthenticationError<Self::Error>> {
         #[derive(Serialize)]
-        struct OidcClaim {
-            oidc_subject: SubjectIdentifier,
-            oidc_username: EndUserUsername,
-            oidc_email: EndUserEmail,
+        struct OidcClaim<'a> {
+            subject: &'a SubjectIdentifier,
+            username: &'a EndUserUsername,
+            email: &'a EndUserEmail,
+            pfp_url: Option<&'a EndUserPictureUrl>,
         }
 
         let result = self
@@ -207,9 +209,10 @@ impl<C: Connection + Debug> scalar_cms::DatabaseConnection for SurrealConnection
                 database: &self.db,
                 access: "sc__editor",
                 params: OidcClaim {
-                    oidc_subject: user_info.subject().clone(),
-                    oidc_username: user_info.preferred_username().unwrap().clone(),
-                    oidc_email: user_info.email().unwrap().clone(),
+                    subject: user_info.subject(),
+                    username: user_info.preferred_username().unwrap(),
+                    email: user_info.email().unwrap(),
+                    pfp_url: user_info.picture().unwrap().get(None),
                 },
             })
             .await
@@ -454,20 +457,22 @@ impl<C: Connection + Debug> SurrealConnection<C> {
             .query("DEFINE FIELD IF NOT EXISTS password ON sc__editor TYPE option<string>;")
             .query("DEFINE FIELD IF NOT EXISTS admin ON sc__editor TYPE bool")
             .query("DEFINE FIELD IF NOT EXISTS oidc_subject ON sc__editor TYPE option<string>;")
+            .query("DEFINE FIELD IF NOT EXISTS pfp_url ON sc__editor TYPE option<string>;")
             .query("DEFINE INDEX IF NOT EXISTS email ON sc__editor FIELDS email UNIQUE;")
             .query("DEFINE INDEX IF NOT EXISTS oidc_subject ON sc__editor FIELDS oidc_subject UNIQUE;")
             .query("DEFINE ACCESS OVERWRITE sc__editor ON DATABASE TYPE RECORD SIGNIN (RETURN IF $oidc_subject != NONE
 	{
 
-		LET $intermediate_query = (SELECT * FROM sc__editor WHERE oidc_subject = $oidc_subject);
+		LET $intermediate_query = (SELECT * FROM sc__editor WHERE oidc_subject = $subject);
 
 		IF $intermediate_query = []
 			{
 				RETURN (INSERT INTO sc__editor {
 					admin: true,
-					email: $oidc_email,
-					name: $oidc_username,
-					oidc_subject: $oidc_subject
+					email: $email,
+					name: $username,
+					oidc_subject: $subject
+					pfp_url: $pfp_url
 				});
 			}
 		ELSE
