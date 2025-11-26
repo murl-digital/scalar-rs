@@ -152,7 +152,7 @@ impl<C: Connection + Debug> scalar_cms::DatabaseConnection for SurrealConnection
         })?;
 
         let user: Option<User> = self
-            .query("SELECT *, crypto::sha256(email) as profile_picture_url OMIT id, password FROM $auth")
+            .query("SELECT *, string::concat(\"https://gravatar.com/avatar/\", crypto::sha256(email)) as profile_picture_url OMIT id, password FROM $auth")
             .await?
             .take(0)?;
 
