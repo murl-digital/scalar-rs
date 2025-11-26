@@ -460,7 +460,7 @@ impl<C: Connection + Debug> SurrealConnection<C> {
             .query("DEFINE FIELD IF NOT EXISTS pfp_url ON sc__editor TYPE option<string>;")
             .query("DEFINE INDEX IF NOT EXISTS email ON sc__editor FIELDS email UNIQUE;")
             .query("DEFINE INDEX IF NOT EXISTS oidc_subject ON sc__editor FIELDS oidc_subject UNIQUE;")
-            .query("DEFINE ACCESS OVERWRITE sc__editor ON DATABASE TYPE RECORD SIGNIN (RETURN IF $oidc_subject != NONE
+            .query("DEFINE ACCESS OVERWRITE sc__editor ON DATABASE TYPE RECORD SIGNIN (RETURN IF $subject != NONE
 	{
 
 		LET $intermediate_query = (SELECT * FROM sc__editor WHERE oidc_subject = $subject);
