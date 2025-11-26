@@ -7,7 +7,7 @@ use image_hasher::HasherConfig;
 use s3::Bucket;
 use scalar_cms::{
     editor_field::ToEditorField,
-    validations::{ErroredField, Field, Validate, ValidationError},
+    validations::{ErroredField, Validate, ValidationError},
     EditorField,
 };
 use serde::{Deserialize, Serialize};
