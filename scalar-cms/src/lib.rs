@@ -30,6 +30,7 @@ use validations::Validate;
 pub struct Schema {
     identifier: &'static str,
     title: &'static str,
+    singleton: bool,
     fields: &'static [EditorField],
 }
 
@@ -43,6 +44,7 @@ pub struct DocInfo {
 pub trait Document: Validate + Debug {
     const IDENTIFIER: &'static str;
     const TITLE: &'static str;
+    const SINGLETON: bool;
 
     fn fields() -> &'static [EditorField];
     #[must_use]
@@ -50,6 +52,7 @@ pub trait Document: Validate + Debug {
         Schema {
             identifier: Self::IDENTIFIER,
             title: Self::TITLE,
+            singleton: Self::SINGLETON,
             fields: Self::fields(),
         }
     }

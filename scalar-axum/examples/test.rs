@@ -22,7 +22,7 @@ use scalar_cms::{
     validations::{ErroredField, Field, Validate, ValidationError},
     DateTime, Document, EditorField, NaiveDate, Utc,
 };
-use scalar_img::{FileData, ImageData, WrappedBucket};
+use scalar_img::{CroppedImage, FileData, ImageData, WrappedBucket};
 use serde::{Deserialize, Serialize};
 use tower_http::{
     cors::CorsLayer,
@@ -84,6 +84,7 @@ struct AllTypes {
     color_alpha: RGBA8,
     #[validate(skip)]
     image: ImageData<ImageInner>,
+    cropped_image: CroppedImage,
     #[validate(skip)]
     file: FileData<()>,
     enum_select: TestEnum,
@@ -114,6 +115,7 @@ struct ImageInner {
 }
 
 #[derive(Document, Debug, Serialize, Deserialize, Clone)]
+#[document(singleton)]
 struct Test2 {
     #[validate(skip)]
     pub hello: String,

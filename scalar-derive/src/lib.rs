@@ -9,6 +9,7 @@ use syn::{parse_macro_input, Data, DeriveInput, Ident};
 struct Document {
     identifier: Option<String>,
     title: Option<String>,
+    singleton: Flag,
 }
 
 #[derive(FromDeriveInput)]
@@ -243,18 +244,11 @@ pub fn derive_document(input: TokenStream) -> TokenStream {
         .identifier
         .unwrap_or_else(|| ident.to_string().to_case(convert_case::Case::Snake));
 
-    let doc_identifier_ts = quote! {
-        const IDENTIFIER: &'static str = #doc_identifier;
-    };
-
     let doc_title = document
         .title
         .unwrap_or_else(|| ident.to_string().to_case(convert_case::Case::Title));
 
-    let doc_title_ts = quote! {
-        const TITLE: &'static str = #doc_title;
-
-    };
+    let singleton = document.singleton.is_present();
 
     let struct_field_infos = match struct_fields
         .iter()
@@ -303,9 +297,9 @@ pub fn derive_document(input: TokenStream) -> TokenStream {
     let output = quote! {
         #[automatically_derived]
         impl Document for #ident {
-            #doc_identifier_ts
-
-            #doc_title_ts
+            const IDENTIFIER: &'static str = #doc_identifier;
+            const TITLE: &'static str = #doc_title;
+            const SINGLETON: bool = #singleton;
 
             fn fields() -> &'static [::scalar_cms::EditorField] {
                 use ::scalar_cms::editor_field::ToEditorField;
