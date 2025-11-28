@@ -426,7 +426,15 @@ impl<C: Connection + Debug> scalar_cms::DatabaseConnection for SurrealConnection
 }
 
 impl<C: Connection + Debug> SurrealConnection<C> {
+    /// Initializes data for a given doc. Most of the time,
+    /// this should be a completely safe operation.
+    ///
+    /// # Panics
+    ///
+    /// Panics if initialization fails.
+    #[tracing::instrument(level = "info", fields(doc = D::IDENTIFIER))]
     pub async fn init_doc<D: Document>(&self) {
+        tracing::info!("initializing database table");
         let published_table = D::IDENTIFIER;
         let draft_table = format!("{published_table}_draft");
         let meta_table = format!("{published_table}_meta");
@@ -447,9 +455,17 @@ impl<C: Connection + Debug> SurrealConnection<C> {
             .query(format!("DEFINE FUNCTION fn::{published_table}_public() {{ RETURN SELECT * FROM {published_table} WHERE published_at < time::now() }}"))
             .await
             .unwrap_or_else(|e| panic!("setting up tables for {published_table} failed: {e}"));
+        tracing::info!("done");
     }
 
+    /// Initializies auth for this database. This is usually an operation that's safe to autoamtically
+    /// run at startup.
+    ///
+    /// # Panics
+    ///
+    /// Panics if initialization fails.
     pub async fn init_auth(&self) {
+        tracing::info!("setting up auth..");
         self
             .query("DEFINE TABLE OVERWRITE sc__editor SCHEMAFULL PERMISSIONS FOR select, update, delete WHERE id = $auth.id OR $auth.admin = true FOR create WHERE $auth.admin = true")
             .query("DEFINE FIELD IF NOT EXISTS name ON sc__editor TYPE string")
@@ -487,6 +503,7 @@ impl<C: Connection + Debug> SurrealConnection<C> {
 		RETURN (SELECT * FROM sc__editor WHERE email = $email AND crypto::argon2::compare(password, $password));
 	}
             )").await.expect("auth setup failed");
+        tracing::info!("done");
     }
 }
 
