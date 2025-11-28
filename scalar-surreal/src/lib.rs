@@ -456,7 +456,7 @@ impl<C: Connection + Debug> SurrealConnection<C> {
             .query(format!("DEFINE FIELD IF NOT EXISTS modified_at ON {meta_table} TYPE datetime"))
             .query(format!("DEFINE FIELD IF NOT EXISTS draft ON {meta_table} TYPE option<record<{draft_table}>>"))
             .query(format!("DEFINE FIELD IF NOT EXISTS published ON {meta_table} TYPE option<record<{published_table}>>"))
-            .query(format!("DEFINE FUNCTION fn::{published_table}_public() {{ RETURN SELECT * FROM {published_table} WHERE published_at < time::now() }}"))
+            .query(format!("DEFINE FUNCTION fn::{published_table}_public() {{ RETURN (array::map(SELECT inner FROM {published_table} WHERE published_at < time::now(), |$v| $v.inner)) }}"))
             .await
             .unwrap_or_else(|e| panic!("setting up tables for {published_table} failed: {e}"));
         tracing::info!("done");
