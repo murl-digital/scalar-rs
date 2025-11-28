@@ -1,4 +1,7 @@
-use std::io::Cursor;
+use std::{
+    any::{Any, TypeId},
+    io::Cursor,
+};
 
 use base64_url::escape_in_place;
 use bytes::Bytes;
@@ -10,10 +13,41 @@ use scalar_cms::{
     validations::{ErroredField, Validate, ValidationError},
     EditorField,
 };
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use thiserror::Error;
 use tokio::io::AsyncRead;
 use url::Url;
+
+/// Indicates no data (similar to the unit type ())
+/// This exists for the sole purpose of thwarting databases that trim
+/// null field types.
+#[derive(Serialize, Deserialize, Default)]
+pub struct Null([(); 0]);
+
+impl ToEditorField for Null {
+    fn to_editor_field(
+        _default: Option<impl Into<Self>>,
+        name: &'static str,
+        title: &'static str,
+        placeholder: Option<&'static str>,
+        validator: Option<&'static str>,
+        component_key: Option<&'static str>,
+    ) -> EditorField
+    where
+        Self: std::marker::Sized,
+    {
+        EditorField {
+            name,
+            title,
+            placeholder,
+            required: true,
+            validator,
+            field_type: scalar_cms::EditorType::Null {
+                component_key: component_key.map(Into::into),
+            },
+        }
+    }
+}
 
 #[derive(EditorField, Serialize, Deserialize)]
 #[field(editor_component = "image")]
@@ -23,7 +57,7 @@ pub struct ImageData<D: ToEditorField> {
     pub additional_data: D,
 }
 
-pub type Image = ImageData<()>;
+pub type Image = ImageData<Null>;
 
 impl<D: ToEditorField + Validate> Validate for ImageData<D> {
     fn validate(&self) -> Result<(), scalar_cms::validations::ValidationError> {
@@ -42,7 +76,7 @@ pub struct CroppedImageData<D: ToEditorField, const VALIDATE: bool = true> {
     pub additional_data: D,
 }
 
-pub type CroppedImage = CroppedImageData<(), false>;
+pub type CroppedImage = CroppedImageData<Null, false>;
 
 impl<const VALIDATE: bool, D: ToEditorField> CroppedImageData<D, VALIDATE> {
     #[inline]
@@ -99,7 +133,7 @@ pub struct FileData<D: ToEditorField> {
     pub additional_data: D,
 }
 
-pub type File = FileData<()>;
+pub type File = FileData<Null>;
 
 impl<D: ToEditorField + Validate> Validate for FileData<D> {
     fn validate(&self) -> Result<(), scalar_cms::validations::ValidationError> {

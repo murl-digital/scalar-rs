@@ -6,11 +6,22 @@ use axum::{
     Json, Router,
 };
 use s3::{creds::Credentials, Bucket};
-use scalar_img::{Image, WrappedBucket};
+use scalar_cms::serde_json;
+use scalar_img::{Image, Null, WrappedBucket};
 use tokio::net::TcpListener;
+use url::Url;
 
 #[tokio::main]
 async fn main() {
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&Image {
+            url: Url::parse("http://localhost").unwrap(),
+            additional_data: Null::default(),
+        })
+        .unwrap()
+    );
+
     let mut bucket = Bucket::new(
         "dev",
         s3::Region::Custom {
