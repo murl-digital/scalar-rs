@@ -71,8 +71,14 @@ impl Validate for Slug {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Default)]
+#[derive(Serialize, Deserialize, Debug)]
 #[serde(default)]
 pub struct Toggle<T: ToEditorField>(pub Option<T>);
+
+impl<T: ToEditorField> Default for Toggle<T> {
+    fn default() -> Self {
+        Self(Option::default())
+    }
+}
 
 deref!(generic Toggle > Option<T>);
