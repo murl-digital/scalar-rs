@@ -21,7 +21,7 @@ use url::Url;
 /// Indicates no data (similar to the unit type ())
 /// This exists for the sole purpose of thwarting databases that trim
 /// null field types.
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize, Default, Debug)]
 pub struct Null([(); 0]);
 
 impl ToEditorField for Null {
