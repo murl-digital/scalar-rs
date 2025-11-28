@@ -22,6 +22,21 @@ macro_rules! deref {
             }
         }
     };
+
+    (generic $ty:ident > $target:ty) => {
+        impl<T: ToEditorField> Deref for $ty<T> {
+            type Target = $target;
+
+            fn deref(&self) -> &Self::Target {
+                &self.0
+            }
+        }
+        impl<T: ToEditorField> DerefMut for $ty<T> {
+            fn deref_mut(&mut self) -> &mut Self::Target {
+                &mut self.0
+            }
+        }
+    };
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -56,5 +71,8 @@ impl Validate for Slug {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
+#[serde(default)]
 pub struct Toggle<T: ToEditorField>(pub Option<T>);
+
+deref!(generic Toggle > Option<T>);
