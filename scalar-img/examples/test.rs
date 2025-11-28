@@ -6,7 +6,7 @@ use axum::{
     Json, Router,
 };
 use s3::{creds::Credentials, Bucket};
-use scalar_img::WrappedBucket;
+use scalar_img::{Image, WrappedBucket};
 use tokio::net::TcpListener;
 
 #[tokio::main]

@@ -309,12 +309,14 @@ impl<C: Connection + Debug> scalar_cms::DatabaseConnection for SurrealConnection
         data: Valid<D>,
     ) -> Result<Item<D>, Self::Error> {
         #[derive(Serialize)]
-        struct Bindings<'a, D> {
+        struct Bindings<'a> {
             doc: Cow<'a, str>,
             id: Cow<'a, str>,
             publish_at: Option<DateTime<Utc>>,
-            inner: D,
+            inner: serde_json::Value,
         }
+
+        let data = data.inner();
 
         let mut result = conn.inner()
             .query("LET $published_id = type::thing($doc, $id)")
@@ -332,12 +334,14 @@ impl<C: Connection + Debug> scalar_cms::DatabaseConnection for SurrealConnection
                 published.published_at AS published_at
             FROM $meta_id
             FETCH draft, published",
-            ).bind(Bindings::<D> {
+            ).bind(Bindings {
                 doc: D::IDENTIFIER.into(),
                 id: id.to_owned().into(),
                 publish_at,
-                inner: data.inner()
+                inner: serde_json::to_value(&data).expect("whuh")
             }).await?;
+
+        println!("{:?}", surrealdb::value::to_value(data));
 
         let thingy: Option<SurrealItem<D>> = result.take(6).expect("this should always succeed");
 

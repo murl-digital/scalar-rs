@@ -19,8 +19,8 @@ use url::Url;
 #[field(editor_component = "image")]
 #[derive(Debug)]
 pub struct ImageData<D: ToEditorField> {
-    url: Url,
-    additional_data: D,
+    pub url: Url,
+    pub additional_data: D,
 }
 
 pub type Image = ImageData<()>;
@@ -36,10 +36,10 @@ impl<D: ToEditorField + Validate> Validate for ImageData<D> {
 /// A cropped image with additional data.
 /// The VALIDATE flag is a workaround for implementing traits in rust.
 pub struct CroppedImageData<D: ToEditorField, const VALIDATE: bool = true> {
-    url: Url,
-    gravity_x: f32,
-    gravity_y: f32,
-    additional_data: D,
+    pub url: Url,
+    pub gravity_x: f32,
+    pub gravity_y: f32,
+    pub additional_data: D,
 }
 
 pub type CroppedImage = CroppedImageData<(), false>;
@@ -95,8 +95,8 @@ impl<D: ToEditorField> Validate for CroppedImageData<D, false> {
 #[derive(EditorField, Debug, Serialize, Deserialize)]
 #[field(editor_component = "file")]
 pub struct FileData<D: ToEditorField> {
-    url: Url,
-    additional_data: D,
+    pub url: Url,
+    pub additional_data: D,
 }
 
 pub type File = FileData<()>;
