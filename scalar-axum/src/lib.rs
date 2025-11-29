@@ -16,6 +16,7 @@ use serde::{de::DeserializeOwned, Serialize};
 pub mod expire_map;
 #[cfg(feature = "img")]
 pub mod img;
+#[cfg(feature = "oidc")]
 pub mod oidc;
 
 pub struct ValidationFailiure(pub ValidationError);
@@ -112,6 +113,7 @@ macro_rules! validate_routes__ {
 }
 
 #[macro_export]
+#[cfg(feature = "oidc")]
 macro_rules! generate_routes {
     ({ db: $db:ty }, [$($doc:ty),+]) => {
         {
@@ -149,6 +151,35 @@ macro_rules! generate_routes {
             router = router.route("/signin/oidc", ::axum::routing::get(::scalar_axum::oidc::begin_oidc_auth::<_, _, _, _, _, _, _, _, _, _, _, _, _, _, $oidc, $response_type>));
             router = router.route("/signin/oidc/is_auto", ::axum::routing::get(is_auto));
             router = router.route("/signin/oidc/complete", ::axum::routing::get(::scalar_axum::oidc::complete_oidc_auth::<_, _, _, _, _, _, _, _, _, _, _, _, _, _, $oidc, $response_type, $db>));
+            router
+        }
+    };
+}
+
+#[macro_export]
+#[cfg(not(feature = "oidc"))]
+macro_rules! generate_routes {
+    ({ db: $db:ty }, [$($doc:ty),+]) => {
+        {
+            let mut router = ::axum::Router::new();
+            ::scalar_axum::crud_routes__!(router, $db, $($doc),+);
+            ::scalar_axum::publish_routes__!(router, $db, $($doc),+);
+            async fn get_docs() -> ::axum::Json<Vec<::scalar_cms::DocInfo>> {
+                ::axum::Json(vec![
+                    $(::scalar_cms::DocInfo {
+                        identifier: <$doc>::IDENTIFIER,
+                        title: <$doc>::TITLE
+                    }),+
+                ])
+            }
+            router = router.route("/docs", ::axum::routing::get(get_docs));
+
+            router = router.route("/me", ::axum::routing::get(::scalar_axum::me::<$db>));
+            router = ::scalar_axum::add_image_routes__::<_, $db>(router);
+            router = router.route("/signin", ::axum::routing::post(::scalar_axum::signin::<$db>));
+
+            ::scalar_axum::validate_routes__!(router, $($doc),+);
+
             router
         }
     };

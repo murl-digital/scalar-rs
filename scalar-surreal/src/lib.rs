@@ -1,5 +1,6 @@
 use std::{borrow::Cow, fmt::Debug, ops::Deref};
 
+#[cfg(feature = "oidc")]
 use openidconnect::{
     AdditionalClaims, EndUserEmail, EndUserPictureUrl, EndUserUsername, GenderClaim, IdTokenClaims,
     SubjectIdentifier,
@@ -190,6 +191,7 @@ impl<C: Connection + Debug> scalar_cms::DatabaseConnection for SurrealConnection
     }
 
     #[tracing::instrument(level = "debug")]
+    #[cfg(feature = "oidc")]
     async fn signin_oidc<AC: AdditionalClaims + Send + Sync, GC: GenderClaim + Send + Sync>(
         &self,
         user_info: &IdTokenClaims<AC, GC>,

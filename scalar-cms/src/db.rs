@@ -2,7 +2,6 @@ use std::fmt::Debug;
 use std::{error::Error, sync::Arc};
 
 use chrono::{DateTime, Utc};
-use openidconnect::{AdditionalClaims, GenderClaim, IdTokenClaims};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use thiserror::Error;
 
@@ -133,9 +132,13 @@ pub trait DatabaseConnection {
         &self,
         credentials: Credentials,
     ) -> Result<String, AuthenticationError<Self::Error>>;
-    async fn signin_oidc<AC: AdditionalClaims + Send + Sync, GC: GenderClaim + Send + Sync>(
+    #[cfg(feature = "oidc")]
+    async fn signin_oidc<
+        AC: openidconnect::AdditionalClaims + Send + Sync,
+        GC: openidconnect::GenderClaim + Send + Sync,
+    >(
         &self,
-        user_info: &IdTokenClaims<AC, GC>,
+        user_info: &openidconnect::IdTokenClaims<AC, GC>,
     ) -> Result<String, AuthenticationError<Self::Error>>;
 
     async fn draft<D: Document + Send>(

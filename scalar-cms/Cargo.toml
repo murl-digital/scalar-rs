@@ -15,7 +15,7 @@ scalar-derive = { version = "0.1.0", path = "../scalar-derive" }
 # serde = {workspace = true}
 serde_json = {workspace = true}
 serde = { workspace = true, features = ["derive", "rc"] }
-openidconnect = {workspace = true, default-features = false}
+openidconnect = {workspace = true, default-features = false, optional = true}
 thiserror = {workspace = true}
 tracing = {workspace = true}
 trait-variant = "0.1"
@@ -25,6 +25,9 @@ url = { workspace = true, optional = true, features = ["serde"] }
 [features]
 url = ["dep:url"]
 rgb = ["dep:rgb"]
+oidc = [
+    "dep:openidconnect"
+]
 
 [[example]]
 name = "hello_world"

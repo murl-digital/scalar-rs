@@ -171,6 +171,7 @@ where
     }
 
     #[tracing::instrument(level = "debug", err)]
+    #[cfg(feature = "oidc")]
     async fn signin_oidc<AC: AdditionalClaims + Send + Sync, GC: GenderClaim + Send + Sync>(
         &self,
         claims: &IdTokenClaims<AC, GC>,

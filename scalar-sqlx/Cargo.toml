@@ -5,6 +5,7 @@ edition = "2024"
 
 [features]
 sqlite = ["sqlx/sqlite"]
+oidc = ["scalar-cms/oidc"]
 
 [dependencies]
 argon2 = {version = "0.5.3", features = ["std"]}
