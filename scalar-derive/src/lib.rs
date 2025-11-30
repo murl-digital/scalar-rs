@@ -334,10 +334,12 @@ pub fn derive_document(input: TokenStream) -> TokenStream {
 fn field_to_info_call(field: FieldInfo) -> proc_macro2::TokenStream {
     let ty = field.ty;
 
-    let ident = field
+    let raw_ident = field
         .ident
         .map(|i| i.to_string())
         .expect("this shouldn't be a tuple struct!!!!");
+    // serde trims r# from the start of idents, we're doing the same here.
+    let ident = raw_ident.trim_start_matches("r#");
     let title = field
         .title
         .unwrap_or(ident.to_case(convert_case::Case::Title));
