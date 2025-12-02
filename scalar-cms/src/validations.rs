@@ -128,7 +128,7 @@ pub struct NonZeroI32(pub i32);
 
 validator! {NonZeroI32, i32, {
     match v.0 {
-        0 => Ok(()),
-        _ => Err(ValidationError::Single("value must not be zero".into())),
+        0 => Err(ValidationError::Single("value must not be zero".into())),
+        _ => Ok(()),
     }
 }, v}
