@@ -65,8 +65,10 @@ struct AllTypes {
     #[validate(with = float_test)]
     float: f32,
     #[validate(with = string_test)]
+    #[field(label)]
     single_line: String,
     #[validate(skip)]
+    #[field(sublabel)]
     multi_line: MultiLine,
     #[validate(skip)]
     markdown: Markdown,

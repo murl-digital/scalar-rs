@@ -43,6 +43,8 @@ struct FieldInfo {
     placeholder: Option<String>,
     editor_component: Option<String>,
     default: Option<syn::Lit>,
+    label: Flag,
+    sublabel: Flag,
 }
 
 #[derive(FromField, Clone)]
@@ -259,6 +261,74 @@ pub fn derive_document(input: TokenStream) -> TokenStream {
         Err(e) => return TokenStream::from(e.write_errors()),
     };
 
+    let document_label = match struct_field_infos
+        .iter()
+        .filter(|f| f.label.is_present())
+        .collect::<Vec<_>>()
+        .as_slice()
+    {
+        [] => None,
+        [one] => Some(cleanup_ident(
+            one.ident
+                .as_ref()
+                .expect("this shouldn't be a tuple struct!!"),
+        )),
+        [head, tail @ ..] => {
+            return tail
+                .iter()
+                .fold(
+                    syn::Error::new(
+                        head.label.span(),
+                        "only one field can be defined as the label",
+                    ),
+                    |mut error, field| {
+                        error.combine(syn::Error::new(
+                            field.label.span(),
+                            "only one field can be defined as the label",
+                        ));
+                        error
+                    },
+                )
+                .into_compile_error()
+                .into()
+        }
+    }
+    .map_or(quote! { None }, |lit| quote! {Some(#lit)});
+
+    let document_sub_label = match struct_field_infos
+        .iter()
+        .filter(|f| f.sublabel.is_present())
+        .collect::<Vec<_>>()
+        .as_slice()
+    {
+        [] => None,
+        [one] => Some(cleanup_ident(
+            one.ident
+                .as_ref()
+                .expect("this shouldn't be a tuple struct!!"),
+        )),
+        [head, tail @ ..] => {
+            return tail
+                .iter()
+                .fold(
+                    syn::Error::new(
+                        head.sublabel.span(),
+                        "only one field can be defined as the sub label",
+                    ),
+                    |mut error, field| {
+                        error.combine(syn::Error::new(
+                            field.sublabel.span(),
+                            "only one field can be defined as the sub label",
+                        ));
+                        error
+                    },
+                )
+                .into_compile_error()
+                .into()
+        }
+    }
+    .map_or(quote! { None }, |lit| quote! {Some(#lit)});
+
     let struct_validators = match struct_fields
         .iter()
         .map(ValidateInfo::from_field)
@@ -299,6 +369,8 @@ pub fn derive_document(input: TokenStream) -> TokenStream {
         impl Document for #ident {
             const IDENTIFIER: &'static str = #doc_identifier;
             const TITLE: &'static str = #doc_title;
+            const LABEL: Option<&'static str> = #document_label;
+            const SUB_LABEL: Option<&'static str> = #document_sub_label;
             const SINGLETON: bool = #singleton;
 
             fn fields() -> &'static [::scalar_cms::EditorField] {
@@ -334,12 +406,10 @@ pub fn derive_document(input: TokenStream) -> TokenStream {
 fn field_to_info_call(field: FieldInfo) -> proc_macro2::TokenStream {
     let ty = field.ty;
 
-    let raw_ident = field
+    let ident = field
         .ident
-        .map(|i| i.to_string())
+        .map(|i| cleanup_ident(&i))
         .expect("this shouldn't be a tuple struct!!!!");
-    // serde trims r# from the start of idents, we're doing the same here.
-    let ident = raw_ident.trim_start_matches("r#");
     let title = field
         .title
         .unwrap_or(ident.to_case(convert_case::Case::Title));
@@ -368,4 +438,9 @@ fn field_to_info_call(field: FieldInfo) -> proc_macro2::TokenStream {
     quote! {
         <#ty as ::scalar_cms::editor_field::ToEditorField>::to_editor_field(#default, #ident, #title, #placeholder, None, #component_key)
     }
+}
+
+/// cleans up idents which may start with r#, same as serde
+fn cleanup_ident(ident: &Ident) -> String {
+    ident.to_string().trim_start_matches("r#").to_string()
 }

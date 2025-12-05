@@ -17,7 +17,7 @@ oidc = [
 axum = "0.8"
 rgb = { version = "0.8", features = ["serde"] }
 scalar-cms = { version = "0.1.0", path = "../scalar-cms", features = ["rgb"] }
-scalar-img = { version = "0.1.0", path = "../scalar-img", optional = true }
+scalar-img = { version = "0.1.0", path = "../scalar-img", optional = true, features = ["s3"] }
 openidconnect = {workspace = true, optional = true}
 reqwest = "0.12"
 thiserror = "2"
@@ -35,7 +35,7 @@ rust-s3 = "0.37"
 axum = { version = "0.8", features = ["multipart", "http2"] }
 axum-macros = "0.5"
 scalar-img = { path = "../scalar-img" }
-scalar-surreal = { path = "../scalar-surreal" }
+scalar-surreal = { path = "../scalar-surreal", features = ["oidc"] }
 surrealdb = { version = "2" }
 tokio = { version = "1", features = ["rt-multi-thread", "fs"] }
 tower-http = { version = "0.5", features = ["cors", "fs"] }

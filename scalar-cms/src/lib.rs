@@ -31,6 +31,8 @@ pub struct Schema {
     identifier: &'static str,
     title: &'static str,
     singleton: bool,
+    label: Option<&'static str>,
+    sub_label: Option<&'static str>,
     fields: &'static [EditorField],
 }
 
@@ -44,6 +46,8 @@ pub struct DocInfo {
 pub trait Document: Validate + Debug {
     const IDENTIFIER: &'static str;
     const TITLE: &'static str;
+    const LABEL: Option<&'static str>;
+    const SUB_LABEL: Option<&'static str>;
     const SINGLETON: bool;
 
     fn fields() -> &'static [EditorField];
@@ -52,6 +56,8 @@ pub trait Document: Validate + Debug {
         Schema {
             identifier: Self::IDENTIFIER,
             title: Self::TITLE,
+            label: Self::LABEL,
+            sub_label: Self::SUB_LABEL,
             singleton: Self::SINGLETON,
             fields: Self::fields(),
         }
