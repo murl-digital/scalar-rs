@@ -157,6 +157,10 @@ pub trait DatabaseConnection {
         publish_at: Option<DateTime<Utc>>,
         data: Valid<D>,
     ) -> Result<Item<D>, Self::Error>;
+    async fn unpublish<D: Document + Send + Serialize + DeserializeOwned + 'static>(
+        conn: &Authenticated<Self>,
+        id: &str,
+    ) -> Result<Option<D>, Self::Error>;
 
     async fn put<D: Document + Serialize + DeserializeOwned + Send + Debug + 'static>(
         conn: &Authenticated<Self>,
@@ -165,7 +169,7 @@ pub trait DatabaseConnection {
     async fn delete<D: Document + Send + Debug>(
         conn: &Authenticated<Self>,
         id: &str,
-    ) -> Result<Item<D>, Self::Error>;
+    ) -> Result<Option<Item<serde_json::Value>>, Self::Error>;
     async fn get_all<D: Document + DeserializeOwned + Send>(
         &self,
     ) -> Result<Vec<Item<serde_json::Value>>, Self::Error>;

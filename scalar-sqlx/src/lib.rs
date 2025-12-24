@@ -277,6 +277,13 @@ where
         //     .into())
     }
 
+    async fn unpublish<D: Document + Send + 'static>(
+        conn: &Authenticated<Self>,
+        id: &str,
+    ) -> Result<Option<D>, Self::Error> {
+        todo!()
+    }
+
     #[tracing::instrument(level = "debug", err)]
     async fn put<D: Document + Send + Debug + 'static>(
         conn: &Authenticated<Self>,
@@ -297,7 +304,7 @@ where
     async fn delete<D: Document + Send + Debug>(
         conn: &Authenticated<Self>,
         id: &str,
-    ) -> Result<Item<D>, Self::Error> {
+    ) -> Result<Option<Item<serde_json::Value>>, Self::Error> {
         todo!()
     }
 

@@ -9,9 +9,9 @@ use axum::{
 use scalar_cms::{
     db::{Authenticated, Credentials, DatabaseFactory, User},
     validations::{Valid, ValidationError},
-    DatabaseConnection, Document, Item, Schema,
+    DatabaseConnection, DateTime, Document, Item, Schema, Utc,
 };
-use serde::{de::DeserializeOwned, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 pub mod expire_map;
 #[cfg(feature = "img")]
@@ -72,11 +72,14 @@ pub fn add_image_routes__<
 macro_rules! crud_routes__ {
     ($router:ident, $db:ty, $doc:ty) => {
         let path = format!("/docs/{}", <$doc>::IDENTIFIER);
-        let drafts_path = format!("{path}/drafts/{{id}}");
+        let id_path = format!("{path}/{{id}}");
+        let drafts_path = format!("{id_path}/drafts");
         $router = $router
             .route(&path, ::axum::routing::get(::scalar_axum::get_all_docs::<$doc, $db>))
-            .route(&format!("{path}/{{id}}"), ::axum::routing::get(::scalar_axum::get_doc_by_id::<$doc, $db>))
+            .route(&id_path, ::axum::routing::get(::scalar_axum::get_doc_by_id::<$doc, $db>))
             .route(&drafts_path, ::axum::routing::put(::scalar_axum::update_draft::<$doc, $db>))
+            .route(&drafts_path, ::axum::routing::delete(::scalar_axum::delete_draft::<$doc, $db>))
+            .route(&id_path, ::axum::routing::delete(::scalar_axum::delete_doc::<$doc, $db>))
             .route(&format!("{path}/schema"), ::axum::routing::get(::scalar_axum::get_schema::<$doc>));
     };
 
@@ -89,9 +92,10 @@ macro_rules! crud_routes__ {
 #[doc(hidden)]
 macro_rules! publish_routes__ {
     ($router:ident, $db:ty, $doc:ty) => {
-        let path = format!("/docs/{}", <$doc>::IDENTIFIER);
+        let path = format!("/docs/{}/{{id}}/publish", <$doc>::IDENTIFIER);
         $router = $router
-            .route(&format!("{path}/{{id}}/publish"), ::axum::routing::post(::scalar_axum::publish_doc::<$doc, $db>));
+            .route(&path, ::axum::routing::post(::scalar_axum::publish_doc::<$doc, $db>))
+            .route(&path, ::axum::routing::delete(::scalar_axum::unpublish_doc::<$doc, $db>));
     };
 
     ($router:ident, $db:ty, $($doc:ty),+) => {
@@ -331,6 +335,52 @@ where
     ))
 }
 
+/// Endpoint that deletes a draft.
+///
+/// # Errors
+///
+/// This function will return an error if updating the draft fails, usually by database errors.
+pub async fn delete_draft<D: Document + Serialize + DeserializeOwned + Send, F: DatabaseFactory>(
+    AuthenticatedConnection(state): AuthenticatedConnection<F>,
+    Path(id): Path<String>,
+) -> Result<Json<Item<serde_json::Value>>, StatusCode>
+where
+    <<F as scalar_cms::db::DatabaseFactory>::Connection as scalar_cms::DatabaseConnection>::Error:
+        'static,
+{
+    Ok(Json(
+        DatabaseConnection::delete_draft::<D>(&state, &id)
+            .await
+            .map_err(|e| {
+                tracing::error!(cause = &e as &dyn Error, "couldn't delete draft");
+                StatusCode::INTERNAL_SERVER_ERROR
+            })?,
+    ))
+}
+
+/// Endpoint that deletes a docs.
+///
+/// # Errors
+///
+/// This function will return an error if updating the draft fails, usually by database errors.
+pub async fn delete_doc<D: Document + Serialize + DeserializeOwned + Send, F: DatabaseFactory>(
+    AuthenticatedConnection(state): AuthenticatedConnection<F>,
+    Path(id): Path<String>,
+) -> Result<Json<Option<Item<serde_json::Value>>>, StatusCode>
+where
+    <<F as scalar_cms::db::DatabaseFactory>::Connection as scalar_cms::DatabaseConnection>::Error:
+        'static,
+{
+    Ok(Json(
+        DatabaseConnection::delete::<D>(&state, &id)
+            .await
+            .map_err(|e| {
+                tracing::error!(cause = &e as &dyn Error, "couldn't delete draft");
+                StatusCode::INTERNAL_SERVER_ERROR
+            })?,
+    ))
+}
+
 /// Endpoint that publishes the document, if it's valid.
 ///
 /// # Errors
@@ -359,6 +409,32 @@ where
         tracing::error!(cause = &e as &dyn Error, "couldn't publish document");
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
+
+    Ok(())
+}
+
+/// Endpoint that unpublishes the document, and puts the current version as a draft.
+///
+/// # Errors
+///
+/// This function will return an error if the database fails to commit the publish.
+pub async fn unpublish_doc<
+    D: Document + Serialize + DeserializeOwned + Send + 'static,
+    F: DatabaseFactory,
+>(
+    Path(id): Path<String>,
+    AuthenticatedConnection(state): AuthenticatedConnection<F>,
+) -> Result<(), StatusCode>
+where
+    <<F as scalar_cms::db::DatabaseFactory>::Connection as scalar_cms::DatabaseConnection>::Error:
+        'static,
+{
+    DatabaseConnection::unpublish::<D>(&state, &id)
+        .await
+        .map_err(|e| {
+            tracing::error!(cause = &e as &dyn Error, "couldn't unpublish document");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
 
     Ok(())
 }

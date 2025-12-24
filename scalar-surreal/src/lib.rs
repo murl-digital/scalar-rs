@@ -11,6 +11,7 @@ use scalar_cms::{
     DateTime, Document, Item, Utc,
 };
 use serde::{de::DeserializeOwned, Deserialize, Deserializer, Serialize};
+use serde_json::Value;
 use surrealdb::{
     error::{Api, Db},
     opt::{
@@ -20,6 +21,28 @@ use surrealdb::{
     sql::Thing,
     Connection, Error, Surreal,
 };
+
+#[derive(Deserialize)]
+pub struct MetaTable {
+    id: Thing,
+    created_at: DateTime<Utc>,
+    modified_at: DateTime<Utc>,
+    draft: Option<Thing>,
+    published: Option<Thing>,
+}
+
+#[derive(Deserialize)]
+pub struct DraftTable {
+    id: Thing,
+    inner: serde_json::Value,
+}
+
+#[derive(Deserialize)]
+pub struct PublishedTable {
+    id: Thing,
+    inner: serde_json::Value,
+    published_at: Option<DateTime<Utc>>,
+}
 
 fn thing_to_string<'de, D>(deserializer: D) -> Result<String, D::Error>
 where
@@ -245,6 +268,7 @@ impl<C: Connection + Debug> scalar_cms::DatabaseConnection for SurrealConnection
 
         let mut result = conn
             .inner()
+            .query("BEGIN")
             .query("LET $draft_id = type::thing(string::concat($doc, '_draft'), $id)")
             .query("LET $meta_id = type::thing(string::concat($doc, '_meta'), $id)")
             .query("UPSERT $draft_id SET inner = $inner")
@@ -259,6 +283,7 @@ impl<C: Connection + Debug> scalar_cms::DatabaseConnection for SurrealConnection
             FROM $meta_id
             FETCH draft, published",
             )
+            .query("COMMIT")
             .bind(Bindings {
                 doc: D::IDENTIFIER.into(),
                 id: id.to_owned().into(),
@@ -290,10 +315,12 @@ impl<C: Connection + Debug> scalar_cms::DatabaseConnection for SurrealConnection
 
         let _ = conn
             .inner()
+            .query("BEGIN")
             .query("LET $draft_id = type::thing(string::concat($doc, '_draft'), $id)")
             .query("LET $meta_id = type::thing(string::concat($doc, '_meta'), $id)")
             .query("DELETE $draft_id")
             .query("DELETE $meta_id WHERE published IS NONE")
+            .query("COMMIT")
             .bind(Bindings {
                 doc: D::IDENTIFIER.into(),
                 id: id.to_owned().into(),
@@ -321,6 +348,7 @@ impl<C: Connection + Debug> scalar_cms::DatabaseConnection for SurrealConnection
         let data = data.inner();
 
         let mut result = conn.inner()
+            .query("BEGIN")
             .query("LET $published_id = type::thing($doc, $id)")
             .query("LET $draft_id = type::thing(string::concat($doc, '_draft'), $id)")
             .query("LET $meta_id = type::thing(string::concat($doc, '_meta'), $id)")
@@ -336,7 +364,9 @@ impl<C: Connection + Debug> scalar_cms::DatabaseConnection for SurrealConnection
                 published.published_at AS published_at
             FROM $meta_id
             FETCH draft, published",
-            ).bind(Bindings {
+            )
+            .query("COMMIT")
+            .bind(Bindings {
                 doc: D::IDENTIFIER.into(),
                 id: id.to_owned().into(),
                 publish_at,
@@ -350,6 +380,34 @@ impl<C: Connection + Debug> scalar_cms::DatabaseConnection for SurrealConnection
         Ok(thingy
             .expect("this option should always return something")
             .into())
+    }
+
+    #[tracing::instrument(level = "debug", skip(conn))]
+    async fn unpublish<D: Document + Send + Serialize + DeserializeOwned + 'static>(
+        conn: &Authenticated<Self>,
+        id: &str,
+    ) -> Result<Option<D>, Self::Error> {
+        #[derive(Serialize)]
+        struct Bindings<'a> {
+            doc: Cow<'a, str>,
+            id: Cow<'a, str>,
+        }
+        conn
+            .inner()
+            .query("BEGIN")
+            .query("LET $meta_id = type::thing(string::concat($doc, '_meta'), $id)")
+            .query("LET $draft_id = type::thing(string::concat($doc, '_draft'), $id)")
+            .query("LET $published_id = type::thing($doc, $id)")
+            .query("UPSERT $draft_id SET inner = (SELECT VALUE inner FROM ONLY $published_id)")
+            .query("UPDATE $meta_id SET draft = $draft_id, published = NONE, modified_at = time::now()")
+            .query("DELETE $published_id RETURN BEFORE")
+            .query("COMMIT")
+            .bind(Bindings {
+                doc: D::IDENTIFIER.into(),
+                id: id.to_owned().into()
+            })
+            .await?
+            .take(6)
     }
 
     #[tracing::instrument(level = "debug", err)]
@@ -372,8 +430,37 @@ impl<C: Connection + Debug> scalar_cms::DatabaseConnection for SurrealConnection
     async fn delete<D: Document + Send + Debug>(
         conn: &Authenticated<Self>,
         id: &str,
-    ) -> Result<Item<D>, Self::Error> {
-        todo!()
+    ) -> Result<Option<Item<serde_json::Value>>, Self::Error> {
+        let mut result = conn
+            .inner()
+            .query("BEGIN")
+            .query("LET $published_id = type::thing($doc, $id)")
+            .query("LET $draft_id = type::thing(string::concat($doc, '_draft'), $id)")
+            .query("LET $meta_id = type::thing(string::concat($doc, '_meta'), $id)")
+            .query("DELETE $meta_id RETURN BEFORE")
+            .query("DELETE $published_id RETURN BEFORE")
+            .query("DELETE $draft_id RETURN BEFORE")
+            .query("COMMIT")
+            .await?;
+
+        let meta: Option<MetaTable> = result.take(4)?;
+        let published: Option<PublishedTable> = result.take(5)?;
+        let draft: Option<DraftTable> = result.take(6)?;
+
+        Ok(meta.map(
+            |MetaTable {
+                 id,
+                 created_at,
+                 modified_at,
+                 ..
+             }| Item {
+                id: id.id.to_raw(),
+                created_at,
+                modified_at,
+                published_at: published.as_ref().and_then(|p| p.published_at),
+                inner: draft.map_or(published.map_or(Value::Null, |p| p.inner), |d| d.inner),
+            },
+        ))
     }
 
     #[tracing::instrument(level = "debug", err)]
