@@ -352,7 +352,7 @@ impl<C: Connection + Debug> scalar_cms::DatabaseConnection for SurrealConnection
             .query("LET $published_id = type::thing($doc, $id)")
             .query("LET $draft_id = type::thing(string::concat($doc, '_draft'), $id)")
             .query("LET $meta_id = type::thing(string::concat($doc, '_meta'), $id)")
-            .query("UPSERT $published_id SET inner = $inner, published_at = IF $published_at IS NOT NONE {} <datetime>$publish_at } ELSE { NONE }")
+            .query("UPSERT $published_id SET inner = $inner, published_at = IF $published_at IS NOT NONE { <datetime>$publish_at } ELSE { NONE }")
             .query("UPSERT $meta_id SET published = $published_id, modified_at = time::now(), draft = NONE")
             .query("DELETE $draft_id")
             .query(
