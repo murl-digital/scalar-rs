@@ -72,8 +72,14 @@ impl Validate for Slug {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-#[serde(default)]
+#[serde(from = "Option<T>")]
 pub struct Toggle<T: ToEditorField>(pub Option<T>);
+
+impl<T: ToEditorField> From<Option<T>> for Toggle<T> {
+    fn from(value: Option<T>) -> Self {
+        Self(value)
+    }
+}
 
 impl<T: ToEditorField> Default for Toggle<T> {
     fn default() -> Self {
