@@ -441,6 +441,8 @@ impl<C: Connection + Debug> scalar_cms::DatabaseConnection for SurrealConnection
             .query("DELETE $published_id RETURN BEFORE")
             .query("DELETE $draft_id RETURN BEFORE")
             .query("COMMIT")
+            .bind(("doc", D::IDENTIFIER))
+            .bind(("id", id.to_owned()))
             .await?;
 
         let meta: Option<MetaTable> = result.take(4)?;
