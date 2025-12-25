@@ -24,24 +24,24 @@ use surrealdb::{
 
 #[derive(Deserialize)]
 pub struct MetaTable {
-    id: Thing,
-    created_at: DateTime<Utc>,
-    modified_at: DateTime<Utc>,
-    draft: Option<Thing>,
-    published: Option<Thing>,
+    pub id: Thing,
+    pub created_at: DateTime<Utc>,
+    pub modified_at: DateTime<Utc>,
+    pub draft: Option<Thing>,
+    pub published: Option<Thing>,
 }
 
 #[derive(Deserialize)]
 pub struct DraftTable {
-    id: Thing,
-    inner: serde_json::Value,
+    pub id: Thing,
+    pub inner: serde_json::Value,
 }
 
 #[derive(Deserialize)]
 pub struct PublishedTable {
-    id: Thing,
-    inner: serde_json::Value,
-    published_at: Option<DateTime<Utc>>,
+    pub id: Thing,
+    pub inner: serde_json::Value,
+    pub published_at: Option<DateTime<Utc>>,
 }
 
 fn thing_to_string<'de, D>(deserializer: D) -> Result<String, D::Error>
