@@ -445,9 +445,9 @@ impl<C: Connection + Debug> scalar_cms::DatabaseConnection for SurrealConnection
             .bind(("id", id.to_owned()))
             .await?;
 
-        let meta: Option<MetaTable> = result.take(4)?;
-        let published: Option<PublishedTable> = result.take(5)?;
-        let draft: Option<DraftTable> = result.take(6)?;
+        let meta: Option<MetaTable> = result.take(3)?;
+        let published: Option<PublishedTable> = result.take(4)?;
+        let draft: Option<DraftTable> = result.take(5)?;
 
         Ok(meta.map(
             |MetaTable {
