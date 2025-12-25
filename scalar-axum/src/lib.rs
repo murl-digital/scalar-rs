@@ -381,6 +381,12 @@ where
     ))
 }
 
+#[derive(Deserialize)]
+pub struct PublishParams<D> {
+    publish_at: Option<DateTime<Utc>>,
+    doc: D,
+}
+
 /// Endpoint that publishes the document, if it's valid.
 ///
 /// # Errors
@@ -392,7 +398,7 @@ pub async fn publish_doc<
 >(
     Path(id): Path<String>,
     AuthenticatedConnection(state): AuthenticatedConnection<F>,
-    doc: Json<D>,
+    Json(PublishParams { publish_at, doc }): Json<PublishParams<D>>,
 ) -> Result<(), StatusCode>
 where
     <<F as scalar_cms::db::DatabaseFactory>::Connection as scalar_cms::DatabaseConnection>::Error:
@@ -401,8 +407,8 @@ where
     DatabaseConnection::publish(
         &state,
         &id,
-        None,
-        Valid::new(doc.0).map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?,
+        publish_at,
+        Valid::new(doc).map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?,
     )
     .await
     .map_err(|e| {
