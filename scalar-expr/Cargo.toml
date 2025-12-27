@@ -1,0 +1,11 @@
+[package]
+name = "scalar-expr"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+scalar-expr-macro = { version = "0.1.0", path = "../scalar-expr-macro" }
+serde_json = {workspace = true}
+
+[lints]
+workspace = true

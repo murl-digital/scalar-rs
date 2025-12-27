@@ -6,7 +6,7 @@ members = [
     "scalar-derive",
     "scalar-img",
     "scalar-surreal",
-    "scalar-sqlx",
+    "scalar-sqlx", "scalar-expr", "scalar-expr-macro",
 ]
 
 [workspace.dependencies]
