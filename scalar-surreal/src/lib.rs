@@ -42,7 +42,7 @@ pub struct DraftTable {
 pub struct PublishedTable {
     pub id: Thing,
     pub inner: serde_json::Value,
-    pub published_at: Option<DateTime<Utc>>,
+    pub published_at: DateTime<Utc>,
 }
 
 fn thing_to_string<'de, D>(deserializer: D) -> Result<String, D::Error>
@@ -471,7 +471,7 @@ impl<C: Connection + Debug> scalar_cms::DatabaseConnection for SurrealConnection
                 id: id.id.to_raw(),
                 created_at,
                 modified_at,
-                published_at: published.as_ref().and_then(|p| p.published_at),
+                published_at: published.as_ref().map(|p| p.published_at),
                 inner: draft.map_or(published.map_or(Value::Null, |p| p.inner), |d| d.inner),
             },
         ))
@@ -670,7 +670,7 @@ impl<C: Connection + Debug> SurrealConnection<C> {
         self
             // published documents
             .query(format!("DEFINE TABLE OVERWRITE {published_table} SCHEMAFULL PERMISSIONS FOR select WHERE true FOR create, update, delete WHERE $auth.id IS NOT NONE"))
-            .query(format!("DEFINE FIELD IF NOT EXISTS published_at ON {published_table} TYPE option<datetime>"))
+            .query(format!("DEFINE FIELD IF NOT EXISTS published_at ON {published_table} TYPE datetime DEFAULT time::now()"))
             .query(format!("DEFINE FIELD IF NOT EXISTS inner ON {published_table} FLEXIBLE TYPE object"))
             // drafts
             .query(format!("DEFINE TABLE OVERWRITE {draft_table} SCHEMAFULL PERMISSIONS FOR select, create, update, delete WHERE $auth.id IS NOT NONE"))
