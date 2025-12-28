@@ -60,6 +60,17 @@ pub struct SurrealConnection<C: Connection + Debug> {
     inner: Surreal<C>,
 }
 
+impl<C: Connection + Debug> SurrealConnection<C> {
+    #[must_use]
+    pub fn new(namespace: String, db: String, inner: Surreal<C>) -> Self {
+        Self {
+            namespace,
+            db,
+            inner,
+        }
+    }
+}
+
 impl<C: Connection + Debug> Deref for SurrealConnection<C> {
     type Target = Surreal<C>;
 
