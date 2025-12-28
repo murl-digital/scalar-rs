@@ -1,7 +1,8 @@
 use scalar_cms::{
+    db::ValidationContext,
     editor_field::ToEditorField,
     validations::{ErroredField, Validate, ValidationError},
-    EditorField,
+    DatabaseConnection, Document, EditorField,
 };
 use serde::{Deserialize, Serialize};
 
@@ -54,8 +55,11 @@ pub struct ImageData<D: ToEditorField> {
 pub type Image = ImageData<Null>;
 
 impl<D: ToEditorField + Validate> Validate for ImageData<D> {
-    fn validate(&self) -> Result<(), scalar_cms::validations::ValidationError> {
-        self.additional_data.validate()
+    async fn validate<DB: DatabaseConnection, DD: Document>(
+        &self,
+        ctx: ValidationContext<'_, DB, DD>,
+    ) -> Result<(), scalar_cms::validations::ValidationError> {
+        self.additional_data.validate(ctx).await
     }
 }
 
@@ -109,13 +113,19 @@ impl<const VALIDATE: bool, D: ToEditorField> CroppedImageData<D, VALIDATE> {
 }
 
 impl<D: ToEditorField + Validate> Validate for CroppedImageData<D, true> {
-    fn validate(&self) -> Result<(), scalar_cms::validations::ValidationError> {
-        self.validate_inner(self.additional_data.validate())
+    async fn validate<DB: DatabaseConnection, DD: Document>(
+        &self,
+        ctx: ValidationContext<'_, DB, DD>,
+    ) -> Result<(), scalar_cms::validations::ValidationError> {
+        self.validate_inner(self.additional_data.validate(ctx).await)
     }
 }
 
 impl<D: ToEditorField> Validate for CroppedImageData<D, false> {
-    fn validate(&self) -> Result<(), scalar_cms::validations::ValidationError> {
+    async fn validate<DB: DatabaseConnection, DD: Document>(
+        &self,
+        _ctx: ValidationContext<'_, DB, DD>,
+    ) -> Result<(), scalar_cms::validations::ValidationError> {
         self.validate_inner(Ok(()))
     }
 }
@@ -130,7 +140,10 @@ pub struct FileData<D: ToEditorField> {
 pub type File = FileData<Null>;
 
 impl<D: ToEditorField + Validate> Validate for FileData<D> {
-    fn validate(&self) -> Result<(), scalar_cms::validations::ValidationError> {
-        self.additional_data.validate()
+    async fn validate<DB: DatabaseConnection, DD: Document>(
+        &self,
+        ctx: ValidationContext<'_, DB, DD>,
+    ) -> Result<(), scalar_cms::validations::ValidationError> {
+        self.additional_data.validate(ctx).await
     }
 }

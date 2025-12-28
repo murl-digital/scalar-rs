@@ -5,6 +5,7 @@ pub enum Value {
 }
 
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum Expression {
     Equals {
         lhs: Value,

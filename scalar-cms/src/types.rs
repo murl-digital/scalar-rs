@@ -1,10 +1,13 @@
 use std::ops::{Deref, DerefMut};
 
+use scalar_expr::expression;
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    db::ValidationContext,
     editor_field::ToEditorField,
     validations::{Validate, ValidationError},
+    DatabaseConnection, Document,
 };
 
 macro_rules! deref {
@@ -57,8 +60,10 @@ pub struct Slug(pub String);
 deref!(Slug > str);
 
 impl Validate for Slug {
-    // TODO: sanity slugs are guaranteed to be unique, how to handle this?
-    fn validate(&self) -> Result<(), crate::validations::ValidationError> {
+    async fn validate<DB: DatabaseConnection, D: Document>(
+        &self,
+        ctx: ValidationContext<'_, DB, D>,
+    ) -> Result<(), crate::validations::ValidationError> {
         self.0
             .chars()
             .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
@@ -67,7 +72,12 @@ impl Validate for Slug {
                 ValidationError::Single(
                     "slugs can only contain alphanumeic characters, -, and _.".into(),
                 )
-            })
+            })?;
+        ctx.none(expression!(field:"slug" == self.0))
+            .await
+            .unwrap()
+            .then_some(())
+            .ok_or_else(|| ValidationError::Single("slugs must be unique!".into()))
     }
 }
 

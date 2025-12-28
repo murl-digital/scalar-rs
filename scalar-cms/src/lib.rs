@@ -25,6 +25,10 @@ pub use editor_field::EditorField;
 pub use editor_type::EditorType;
 use validations::Validate;
 
+pub use scalar_expr as expr;
+
+use crate::db::ValidationContext;
+
 #[derive(Serialize, TS)]
 #[ts(export)]
 pub struct Schema {
@@ -81,7 +85,10 @@ pub struct Item<D> {
 }
 
 impl<D: Document> Validate for Item<D> {
-    fn validate(&self) -> Result<(), validations::ValidationError> {
-        self.inner.validate()
+    async fn validate<DB: DatabaseConnection, DD: Document>(
+        &self,
+        ctx: ValidationContext<'_, DB, DD>,
+    ) -> Result<(), validations::ValidationError> {
+        self.inner.validate(ctx).await
     }
 }

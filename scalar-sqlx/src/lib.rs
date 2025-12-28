@@ -9,6 +9,7 @@ use rusty_paseto::{
 use scalar_cms::{
     DatabaseConnection, DateTime, Document, Item, Utc,
     db::{Authenticated, AuthenticationError, Credentials, DatabaseFactory, User},
+    expr::Expression,
     validations::Valid,
 };
 use sqlx::{Database, Pool};
@@ -321,5 +322,27 @@ where
         id: &str,
     ) -> Result<Option<Item<serde_json::Value>>, Self::Error> {
         Ok(self.inner.get_by_id::<D>(id).await?)
+    }
+
+    async fn vctx_all<D: Document>(
+        &self,
+        excl_id: &str,
+        expression: Expression,
+    ) -> Result<bool, Self::Error> {
+        todo!()
+    }
+    async fn vctx_none<D: Document>(
+        &self,
+        excl_id: &str,
+        expression: Expression,
+    ) -> Result<bool, Self::Error> {
+        todo!()
+    }
+    async fn vctx_any<D: Document>(
+        &self,
+        excl_id: &str,
+        expression: Expression,
+    ) -> Result<bool, Self::Error> {
+        todo!()
     }
 }

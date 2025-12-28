@@ -352,11 +352,11 @@ pub fn derive_document(input: TokenStream) -> TokenStream {
 
             if let Some(fn_ident) = f.with.as_ref() {
                 quote! {
-                    (#ident_str.into(), #fn_ident(&self.#ident))
+                    (#ident_str.into(), #fn_ident(&self.#ident, ctx).await)
                 }
             } else {
                 quote! {
-                    (#ident_str.into(), ::scalar_cms::validations::Validate::validate(&self.#ident))
+                    (#ident_str.into(), ::scalar_cms::validations::Validate::validate(&self.#ident, ctx).await)
                 }
             }
         })
@@ -385,7 +385,7 @@ pub fn derive_document(input: TokenStream) -> TokenStream {
         }
 
         impl ::scalar_cms::validations::Validate for #ident {
-            fn validate(&self) -> Result<(), ::scalar_cms::validations::ValidationError> {
+            async fn validate<DB: ::scalar_cms::db::DatabaseConnection, D: ::scalar_cms::Document>(&self, ctx: ::scalar_cms::db::ValidationContext<'_, DB, D>) -> Result<(), ::scalar_cms::validations::ValidationError> {
                 let results: [(::scalar_cms::validations::Field, Result<(), ::scalar_cms::validations::ValidationError>); #validators_count] = [#(#validators),*];
 
                 let errors: Vec<::scalar_cms::validations::ErroredField> = results

@@ -1,13 +1,17 @@
 use scalar_cms::{
+    db::ValidationContext,
     doc_enum,
     validations::{NonZeroI32, Validate, ValidationError},
-    Document, EditorField,
+    DatabaseConnection, Document, EditorField,
 };
 use serde::{Deserialize, Serialize};
 
 #[allow(clippy::unnecessary_wraps)]
 // removing the Ok causes a mismatched types
-fn test_fnn(_field: &str) -> Result<(), ValidationError> {
+async fn test_fnn<DB: DatabaseConnection, D: Document>(
+    _field: &str,
+    _ctx: ValidationContext<'_, DB, D>,
+) -> Result<(), ValidationError> {
     Ok(())
 }
 
@@ -129,7 +133,10 @@ enum Test {
 }
 
 impl Validate for Test {
-    fn validate(&self) -> Result<(), scalar_cms::validations::ValidationError> {
+    async fn validate<DB: DatabaseConnection, D: Document>(
+        &self,
+        _ctx: ValidationContext<'_, DB, D>,
+    ) -> Result<(), scalar_cms::validations::ValidationError> {
         match self {
             Self::Struct { eeee } if eeee.is_empty() => {
                 Err(ValidationError::Single("eeee can't be empty".into()))

@@ -3,7 +3,10 @@ use openidconnect::{
     ClientId, ClientSecret, IssuerUrl, RedirectUrl,
 };
 use reqwest::ClientBuilder;
-use scalar_cms::db::DatabaseFactory;
+use scalar_cms::{
+    db::{DatabaseFactory, ValidationContext},
+    DatabaseConnection,
+};
 use scalar_surreal::{init, SurrealStore};
 use std::env;
 use surrealdb::engine::remote::ws::{Client, Ws};
@@ -30,17 +33,23 @@ use tower_http::{
 };
 use url::Url;
 
-#[allow(clippy::trivially_copy_pass_by_ref)]
+#[allow(clippy::trivially_copy_pass_by_ref, clippy::unused_async)]
 // the document derive macro isn't smart enough to know when to pass a reference or the value.
-fn int_test(int: &i32) -> Result<(), ValidationError> {
+async fn int_test<DB: DatabaseConnection, D: Document>(
+    int: &i32,
+    _ctx: ValidationContext<'_, DB, D>,
+) -> Result<(), ValidationError> {
     (*int < 3)
         .then_some(())
         .ok_or(ValidationError::Single("int must be less than 3!".into()))
 }
 
-#[allow(clippy::trivially_copy_pass_by_ref)]
+#[allow(clippy::trivially_copy_pass_by_ref, clippy::unused_async)]
 // the document derive macro isn't smart enough to know when to pass a reference or the value.
-fn float_test(float: &f32) -> Result<(), ValidationError> {
+async fn float_test<DB: DatabaseConnection, D: Document>(
+    float: &f32,
+    _ctx: ValidationContext<'_, DB, D>,
+) -> Result<(), ValidationError> {
     (float.sqrt().fract() == 0.0)
         .then_some(())
         .ok_or(ValidationError::Single(
@@ -48,7 +57,11 @@ fn float_test(float: &f32) -> Result<(), ValidationError> {
         ))
 }
 
-fn string_test(string: impl AsRef<str>) -> Result<(), ValidationError> {
+#[allow(clippy::unused_async)]
+async fn string_test<DB: DatabaseConnection, D: Document>(
+    string: impl AsRef<str>,
+    _ctx: ValidationContext<'_, DB, D>,
+) -> Result<(), ValidationError> {
     (string.as_ref().len() >= 3)
         .then_some(())
         .ok_or(ValidationError::Single(
@@ -99,7 +112,10 @@ struct StructTest {
 }
 
 impl Validate for StructTest {
-    fn validate(&self) -> Result<(), ValidationError> {
+    async fn validate<DB: DatabaseConnection, D: Document>(
+        &self,
+        _ctx: ValidationContext<'_, DB, D>,
+    ) -> Result<(), ValidationError> {
         if self.info.len() < 3 {
             Err(ValidationError::Composite(vec![ErroredField {
                 field: Field("info".into()),
@@ -131,7 +147,10 @@ enum TestEnum {
 }
 
 impl Validate for TestEnum {
-    fn validate(&self) -> Result<(), scalar_cms::validations::ValidationError> {
+    async fn validate<DB: DatabaseConnection, D: Document>(
+        &self,
+        _ctx: ValidationContext<'_, DB, D>,
+    ) -> Result<(), scalar_cms::validations::ValidationError> {
         match self {
             TestEnum::Struct { eeee } if eeee.is_empty() => Err(ValidationError::Single(
                 "eeee must have something in it".into(),

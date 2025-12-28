@@ -2,19 +2,24 @@ use std::{fmt::Display, sync::Arc};
 
 use serde::{Deserialize, Serialize};
 
+use crate::{db::ValidationContext, DatabaseConnection, Document};
+
 /// A wrapper type to indicate that the inner type is valid.
 #[derive(Debug, Serialize)]
 #[serde(transparent)]
-pub struct Valid<T: Validate>(T);
+pub struct Valid<T: Document>(T);
 
-impl<T: Validate> Valid<T> {
+impl<T: Document> Valid<T> {
     /// Validates the input, then returns a Valid<T>.
     ///
     /// # Errors
     ///
     /// This function will return an error if validation fails.
-    pub fn new(val: T) -> Result<Self, ValidationError> {
-        val.validate()?;
+    pub async fn new<'a, DB: DatabaseConnection>(
+        val: T,
+        ctx: ValidationContext<'a, DB, T>,
+    ) -> Result<Self, ValidationError> {
+        val.validate(ctx).await?;
         Ok(Self(val))
     }
 
@@ -71,13 +76,19 @@ pub trait Validate {
     /// # Errors
     ///
     /// This function will return an error if validation fails.
-    fn validate(&self) -> Result<(), ValidationError>;
+    async fn validate<'a, DB: DatabaseConnection, D: Document>(
+        &self,
+        ctx: ValidationContext<'a, DB, D>,
+    ) -> Result<(), ValidationError>;
 }
 
 impl<T: Validate> Validate for Option<T> {
-    fn validate(&self) -> Result<(), ValidationError> {
+    async fn validate<'a, DB: DatabaseConnection, D: Document>(
+        &self,
+        ctx: ValidationContext<'a, DB, D>,
+    ) -> Result<(), ValidationError> {
         match self.as_ref() {
-            Some(inner) => inner.validate(),
+            Some(inner) => inner.validate(ctx).await,
             None => Ok(()),
         }
     }
@@ -115,7 +126,10 @@ macro_rules! validator {
         }
 
         impl Validate for $ty {
-            fn validate(&self) -> Result<(), ValidationError> {
+            async fn validate<DB: DatabaseConnection, D: Document>(
+                &self,
+                _ctx: ValidationContext<'_, DB, D>,
+            ) -> Result<(), ValidationError> {
                 let $v = self;
                 $expr
             }

@@ -1,13 +1,13 @@
 use std::error::Error;
 
 use axum::{
-    extract::{FromRef, FromRequestParts, Path, State},
+    extract::{FromRef, FromRequestParts, Path, Query, State},
     http::{self, StatusCode},
     response::IntoResponse,
     Json, Router,
 };
 use scalar_cms::{
-    db::{Authenticated, Credentials, DatabaseFactory, User},
+    db::{Authenticated, Credentials, DatabaseFactory, User, ValidationContext},
     validations::{Valid, ValidationError},
     DatabaseConnection, DateTime, Document, Item, Schema, Utc,
 };
@@ -106,13 +106,13 @@ macro_rules! publish_routes__ {
 #[macro_export]
 #[doc(hidden)]
 macro_rules! validate_routes__ {
-    ($router:ident, $doc:ty) => {
+    ($db:ty, $router:ident, $doc:ty) => {
         $router = $router
-            .route(&format!("/docs/{}/validate", <$doc>::IDENTIFIER), ::axum::routing::post(::scalar_axum::validate::<$doc>));
+            .route(&format!("/docs/{}/validate", <$doc>::IDENTIFIER), ::axum::routing::post(::scalar_axum::validate::<$db, $doc>));
     };
 
-    ($router:ident, $($doc:ty),+) => {
-        $(::scalar_axum::validate_routes__!($router, $doc);)*
+    ($db:ty, $router:ident, $($doc:ty),+) => {
+        $(::scalar_axum::validate_routes__!($db, $router, $doc);)*
     };
 }
 
@@ -138,7 +138,7 @@ macro_rules! generate_routes {
             router = ::scalar_axum::add_image_routes__::<_, $db>(router);
             router = router.route("/signin", ::axum::routing::post(::scalar_axum::signin::<$db>));
 
-            ::scalar_axum::validate_routes__!(router, $($doc),+);
+            ::scalar_axum::validate_routes__!($db, router, $($doc),+);
 
             router
         }
@@ -289,6 +289,11 @@ pub async fn get_schema<D: Document>() -> Json<Schema> {
     Json(D::schema())
 }
 
+#[derive(Deserialize)]
+pub struct ValidateQueryParams {
+    id: String,
+}
+
 /// Endpoint to validate a document.
 ///
 /// # Errors
@@ -296,10 +301,14 @@ pub async fn get_schema<D: Document>() -> Json<Schema> {
 /// This function will return an error if [`Document::validate`] returns an error.
 #[allow(clippy::unused_async)]
 // this has to be async for axum
-pub async fn validate<D: Document>(
+pub async fn validate<F: DatabaseFactory, D: Document>(
+    AuthenticatedConnection(conn): AuthenticatedConnection<F>,
+    Query(ValidateQueryParams { id }): Query<ValidateQueryParams>,
     Json(doc): Json<D>,
 ) -> Result<(), (StatusCode, Json<ValidationError>)> {
-    doc.validate()
+    let ctx = ValidationContext::<'_, _, D>::new(conn.inner(), &id);
+    doc.validate(ctx)
+        .await
         .map_err(|e| (StatusCode::UNPROCESSABLE_ENTITY, Json(e)))
 }
 
@@ -404,11 +413,14 @@ where
     <<F as scalar_cms::db::DatabaseFactory>::Connection as scalar_cms::DatabaseConnection>::Error:
         'static,
 {
+    let ctx = ValidationContext::new(state.inner(), &id);
     DatabaseConnection::publish(
         &state,
         &id,
         publish_at,
-        Valid::new(doc).map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?,
+        Valid::new(doc, ctx)
+            .await
+            .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?,
     )
     .await
     .map_err(|e| {

@@ -7,6 +7,7 @@ use openidconnect::{
 };
 use scalar_cms::{
     db::{Authenticated, AuthenticationError, Credentials, DatabaseFactory, User},
+    expr::Expression,
     validations::Valid,
     DateTime, Document, Item, Utc,
 };
@@ -517,6 +518,127 @@ impl<C: Connection + Debug> scalar_cms::DatabaseConnection for SurrealConnection
             .await?
             .take::<Option<SurrealItem<serde_json::Value>>>(1)?
             .map(Into::into))
+    }
+
+    async fn vctx_all<D: Document>(
+        &self,
+        excl_id: &str,
+        expression: Expression,
+    ) -> Result<bool, Self::Error> {
+        let (bindings, where_clause) = compile_expression(expression);
+        let mut resp = bindings
+            .into_iter()
+            .fold(
+                self.query(format!(
+                    "count(SELECT * FROM {} WHERE record::id(id) != $excl_id AND ({}))",
+                    D::IDENTIFIER,
+                    where_clause
+                ))
+                .query(format!(
+                    "count(SELECT * FROM {} WHERE record::id(id) != $excl_id)",
+                    D::IDENTIFIER,
+                ))
+                .bind(("excl_id", excl_id.to_string())),
+                surrealdb::method::Query::bind,
+            )
+            .await?
+            .check()?;
+        let cond_count = resp.take::<Option<usize>>(0)?.expect("a number");
+        let total = resp.take::<Option<usize>>(1)?.expect("a number");
+
+        Ok(cond_count == total)
+    }
+    async fn vctx_none<D: Document>(
+        &self,
+        excl_id: &str,
+        expression: Expression,
+    ) -> Result<bool, Self::Error> {
+        let (bindings, where_clause) = compile_expression(expression);
+        let mut resp = bindings
+            .into_iter()
+            .fold(
+                self.query(format!(
+                    "count(SELECT * FROM {} WHERE record::id(id) != $excl_id AND ({}))",
+                    D::IDENTIFIER,
+                    where_clause
+                ))
+                .bind(("excl_id", excl_id.to_string())),
+                surrealdb::method::Query::bind,
+            )
+            .await?
+            .check()?;
+        let cond_count = resp.take::<Option<usize>>(0)?.expect("a number");
+
+        Ok(cond_count == 0)
+    }
+    async fn vctx_any<D: Document>(
+        &self,
+        excl_id: &str,
+        expression: Expression,
+    ) -> Result<bool, Self::Error> {
+        let (bindings, where_clause) = compile_expression(expression);
+        let mut resp = bindings
+            .into_iter()
+            .fold(
+                self.query(format!(
+                    "count(SELECT * FROM {} WHERE record::id(id) != $excl_id AND ({}))",
+                    D::IDENTIFIER,
+                    where_clause
+                ))
+                .bind(("excl_id", excl_id.to_string())),
+                surrealdb::method::Query::bind,
+            )
+            .await?
+            .check()?;
+        let cond_count = resp.take::<Option<usize>>(0)?.expect("a number");
+
+        Ok(cond_count > 0)
+    }
+}
+
+fn compile_expression(expression: Expression) -> (Vec<(String, serde_json::Value)>, String) {
+    let mut bindings = Vec::new();
+    let where_clause = match expression {
+        Expression::Equals { lhs, rhs } => format!(
+            "{} = {}",
+            resolve_value(&mut bindings, lhs),
+            resolve_value(&mut bindings, rhs)
+        ),
+        Expression::NotEquals { lhs, rhs } => format!(
+            "{} != {}",
+            resolve_value(&mut bindings, lhs),
+            resolve_value(&mut bindings, rhs)
+        ),
+        Expression::And { lhs, rhs } => {
+            let (left_bindings, left_inner) = compile_expression(*lhs);
+            bindings.extend(left_bindings);
+            let (right_bindings, right_inner) = compile_expression(*rhs);
+            bindings.extend(right_bindings);
+            format!("({left_inner} AND {right_inner})")
+        }
+        Expression::Or { lhs, rhs } => {
+            let (left_bindings, left_inner) = compile_expression(*lhs);
+            bindings.extend(left_bindings);
+            let (right_bindings, right_inner) = compile_expression(*rhs);
+            bindings.extend(right_bindings);
+            format!("({left_inner} OR {right_inner})")
+        }
+        _ => panic!("missed expr"),
+    };
+    (bindings, where_clause)
+}
+
+fn resolve_value(
+    bindings: &mut Vec<(String, serde_json::Value)>,
+    value: scalar_cms::expr::Value,
+) -> String {
+    match value {
+        scalar_cms::expr::Value::Ident(ident) => ident.to_string(),
+        scalar_cms::expr::Value::Value(value) => {
+            let binding_name = format!("b{}", bindings.len());
+            bindings.push((binding_name.clone(), value));
+            format!("${binding_name}")
+        }
     }
 }
 

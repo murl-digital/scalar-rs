@@ -1,7 +1,9 @@
 use std::fmt::Debug;
+use std::marker::PhantomData;
 use std::{error::Error, sync::Arc};
 
 use chrono::{DateTime, Utc};
+use scalar_expr::Expression;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use thiserror::Error;
 
@@ -92,6 +94,39 @@ pub trait DatabaseFactory {
     async fn init_system(&self) -> Result<Self::Connection, Self::Error>;
 }
 
+pub struct ValidationContext<'a, DB: DatabaseConnection, D: Document> {
+    conn: &'a DB,
+    excluded_id: &'a str,
+    phantom: PhantomData<D>,
+}
+
+impl<DB: DatabaseConnection, D: Document> Clone for ValidationContext<'_, DB, D> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl<DB: DatabaseConnection, D: Document> Copy for ValidationContext<'_, DB, D> {}
+
+impl<'a, DB: DatabaseConnection, D: Document> ValidationContext<'a, DB, D> {
+    pub fn new(conn: &'a DB, excluded_id: &'a str) -> Self {
+        ValidationContext {
+            conn,
+            excluded_id,
+            phantom: PhantomData,
+        }
+    }
+
+    pub async fn all(&self, expr: Expression) -> Result<bool, DB::Error> {
+        self.conn.vctx_all::<D>(self.excluded_id, expr).await
+    }
+    pub async fn none(&self, expr: Expression) -> Result<bool, DB::Error> {
+        self.conn.vctx_none::<D>(self.excluded_id, expr).await
+    }
+    pub async fn any(&self, expr: Expression) -> Result<bool, DB::Error> {
+        self.conn.vctx_any::<D>(self.excluded_id, expr).await
+    }
+}
+
 #[derive(Debug)]
 pub struct Authenticated<DB: DatabaseConnection> {
     conn: DB,
@@ -177,4 +212,20 @@ pub trait DatabaseConnection {
         &self,
         id: &str,
     ) -> Result<Option<Item<serde_json::Value>>, Self::Error>;
+
+    async fn vctx_all<D: Document>(
+        &self,
+        excl_id: &str,
+        expression: Expression,
+    ) -> Result<bool, Self::Error>;
+    async fn vctx_none<D: Document>(
+        &self,
+        excl_id: &str,
+        expression: Expression,
+    ) -> Result<bool, Self::Error>;
+    async fn vctx_any<D: Document>(
+        &self,
+        excl_id: &str,
+        expression: Expression,
+    ) -> Result<bool, Self::Error>;
 }
