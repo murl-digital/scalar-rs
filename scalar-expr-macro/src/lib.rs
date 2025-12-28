@@ -4,12 +4,13 @@ use unsynn::{
     OrOr, ParenthesisGroupContaining, Parse, ToTokenIter, TrailingDelimiter::Forbidden, quote,
     unsynn,
 };
-use unsynn::{Colon, Cons, LiteralString, ToTokens};
+use unsynn::{Colon, Cons, Dollar, LiteralString, ToTokens};
 
 unsynn! {
     keyword Field = "field";
+    keyword Current = "current";
     struct ComparisonOp(Either<Equal, NotEqual>);
-    type ComparisonExpr = DelimitedVec<Either<Cons<Field, Colon, LiteralString>, Literal, Ident>, ComparisonOp, Forbidden, 2, 2>;
+    type ComparisonExpr = DelimitedVec<Either<Cons<Dollar, Current>, Cons<Field, Colon, LiteralString>, Literal, Ident>, ComparisonOp, Forbidden, 2, 2>;
 
     struct CompositeOp(Either<AndAnd, OrOr>);
     type CompositeExpr = LeftAssocExpr<ComparisonExpr, CompositeOp>;
@@ -51,28 +52,28 @@ fn component_to_token_stream(component: &ComparisonExpr) -> unsynn::TokenStream 
         _ => unreachable!(),
     };
     let lhs = match &component[0].value {
-        Either::First(Cons { third, .. }) => {
+        Either::First(_) => quote! {::scalar_expr::Value::CurrentField},
+        Either::Second(Cons { third, .. }) => {
             quote! {::scalar_expr::Value::Ident(#third)}
-        }
-        Either::Second(val) => {
-            quote! {::scalar_expr::Value::Value(::scalar_expr::to_value(#val).unwrap())}
         }
         Either::Third(val) => {
             quote! {::scalar_expr::Value::Value(::scalar_expr::to_value(#val).unwrap())}
         }
-        _ => unreachable!(),
+        Either::Fourth(val) => {
+            quote! {::scalar_expr::Value::Value(::scalar_expr::to_value(#val).unwrap())}
+        }
     };
     let rhs = match &component[1].value {
-        Either::First(Cons { third, .. }) => {
+        Either::First(_) => quote! {::scalar_expr::Value::CurrentField},
+        Either::Second(Cons { third, .. }) => {
             quote! {::scalar_expr::Value::Ident(#third)}
-        }
-        Either::Second(val) => {
-            quote! {::scalar_expr::Value::Value(::scalar_expr::to_value(#val).unwrap())}
         }
         Either::Third(val) => {
             quote! {::scalar_expr::Value::Value(::scalar_expr::to_value(#val).unwrap())}
         }
-        _ => unreachable!(),
+        Either::Fourth(val) => {
+            quote! {::scalar_expr::Value::Value(::scalar_expr::to_value(#val).unwrap())}
+        }
     };
     quote! {::scalar_expr::Expression::#operator {lhs: #lhs, rhs: #rhs}}
 }

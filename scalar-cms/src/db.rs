@@ -97,6 +97,7 @@ pub trait DatabaseFactory {
 pub struct ValidationContext<'a, DB: DatabaseConnection, D: Document> {
     conn: &'a DB,
     excluded_id: &'a str,
+    field_name: &'a str,
     phantom: PhantomData<D>,
 }
 
@@ -107,23 +108,44 @@ impl<DB: DatabaseConnection, D: Document> Clone for ValidationContext<'_, DB, D>
 }
 impl<DB: DatabaseConnection, D: Document> Copy for ValidationContext<'_, DB, D> {}
 
-impl<'a, DB: DatabaseConnection, D: Document> ValidationContext<'a, DB, D> {
+impl<'a, 'b, DB: DatabaseConnection, D: Document> ValidationContext<'a, DB, D>
+where
+    'b: 'a,
+    'a: 'b,
+{
     pub fn new(conn: &'a DB, excluded_id: &'a str) -> Self {
         ValidationContext {
             conn,
             excluded_id,
+            field_name: "",
+            phantom: PhantomData,
+        }
+    }
+
+    #[must_use]
+    pub fn for_field(&self, field_name: &'b str) -> ValidationContext<'b, DB, D> {
+        Self {
+            conn: self.conn,
+            excluded_id: self.excluded_id,
+            field_name,
             phantom: PhantomData,
         }
     }
 
     pub async fn all(&self, expr: Expression) -> Result<bool, DB::Error> {
-        self.conn.vctx_all::<D>(self.excluded_id, expr).await
+        self.conn
+            .vctx_all::<D>(self.excluded_id, self.field_name, expr)
+            .await
     }
     pub async fn none(&self, expr: Expression) -> Result<bool, DB::Error> {
-        self.conn.vctx_none::<D>(self.excluded_id, expr).await
+        self.conn
+            .vctx_none::<D>(self.excluded_id, self.field_name, expr)
+            .await
     }
     pub async fn any(&self, expr: Expression) -> Result<bool, DB::Error> {
-        self.conn.vctx_any::<D>(self.excluded_id, expr).await
+        self.conn
+            .vctx_any::<D>(self.excluded_id, self.field_name, expr)
+            .await
     }
 }
 
@@ -216,16 +238,19 @@ pub trait DatabaseConnection {
     async fn vctx_all<D: Document>(
         &self,
         excl_id: &str,
+        field_name: &str,
         expression: Expression,
     ) -> Result<bool, Self::Error>;
     async fn vctx_none<D: Document>(
         &self,
         excl_id: &str,
+        field_name: &str,
         expression: Expression,
     ) -> Result<bool, Self::Error>;
     async fn vctx_any<D: Document>(
         &self,
         excl_id: &str,
+        field_name: &str,
         expression: Expression,
     ) -> Result<bool, Self::Error>;
 }

@@ -352,11 +352,11 @@ pub fn derive_document(input: TokenStream) -> TokenStream {
 
             if let Some(fn_ident) = f.with.as_ref() {
                 quote! {
-                    (#ident_str.into(), #fn_ident(&self.#ident, ctx).await)
+                    (#ident_str.into(), #fn_ident(&self.#ident, ctx.for_field(#ident_str)).await)
                 }
             } else {
                 quote! {
-                    (#ident_str.into(), ::scalar_cms::validations::Validate::validate(&self.#ident, ctx).await)
+                    (#ident_str.into(), ::scalar_cms::validations::Validate::validate(&self.#ident, ctx.for_field(#ident_str)).await)
                 }
             }
         })

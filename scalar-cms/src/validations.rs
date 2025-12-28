@@ -15,9 +15,9 @@ impl<T: Document + Sync> Valid<T> {
     /// # Errors
     ///
     /// This function will return an error if validation fails.
-    pub async fn new<'a, DB: DatabaseConnection + Sync>(
+    pub async fn new<DB: DatabaseConnection + Sync>(
         val: T,
-        ctx: ValidationContext<'a, DB, T>,
+        ctx: ValidationContext<'_, DB, T>,
     ) -> Result<Self, ValidationError> {
         val.validate(ctx).await?;
         Ok(Self(val))
@@ -77,16 +77,16 @@ pub trait Validate {
     /// # Errors
     ///
     /// This function will return an error if validation fails.
-    async fn validate<'a, DB: DatabaseConnection + Sync, D: Document + Sync>(
+    async fn validate<DB: DatabaseConnection + Sync, D: Document + Sync>(
         &self,
-        ctx: ValidationContext<'a, DB, D>,
+        ctx: ValidationContext<'_, DB, D>,
     ) -> Result<(), ValidationError>;
 }
 
 impl<T: Validate + Sync> Validate for Option<T> {
-    async fn validate<'a, DB: DatabaseConnection + Sync, D: Document + Sync>(
+    async fn validate<DB: DatabaseConnection + Sync, D: Document + Sync>(
         &self,
-        ctx: ValidationContext<'a, DB, D>,
+        ctx: ValidationContext<'_, DB, D>,
     ) -> Result<(), ValidationError> {
         match self.as_ref() {
             Some(inner) => inner.validate(ctx).await,

@@ -73,7 +73,7 @@ impl Validate for Slug {
                     "slugs can only contain alphanumeic characters, -, and _.".into(),
                 )
             })?;
-        ctx.none(expression!(field:"slug" == self.0))
+        ctx.none(expression!($current == self.0))
             .await
             .unwrap()
             .then_some(())

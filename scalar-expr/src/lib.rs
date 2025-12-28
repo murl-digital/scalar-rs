@@ -1,5 +1,6 @@
 #[derive(Debug)]
 pub enum Value {
+    CurrentField,
     Ident(&'static str),
     Value(serde_json::Value),
 }

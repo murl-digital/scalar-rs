@@ -534,9 +534,10 @@ impl<C: Connection + Debug> scalar_cms::DatabaseConnection for SurrealConnection
     async fn vctx_all<D: Document>(
         &self,
         excl_id: &str,
+        field_name: &str,
         expression: Expression,
     ) -> Result<bool, Self::Error> {
-        let (bindings, where_clause) = compile_expression(expression);
+        let (bindings, where_clause) = compile_expression(field_name, expression);
         let mut resp = bindings
             .into_iter()
             .fold(
@@ -562,9 +563,10 @@ impl<C: Connection + Debug> scalar_cms::DatabaseConnection for SurrealConnection
     async fn vctx_none<D: Document>(
         &self,
         excl_id: &str,
+        field_name: &str,
         expression: Expression,
     ) -> Result<bool, Self::Error> {
-        let (bindings, where_clause) = compile_expression(expression);
+        let (bindings, where_clause) = compile_expression(field_name, expression);
         let mut resp = bindings
             .into_iter()
             .fold(
@@ -585,9 +587,10 @@ impl<C: Connection + Debug> scalar_cms::DatabaseConnection for SurrealConnection
     async fn vctx_any<D: Document>(
         &self,
         excl_id: &str,
+        field_name: &str,
         expression: Expression,
     ) -> Result<bool, Self::Error> {
-        let (bindings, where_clause) = compile_expression(expression);
+        let (bindings, where_clause) = compile_expression(field_name, expression);
         let mut resp = bindings
             .into_iter()
             .fold(
@@ -607,30 +610,33 @@ impl<C: Connection + Debug> scalar_cms::DatabaseConnection for SurrealConnection
     }
 }
 
-fn compile_expression(expression: Expression) -> (Vec<(String, serde_json::Value)>, String) {
+fn compile_expression(
+    field_name: &str,
+    expression: Expression,
+) -> (Vec<(String, serde_json::Value)>, String) {
     let mut bindings = Vec::new();
     let where_clause = match expression {
         Expression::Equals { lhs, rhs } => format!(
             "{} = {}",
-            resolve_value(&mut bindings, lhs),
-            resolve_value(&mut bindings, rhs)
+            resolve_value(&mut bindings, field_name, lhs),
+            resolve_value(&mut bindings, field_name, rhs)
         ),
         Expression::NotEquals { lhs, rhs } => format!(
             "{} != {}",
-            resolve_value(&mut bindings, lhs),
-            resolve_value(&mut bindings, rhs)
+            resolve_value(&mut bindings, field_name, lhs),
+            resolve_value(&mut bindings, field_name, rhs)
         ),
         Expression::And { lhs, rhs } => {
-            let (left_bindings, left_inner) = compile_expression(*lhs);
+            let (left_bindings, left_inner) = compile_expression(field_name, *lhs);
             bindings.extend(left_bindings);
-            let (right_bindings, right_inner) = compile_expression(*rhs);
+            let (right_bindings, right_inner) = compile_expression(field_name, *rhs);
             bindings.extend(right_bindings);
             format!("({left_inner} AND {right_inner})")
         }
         Expression::Or { lhs, rhs } => {
-            let (left_bindings, left_inner) = compile_expression(*lhs);
+            let (left_bindings, left_inner) = compile_expression(field_name, *lhs);
             bindings.extend(left_bindings);
-            let (right_bindings, right_inner) = compile_expression(*rhs);
+            let (right_bindings, right_inner) = compile_expression(field_name, *rhs);
             bindings.extend(right_bindings);
             format!("({left_inner} OR {right_inner})")
         }
@@ -641,9 +647,11 @@ fn compile_expression(expression: Expression) -> (Vec<(String, serde_json::Value
 
 fn resolve_value(
     bindings: &mut Vec<(String, serde_json::Value)>,
+    field_name: &str,
     value: scalar_cms::expr::Value,
 ) -> String {
     match value {
+        scalar_cms::expr::Value::CurrentField => format!("inner.{field_name}"),
         // all fields are on the inner object, so we gotta adapt
         scalar_cms::expr::Value::Ident(ident) => format!("inner.{ident}"),
         scalar_cms::expr::Value::Value(value) => {
