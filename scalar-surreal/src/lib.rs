@@ -644,7 +644,8 @@ fn resolve_value(
     value: scalar_cms::expr::Value,
 ) -> String {
     match value {
-        scalar_cms::expr::Value::Ident(ident) => ident.to_string(),
+        // all fields are on the inner object, so we gotta adapt
+        scalar_cms::expr::Value::Ident(ident) => format!("inner.{ident}"),
         scalar_cms::expr::Value::Value(value) => {
             let binding_name = format!("b{}", bindings.len());
             bindings.push((binding_name.clone(), value));
