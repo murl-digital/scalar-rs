@@ -54,8 +54,8 @@ pub struct ImageData<D: ToEditorField> {
 
 pub type Image = ImageData<Null>;
 
-impl<D: ToEditorField + Validate> Validate for ImageData<D> {
-    async fn validate<DB: DatabaseConnection + Sync, DD: Document>(
+impl<D: ToEditorField + Validate + Sync> Validate for ImageData<D> {
+    async fn validate<DB: DatabaseConnection + Sync, DD: Document + Sync>(
         &self,
         ctx: ValidationContext<'_, DB, DD>,
     ) -> Result<(), scalar_cms::validations::ValidationError> {
@@ -112,8 +112,8 @@ impl<const VALIDATE: bool, D: ToEditorField> CroppedImageData<D, VALIDATE> {
     }
 }
 
-impl<D: ToEditorField + Validate> Validate for CroppedImageData<D, true> {
-    async fn validate<DB: DatabaseConnection + Sync, DD: Document>(
+impl<D: ToEditorField + Validate + Sync> Validate for CroppedImageData<D, true> {
+    async fn validate<DB: DatabaseConnection + Sync, DD: Document + Sync>(
         &self,
         ctx: ValidationContext<'_, DB, DD>,
     ) -> Result<(), scalar_cms::validations::ValidationError> {
@@ -121,7 +121,7 @@ impl<D: ToEditorField + Validate> Validate for CroppedImageData<D, true> {
     }
 }
 
-impl<D: ToEditorField> Validate for CroppedImageData<D, false> {
+impl<D: ToEditorField + Send + Sync> Validate for CroppedImageData<D, false> {
     async fn validate<DB: DatabaseConnection, DD: Document>(
         &self,
         _ctx: ValidationContext<'_, DB, DD>,
@@ -139,8 +139,8 @@ pub struct FileData<D: ToEditorField> {
 
 pub type File = FileData<Null>;
 
-impl<D: ToEditorField + Validate> Validate for FileData<D> {
-    async fn validate<DB: DatabaseConnection + Sync, DD: Document>(
+impl<D: ToEditorField + Validate + Send + Sync> Validate for FileData<D> {
+    async fn validate<DB: DatabaseConnection + Sync, DD: Document + Send + Sync>(
         &self,
         ctx: ValidationContext<'_, DB, DD>,
     ) -> Result<(), scalar_cms::validations::ValidationError> {

@@ -343,7 +343,7 @@ impl<C: Connection + Debug> scalar_cms::DatabaseConnection for SurrealConnection
     }
 
     #[tracing::instrument(level = "debug", skip(conn))]
-    async fn publish<D: Document + Send + Serialize + DeserializeOwned + 'static>(
+    async fn publish<D: Document + Send + Sync + Serialize + DeserializeOwned + 'static>(
         conn: &Authenticated<Self>,
         id: &str,
         publish_at: Option<DateTime<Utc>>,

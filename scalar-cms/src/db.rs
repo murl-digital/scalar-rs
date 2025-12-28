@@ -186,7 +186,7 @@ pub trait DatabaseConnection {
         id: &str,
     ) -> Result<Item<serde_json::Value>, Self::Error>;
 
-    async fn publish<D: Document + Send + Serialize + DeserializeOwned + 'static>(
+    async fn publish<D: Document + Send + Sync + Serialize + DeserializeOwned + 'static>(
         conn: &Authenticated<Self>,
         id: &str,
         publish_at: Option<DateTime<Utc>>,

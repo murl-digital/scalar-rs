@@ -301,7 +301,7 @@ pub struct ValidateQueryParams {
 /// This function will return an error if [`Document::validate`] returns an error.
 #[allow(clippy::unused_async)]
 // this has to be async for axum
-pub async fn validate<F: DatabaseFactory, D: Document>(
+pub async fn validate<F: DatabaseFactory, D: Document + Send + Sync>(
     AuthenticatedConnection(conn): AuthenticatedConnection<F>,
     Query(ValidateQueryParams { id }): Query<ValidateQueryParams>,
     Json(doc): Json<D>,
@@ -402,7 +402,7 @@ pub struct PublishParams<D> {
 ///
 /// This function will return an error if the document is invalid (determined by [`Document::validate`]), or if the database fails to commit the publish.
 pub async fn publish_doc<
-    D: Document + Serialize + DeserializeOwned + Send + 'static,
+    D: Document + Serialize + DeserializeOwned + Send + Sync + 'static,
     F: DatabaseFactory,
 >(
     Path(id): Path<String>,

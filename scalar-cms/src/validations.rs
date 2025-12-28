@@ -9,7 +9,7 @@ use crate::{db::ValidationContext, DatabaseConnection, Document};
 #[serde(transparent)]
 pub struct Valid<T: Document>(T);
 
-impl<T: Document> Valid<T> {
+impl<T: Document + Sync> Valid<T> {
     /// Validates the input, then returns a Valid<T>.
     ///
     /// # Errors
@@ -70,20 +70,21 @@ pub struct ErroredField {
     note = "all document fields are validated by default",
     note = "if validation isn't necesarry, use #[validate(skip)]"
 )]
+#[trait_variant::make(Send + Sized)]
 pub trait Validate {
     /// Validates the thing.
     ///
     /// # Errors
     ///
     /// This function will return an error if validation fails.
-    async fn validate<'a, DB: DatabaseConnection + Sync, D: Document>(
+    async fn validate<'a, DB: DatabaseConnection + Sync, D: Document + Sync>(
         &self,
         ctx: ValidationContext<'a, DB, D>,
     ) -> Result<(), ValidationError>;
 }
 
 impl<T: Validate + Sync> Validate for Option<T> {
-    async fn validate<'a, DB: DatabaseConnection + Sync, D: Document>(
+    async fn validate<'a, DB: DatabaseConnection + Sync, D: Document + Sync>(
         &self,
         ctx: ValidationContext<'a, DB, D>,
     ) -> Result<(), ValidationError> {
