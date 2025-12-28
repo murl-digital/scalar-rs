@@ -15,7 +15,7 @@ impl<T: Document> Valid<T> {
     /// # Errors
     ///
     /// This function will return an error if validation fails.
-    pub async fn new<'a, DB: DatabaseConnection>(
+    pub async fn new<'a, DB: DatabaseConnection + Sync>(
         val: T,
         ctx: ValidationContext<'a, DB, T>,
     ) -> Result<Self, ValidationError> {
@@ -76,14 +76,14 @@ pub trait Validate {
     /// # Errors
     ///
     /// This function will return an error if validation fails.
-    async fn validate<'a, DB: DatabaseConnection, D: Document>(
+    async fn validate<'a, DB: DatabaseConnection + Sync, D: Document>(
         &self,
         ctx: ValidationContext<'a, DB, D>,
     ) -> Result<(), ValidationError>;
 }
 
-impl<T: Validate> Validate for Option<T> {
-    async fn validate<'a, DB: DatabaseConnection, D: Document>(
+impl<T: Validate + Sync> Validate for Option<T> {
+    async fn validate<'a, DB: DatabaseConnection + Sync, D: Document>(
         &self,
         ctx: ValidationContext<'a, DB, D>,
     ) -> Result<(), ValidationError> {
@@ -126,7 +126,7 @@ macro_rules! validator {
         }
 
         impl Validate for $ty {
-            async fn validate<DB: DatabaseConnection, D: Document>(
+            async fn validate<DB: DatabaseConnection + Sync, D: Document>(
                 &self,
                 _ctx: ValidationContext<'_, DB, D>,
             ) -> Result<(), ValidationError> {

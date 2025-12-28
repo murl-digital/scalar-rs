@@ -60,7 +60,7 @@ pub struct Slug(pub String);
 deref!(Slug > str);
 
 impl Validate for Slug {
-    async fn validate<DB: DatabaseConnection, D: Document>(
+    async fn validate<DB: DatabaseConnection + Sync, D: Document>(
         &self,
         ctx: ValidationContext<'_, DB, D>,
     ) -> Result<(), crate::validations::ValidationError> {

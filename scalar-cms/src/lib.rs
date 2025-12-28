@@ -85,7 +85,7 @@ pub struct Item<D> {
 }
 
 impl<D: Document> Validate for Item<D> {
-    async fn validate<DB: DatabaseConnection, DD: Document>(
+    async fn validate<DB: DatabaseConnection + Sync, DD: Document>(
         &self,
         ctx: ValidationContext<'_, DB, DD>,
     ) -> Result<(), validations::ValidationError> {
