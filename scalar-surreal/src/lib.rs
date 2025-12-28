@@ -678,8 +678,9 @@ impl<C: Connection + Debug> SurrealConnection<C> {
         self
             // published documents
             .query(format!("DEFINE TABLE OVERWRITE {published_table} SCHEMAFULL PERMISSIONS FOR select WHERE true FOR create, update, delete WHERE $auth.id IS NOT NONE"))
-            .query(format!("DEFINE FIELD IF NOT EXISTS published_at ON {published_table} TYPE datetime DEFAULT time::now()"))
+            .query(format!("DEFINE FIELD OVERWRITE published_at ON {published_table} TYPE datetime DEFAULT time::now()"))
             .query(format!("DEFINE FIELD IF NOT EXISTS inner ON {published_table} FLEXIBLE TYPE object"))
+            .query(format!("UPDATE {published_table} SET published_at = time::now() WHERE published_at = NONE"))
             // drafts
             .query(format!("DEFINE TABLE OVERWRITE {draft_table} SCHEMAFULL PERMISSIONS FOR select, create, update, delete WHERE $auth.id IS NOT NONE"))
             .query(format!("DEFINE FIELD IF NOT EXISTS inner ON {draft_table} FLEXIBLE TYPE object"))
